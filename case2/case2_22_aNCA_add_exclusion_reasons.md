@@ -1,0 +1,263 @@
+# Case2 22: pharmaverse/aNCA/add_exclusion_reasons
+
+## Metadata
+- Task ID: `pharmaverse/aNCA/add_exclusion_reasons`
+- Package: `aNCA`
+- Model: `openai/gpt-5.1`
+- Status: `NO_OUTPUT`
+- Failure stage: `execution_failure`
+
+## Pass/Error
+```text
+The generated code failed while running before valid outputs could be evaluated.
+
+Main signal:
+missing artifacts: result.csv.
+```
+
+## Prompt
+```text
+Write an R script for an R package task: perform add exclusion reasons using the aNCA package. The function(s) you use to solve the task must come from the aNCA package.
+
+Input: exclusion_list.tsv, pknca_data.tsv
+Output: result.csv
+
+Computation: Do not filter rows for result.csv. Preserve the pknca_data table view and original required columns; exclusion_list.tsv only describes reasons to attach in the object workflow.
+
+
+Required columns for result.csv: USUBJID, STUDYID, PARAMCD, PARAM, AVAL, AVISITN, AVISIT, ADT, ANL01FL, BASE, CHG, PCHG, ABLFL
+Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### exclusion_list.tsv
+x
+SYSBP
+DIABP
+PULSE
+WEIGHT
+HEIGHT
+
+### pknca_data.tsv
+USUBJID	STUDYID	PARAMCD	PARAM	AVAL	AVISITN	AVISIT	ADT	ANL01FL	BASE	CHG	PCHG	ABLFL
+CDISCPILOT01-01-701-1015	CDISCPILOT01	SYSBP	SYSBP (mmHg)	95.11	0	Baseline	2020-01-15	Y	94.9	0.21	0.2185	Y
+CDISCPILOT01-01-701-1015	CDISCPILOT01	SYSBP	SYSBP (mmHg)	95.56	4	Week 4	2020-02-15	Y	94.9	0.66	0.6927	
+CDISCPILOT01-01-701-1015	CDISCPILOT01	SYSBP	SYSBP (mmHg)	97.18	12	Week 12	2020-04-15	Y	94.9	2.28	2.3997	
+CDISCPILOT01-01-701-1015	CDISCPILOT01	DIABP	DIABP (mmHg)	65.74	0	Baseline	2020-01-15	Y	64.87	0.87	1.3419	Y
+CDISCPILOT01-01-701-1015	CDISCPILOT01	DIABP	DIABP (mmHg)	64.3	4	Week 4	2020-02-15	Y	64.87	-0.57	-0.8779	
+... [49 more lines omitted]
+```
+
+## Input
+#### `exclusion_list.tsv`
+
+```text
+x
+SYSBP
+DIABP
+PULSE
+WEIGHT
+HEIGHT
+```
+
+#### `pknca_data.tsv`
+
+```text
+USUBJID	STUDYID	PARAMCD	PARAM	AVAL	AVISITN	AVISIT	ADT	ANL01FL	BASE	CHG	PCHG	ABLFL
+CDISCPILOT01-01-701-1015	CDISCPILOT01	SYSBP	SYSBP (mmHg)	95.11	0	Baseline	2020-01-15	Y	94.9	0.21	0.2185	Y
+CDISCPILOT01-01-701-1015	CDISCPILOT01	SYSBP	SYSBP (mmHg)	95.56	4	Week 4	2020-02-15	Y	94.9	0.66	0.6927	
+CDISCPILOT01-01-701-1015	CDISCPILOT01	SYSBP	SYSBP (mmHg)	97.18	12	Week 12	2020-04-15	Y	94.9	2.28	2.3997	
+CDISCPILOT01-01-701-1015	CDISCPILOT01	DIABP	DIABP (mmHg)	65.74	0	Baseline	2020-01-15	Y	64.87	0.87	1.3419	Y
+CDISCPILOT01-01-701-1015	CDISCPILOT01	DIABP	DIABP (mmHg)	64.3	4	Week 4	2020-02-15	Y	64.87	-0.57	-0.8779	
+CDISCPILOT01-01-701-1015	CDISCPILOT01	DIABP	DIABP (mmHg)	63.34	12	Week 12	2020-04-15	Y	64.87	-1.53	-2.3578	
+CDISCPILOT01-01-701-1015	CDISCPILOT01	PULSE	PULSE (beats/min)	84.35	0	Baseline	2020-01-15	Y	85.5	-1.15	-1.3422	Y
+CDISCPILOT01-01-701-1015	CDISCPILOT01	PULSE	PULSE (beats/min)	87.36	4	Week 4	2020-02-15	Y	85.5	1.86	2.1784	
+CDISCPILOT01-01-701-1015	CDISCPILOT01	PULSE	PULSE (beats/min)	85.97	12	Week 12	2020-04-15	Y	85.5	0.47	0.5526	
+CDISCPILOT01-01-701-1023	CDISCPILOT01	SYSBP	SYSBP (mmHg)	128.12	0	Baseline	2020-01-15	Y	127.59	0.53	0.4188	Y
+CDISCPILOT01-01-701-1023	CDISCPILOT01	SYSBP	SYSBP (mmHg)	129.0	4	Week 4	2020-02-15	Y	127.59	1.41	1.1085	
+CDISCPILOT01-01-701-1023	CDISCPILOT01	SYSBP	SYSBP (mmHg)	127.94	12	Week 12	2020-04-15	Y	127.59	0.35	0.2777	
+CDISCPILOT01-01-701-1023	CDISCPILOT01	DIABP	DIABP (mmHg)	84.32	0	Baseline	2020-01-15	Y	83.92	0.4	0.4743	Y
+CDISCPILOT01-01-701-1023	CDISCPILOT01	DIABP	DIABP (mmHg)	84.46	4	Week 4	2020-02-15	Y	83.92	0.54	0.6411	
+CDISCPILOT01-01-701-1023	CDISCPILOT01	DIABP	DIABP (mmHg)	85.16	12	Week 12	2020-04-15	Y	83.92	1.24	1.4752	
+CDISCPILOT01-01-701-1023	CDISCPILOT01	PULSE	PULSE (beats/min)	61.09	0	Baseline	2020-01-15	Y	63.14	-2.05	-3.2402	Y
+CDISCPILOT01-01-701-1023	CDISCPILOT01	PULSE	PULSE (beats/min)	62.02	4	Week 4	2020-02-15	Y	63.14	-1.12	-1.7671	
+CDISCPILOT01-01-701-1023	CDISCPILOT01	PULSE	PULSE (beats/min)	64.5	12	Week 12	2020-04-15	Y	63.14	1.36	2.1609	
+CDISCPILOT01-01-701-1028	CDISCPILOT01	SYSBP	SYSBP (mmHg)	99.69	0	Baseline	2020-01-15	Y	98.14	1.55	1.5825	Y
+CDISCPILOT01-01-701-1028	CDISCPILOT01	SYSBP	SYSBP (mmHg)	96.46	4	Week 4	2020-02-15	Y	98.14	-1.68	-1.7088	
+CDISCPILOT01-01-701-1028	CDISCPILOT01	SYSBP	SYSBP (mmHg)	97.29	12	Week 12	2020-04-15	Y	98.14	-0.85	-0.863	
+CDISCPILOT01-01-701-1028	CDISCPILOT01	DIABP	DIABP (mmHg)	80.41	0	Baseline	2020-01-15	Y	80.51	-0.1	-0.1184	Y
+CDISCPILOT01-01-701-1028	CDISCPILOT01	DIABP	DIABP (mmHg)	80.05	4	Week 4	2020-02-15	Y	80.51	-0.46	-0.5656	
+CDISCPILOT01-01-701-1028	CDISCPILOT01	DIABP	DIABP (mmHg)	80.93	12	Week 12	2020-04-15	Y	80.51	0.42	0.5275	
+CDISCPILOT01-01-701-1028	CDISCPILOT01	PULSE	PULSE (beats/min)	88.34	0	Baseline	2020-01-15	Y	89.75	-1.41	-1.568	Y
+CDISCPILOT01-01-701-1028	CDISCPILOT01	PULSE	PULSE (beats/min)	90.31	4	Week 4	2020-02-15	Y	89.75	0.56	0.6271	
+CDISCPILOT01-01-701-1028	CDISCPILOT01	PULSE	PULSE (beats/min)	94.56	12	Week 12	2020-04-15	Y	89.75	4.81	5.3626	
+CDISCPILOT01-01-701-1033	CDISCPILOT01	SYSBP	SYSBP (mmHg)	130.22	0	Baseline	2020-01-15	Y	129.34	0.88	0.6766	Y
+CDISCPILOT01-01-701-1033	CDISCPILOT01	SYSBP	SYSBP (mmHg)	129.86	4	Week 4	2020-02-15	Y	129.34	0.52	0.3983	
+CDISCPILOT01-01-701-1033	CDISCPILOT01	SYSBP	SYSBP (mmHg)	130.94	12	Week 12	2020-04-15	Y	129.34	1.6	1.2332	
+CDISCPILOT01-01-701-1033	CDISCPILOT01	DIABP	DIABP (mmHg)	86.09	0	Baseline	2020-01-15	Y	87.37	-1.28	-1.4688	Y
+CDISCPILOT01-01-701-1033	CDISCPILOT01	DIABP	DIABP (mmHg)	88.13	4	Week 4	2020-02-15	Y	87.37	0.76	0.866	
+CDISCPILOT01-01-701-1033	CDISCPILOT01	DIABP	DIABP (mmHg)	87.45	12	Week 12	2020-04-15	Y	87.37	0.08	0.0878	
+CDISCPILOT01-01-701-1033	CDISCPILOT01	PULSE	PULSE (beats/min)	98.53	0	Baseline	2020-01-15	Y	99.01	-0.48	-0.4825	Y
+CDISCPILOT01-01-701-1033	CDISCPILOT01	PULSE	PULSE (beats/min)	101.82	4	Week 4	2020-02-15	Y	99.01	2.81	2.8405	
+CDISCPILOT01-01-701-1033	CDISCPILOT01	PULSE	PULSE (beats/min)	96.41	12	Week 12	2020-04-15	Y	99.01	-2.6	-2.6237	
+CDISCPILOT01-01-701-1034	CDISCPILOT01	SYSBP	SYSBP (mmHg)	99.67	0	Baseline	2020-01-15	Y	101.1	-1.43	-1.4103	Y
+CDISCPILOT01-01-701-1034	CDISCPILOT01	SYSBP	SYSBP (mmHg)	99.34	4	Week 4	2020-02-15	Y	101.1	-1.76	-1.7367	
+CDISCPILOT01-01-701-1034	CDISCPILOT01	SYSBP	SYSBP (mmHg)	102.67	12	Week 12	2020-04-15	Y	101.1	1.57	1.5572	
+CDISCPILOT01-01-701-1034	CDISCPILOT01	DIABP	DIABP (mmHg)	80.7	0	Baseline	2020-01-15	Y	80.91	-0.21	-0.2548	Y
+CDISCPILOT01-01-701-1034	CDISCPILOT01	DIABP	DIABP (mmHg)	79.85	4	Week 4	2020-02-15	Y	80.91	-1.06	-1.3054	
+CDISCPILOT01-01-701-1034	CDISCPILOT01	DIABP	DIABP (mmHg)	81.5	12	Week 12	2020-04-15	Y	80.91	0.59	0.734	
+CDISCPILOT01-01-701-1034	CDISCPILOT01	PULSE	PULSE (beats/min)	62.32	0	Baseline	2020-01-15	Y	67.19	-4.87	-7.2438	Y
+CDISCPILOT01-01-701-1034	CDISCPILOT01	PULSE	PULSE (beats/min)	68.76	4	Week 4	2020-02-15	Y	67.19	1.57	2.3414	
+CDISCPILOT01-01-701-1034	CDISCPILOT01	PULSE	PULSE (beats/min)	65.82	12	Week 12	2020-04-15	Y	67.19	-1.37	-2.0344	
+CDISCPILOT01-01-701-1047	CDISCPILOT01	SYSBP	SYSBP (mmHg)	120.91	0	Baseline	2020-01-15	Y	119.14	1.77	1.4882	Y
+CDISCPILOT01-01-701-1047	CDISCPILOT01	SYSBP	SYSBP (mmHg)	121.05	4	Week 4	2020-02-15	Y	119.14	1.91	1.6058	
+CDISCPILOT01-01-701-1047	CDISCPILOT01	SYSBP	SYSBP (mmHg)	114.43	12	Week 12	2020-04-15	Y	119.14	-4.71	-3.9509	
+CDISCPILOT01-01-701-1047	CDISCPILOT01	DIABP	DIABP (mmHg)	67.11	0	Baseline	2020-01-15	Y	67.01	0.1	0.1471	Y
+CDISCPILOT01-01-701-1047	CDISCPILOT01	DIABP	DIABP (mmHg)	65.06	4	Week 4	2020-02-15	Y	67.01	-1.95	-2.9121	
+CDISCPILOT01-01-701-1047	CDISCPILOT01	DIABP	DIABP (mmHg)	67.51	12	Week 12	2020-04-15	Y	67.01	0.5	0.744	
+CDISCPILOT01-01-701-1047	CDISCPILOT01	PULSE	PULSE (beats/min)	78.6	0	Baseline	2020-01-15	Y	82.07	-3.47	-4.2335	Y
+CDISCPILOT01-01-701-1047	CDISCPILOT01	PULSE	PULSE (beats/min)	84.48	4	Week 4	2020-02-15	Y	82.07	2.41	2.9307	
+CDISCPILOT01-01-701-1047	CDISCPILOT01	PULSE	PULSE (beats/min)	81.41	12	Week 12	2020-04-15	Y	82.07	-0.66	-0.8098
+```
+
+## Code
+### Ground Truth Code
+
+```r
+read_table <- function(name) {
+  read.delim(file.path("inputs", name), check.names = FALSE, stringsAsFactors = FALSE)
+}
+
+pknca_data <- read_table("pknca_data.tsv")
+exclusion_list <- read_table("exclusion_list.tsv")
+result <- pknca_data
+
+row_col <- intersect(names(exclusion_list), c("row", "rows", "index", "indices"))
+reason_col <- intersect(names(exclusion_list), c("reason", "reasons", "exclude", "exclusion_reason"))
+if (length(row_col) > 0 && length(reason_col) > 0) {
+  if (!"exclude" %in% names(result)) result$exclude <- ""
+  rows <- suppressWarnings(as.integer(exclusion_list[[row_col[[1]]]]))
+  reasons <- as.character(exclusion_list[[reason_col[[1]]]])
+  for (i in seq_along(rows)) {
+    row <- rows[[i]]
+    if (!is.na(row) && row >= 1 && row <= nrow(result)) {
+      previous <- result$exclude[[row]]
+      result$exclude[[row]] <- ifelse(nzchar(previous), paste(previous, reasons[[i]], sep = "; "), reasons[[i]])
+    }
+  }
+}
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
+```
+
+### LLM Generated Code
+```r
+#!/usr/bin/env Rscript
+
+suppressPackageStartupMessages({
+  library(aNCA)
+})
+
+# Create outputs directory if it does not exist
+if (!dir.exists("outputs")) {
+  dir.create("outputs", recursive = TRUE)
+}
+
+# Read input files
+excl <- read.delim("inputs/exclusion_list.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+pknca <- read.delim("inputs/pknca_data.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+# Ensure date column is Date class if needed
+if (!inherits(pknca$ADT, "Date")) {
+  pknca$ADT <- as.Date(pknca$ADT)
+}
+
+# Use aNCA to attach exclusion reasons based on exclusion_list
+# (exclusion_list used only in the object workflow; no row filtering)
+aNCA_obj <- aNCA::analyze_nca(data = pknca,
+                              exclusion_list = excl,
+                              keep_all = TRUE)
+
+# Extract the underlying data preserving original rows/columns
+# Assuming aNCA provides a function to get data with attached metadata; keep data as-is
+result <- aNCA_obj$data
+
+# Keep only required columns in specified order
+required_cols <- c(
+  "USUBJID", "STUDYID", "PARAMCD", "PARAM", "AVAL",
+  "AVISITN", "AVISIT", "ADT", "ANL01FL", "BASE", "CHG",
+  "PCHG", "ABLFL"
+)
+
+# Subset and reorder columns if they exist
+result_out <- result[, required_cols]
+
+# Write output as CSV
+write.csv(result_out, file = "outputs/result.csv", row.names = FALSE)
+```
+
+## Output
+### Ground Truth Output
+#### `result.csv`
+
+```csv
+"USUBJID","STUDYID","PARAMCD","PARAM","AVAL","AVISITN","AVISIT","ADT","ANL01FL","BASE","CHG","PCHG","ABLFL"
+"CDISCPILOT01-01-701-1015","CDISCPILOT01","SYSBP","SYSBP (mmHg)",95.11,0,"Baseline","2020-01-15","Y",94.9,0.21,0.2185,"Y"
+"CDISCPILOT01-01-701-1015","CDISCPILOT01","SYSBP","SYSBP (mmHg)",95.56,4,"Week 4","2020-02-15","Y",94.9,0.66,0.6927,""
+"CDISCPILOT01-01-701-1015","CDISCPILOT01","SYSBP","SYSBP (mmHg)",97.18,12,"Week 12","2020-04-15","Y",94.9,2.28,2.3997,""
+"CDISCPILOT01-01-701-1015","CDISCPILOT01","DIABP","DIABP (mmHg)",65.74,0,"Baseline","2020-01-15","Y",64.87,0.87,1.3419,"Y"
+"CDISCPILOT01-01-701-1015","CDISCPILOT01","DIABP","DIABP (mmHg)",64.3,4,"Week 4","2020-02-15","Y",64.87,-0.57,-0.8779,""
+"CDISCPILOT01-01-701-1015","CDISCPILOT01","DIABP","DIABP (mmHg)",63.34,12,"Week 12","2020-04-15","Y",64.87,-1.53,-2.3578,""
+"CDISCPILOT01-01-701-1015","CDISCPILOT01","PULSE","PULSE (beats/min)",84.35,0,"Baseline","2020-01-15","Y",85.5,-1.15,-1.3422,"Y"
+"CDISCPILOT01-01-701-1015","CDISCPILOT01","PULSE","PULSE (beats/min)",87.36,4,"Week 4","2020-02-15","Y",85.5,1.86,2.1784,""
+"CDISCPILOT01-01-701-1015","CDISCPILOT01","PULSE","PULSE (beats/min)",85.97,12,"Week 12","2020-04-15","Y",85.5,0.47,0.5526,""
+"CDISCPILOT01-01-701-1023","CDISCPILOT01","SYSBP","SYSBP (mmHg)",128.12,0,"Baseline","2020-01-15","Y",127.59,0.53,0.4188,"Y"
+"CDISCPILOT01-01-701-1023","CDISCPILOT01","SYSBP","SYSBP (mmHg)",129,4,"Week 4","2020-02-15","Y",127.59,1.41,1.1085,""
+"CDISCPILOT01-01-701-1023","CDISCPILOT01","SYSBP","SYSBP (mmHg)",127.94,12,"Week 12","2020-04-15","Y",127.59,0.35,0.2777,""
+"CDISCPILOT01-01-701-1023","CDISCPILOT01","DIABP","DIABP (mmHg)",84.32,0,"Baseline","2020-01-15","Y",83.92,0.4,0.4743,"Y"
+"CDISCPILOT01-01-701-1023","CDISCPILOT01","DIABP","DIABP (mmHg)",84.46,4,"Week 4","2020-02-15","Y",83.92,0.54,0.6411,""
+"CDISCPILOT01-01-701-1023","CDISCPILOT01","DIABP","DIABP (mmHg)",85.16,12,"Week 12","2020-04-15","Y",83.92,1.24,1.4752,""
+"CDISCPILOT01-01-701-1023","CDISCPILOT01","PULSE","PULSE (beats/min)",61.09,0,"Baseline","2020-01-15","Y",63.14,-2.05,-3.2402,"Y"
+"CDISCPILOT01-01-701-1023","CDISCPILOT01","PULSE","PULSE (beats/min)",62.02,4,"Week 4","2020-02-15","Y",63.14,-1.12,-1.7671,""
+"CDISCPILOT01-01-701-1023","CDISCPILOT01","PULSE","PULSE (beats/min)",64.5,12,"Week 12","2020-04-15","Y",63.14,1.36,2.1609,""
+"CDISCPILOT01-01-701-1028","CDISCPILOT01","SYSBP","SYSBP (mmHg)",99.69,0,"Baseline","2020-01-15","Y",98.14,1.55,1.5825,"Y"
+"CDISCPILOT01-01-701-1028","CDISCPILOT01","SYSBP","SYSBP (mmHg)",96.46,4,"Week 4","2020-02-15","Y",98.14,-1.68,-1.7088,""
+"CDISCPILOT01-01-701-1028","CDISCPILOT01","SYSBP","SYSBP (mmHg)",97.29,12,"Week 12","2020-04-15","Y",98.14,-0.85,-0.863,""
+"CDISCPILOT01-01-701-1028","CDISCPILOT01","DIABP","DIABP (mmHg)",80.41,0,"Baseline","2020-01-15","Y",80.51,-0.1,-0.1184,"Y"
+"CDISCPILOT01-01-701-1028","CDISCPILOT01","DIABP","DIABP (mmHg)",80.05,4,"Week 4","2020-02-15","Y",80.51,-0.46,-0.5656,""
+"CDISCPILOT01-01-701-1028","CDISCPILOT01","DIABP","DIABP (mmHg)",80.93,12,"Week 12","2020-04-15","Y",80.51,0.42,0.5275,""
+"CDISCPILOT01-01-701-1028","CDISCPILOT01","PULSE","PULSE (beats/min)",88.34,0,"Baseline","2020-01-15","Y",89.75,-1.41,-1.568,"Y"
+"CDISCPILOT01-01-701-1028","CDISCPILOT01","PULSE","PULSE (beats/min)",90.31,4,"Week 4","2020-02-15","Y",89.75,0.56,0.6271,""
+"CDISCPILOT01-01-701-1028","CDISCPILOT01","PULSE","PULSE (beats/min)",94.56,12,"Week 12","2020-04-15","Y",89.75,4.81,5.3626,""
+"CDISCPILOT01-01-701-1033","CDISCPILOT01","SYSBP","SYSBP (mmHg)",130.22,0,"Baseline","2020-01-15","Y",129.34,0.88,0.6766,"Y"
+"CDISCPILOT01-01-701-1033","CDISCPILOT01","SYSBP","SYSBP (mmHg)",129.86,4,"Week 4","2020-02-15","Y",129.34,0.52,0.3983,""
+"CDISCPILOT01-01-701-1033","CDISCPILOT01","SYSBP","SYSBP (mmHg)",130.94,12,"Week 12","2020-04-15","Y",129.34,1.6,1.2332,""
+"CDISCPILOT01-01-701-1033","CDISCPILOT01","DIABP","DIABP (mmHg)",86.09,0,"Baseline","2020-01-15","Y",87.37,-1.28,-1.4688,"Y"
+"CDISCPILOT01-01-701-1033","CDISCPILOT01","DIABP","DIABP (mmHg)",88.13,4,"Week 4","2020-02-15","Y",87.37,0.76,0.866,""
+"CDISCPILOT01-01-701-1033","CDISCPILOT01","DIABP","DIABP (mmHg)",87.45,12,"Week 12","2020-04-15","Y",87.37,0.08,0.0878,""
+"CDISCPILOT01-01-701-1033","CDISCPILOT01","PULSE","PULSE (beats/min)",98.53,0,"Baseline","2020-01-15","Y",99.01,-0.48,-0.4825,"Y"
+"CDISCPILOT01-01-701-1033","CDISCPILOT01","PULSE","PULSE (beats/min)",101.82,4,"Week 4","2020-02-15","Y",99.01,2.81,2.8405,""
+"CDISCPILOT01-01-701-1033","CDISCPILOT01","PULSE","PULSE (beats/min)",96.41,12,"Week 12","2020-04-15","Y",99.01,-2.6,-2.6237,""
+"CDISCPILOT01-01-701-1034","CDISCPILOT01","SYSBP","SYSBP (mmHg)",99.67,0,"Baseline","2020-01-15","Y",101.1,-1.43,-1.4103,"Y"
+"CDISCPILOT01-01-701-1034","CDISCPILOT01","SYSBP","SYSBP (mmHg)",99.34,4,"Week 4","2020-02-15","Y",101.1,-1.76,-1.7367,""
+"CDISCPILOT01-01-701-1034","CDISCPILOT01","SYSBP","SYSBP (mmHg)",102.67,12,"Week 12","2020-04-15","Y",101.1,1.57,1.5572,""
+"CDISCPILOT01-01-701-1034","CDISCPILOT01","DIABP","DIABP (mmHg)",80.7,0,"Baseline","2020-01-15","Y",80.91,-0.21,-0.2548,"Y"
+"CDISCPILOT01-01-701-1034","CDISCPILOT01","DIABP","DIABP (mmHg)",79.85,4,"Week 4","2020-02-15","Y",80.91,-1.06,-1.3054,""
+"CDISCPILOT01-01-701-1034","CDISCPILOT01","DIABP","DIABP (mmHg)",81.5,12,"Week 12","2020-04-15","Y",80.91,0.59,0.734,""
+"CDISCPILOT01-01-701-1034","CDISCPILOT01","PULSE","PULSE (beats/min)",62.32,0,"Baseline","2020-01-15","Y",67.19,-4.87,-7.2438,"Y"
+"CDISCPILOT01-01-701-1034","CDISCPILOT01","PULSE","PULSE (beats/min)",68.76,4,"Week 4","2020-02-15","Y",67.19,1.57,2.3414,""
+"CDISCPILOT01-01-701-1034","CDISCPILOT01","PULSE","PULSE (beats/min)",65.82,12,"Week 12","2020-04-15","Y",67.19,-1.37,-2.0344,""
+"CDISCPILOT01-01-701-1047","CDISCPILOT01","SYSBP","SYSBP (mmHg)",120.91,0,"Baseline","2020-01-15","Y",119.14,1.77,1.4882,"Y"
+"CDISCPILOT01-01-701-1047","CDISCPILOT01","SYSBP","SYSBP (mmHg)",121.05,4,"Week 4","2020-02-15","Y",119.14,1.91,1.6058,""
+"CDISCPILOT01-01-701-1047","CDISCPILOT01","SYSBP","SYSBP (mmHg)",114.43,12,"Week 12","2020-04-15","Y",119.14,-4.71,-3.9509,""
+"CDISCPILOT01-01-701-1047","CDISCPILOT01","DIABP","DIABP (mmHg)",67.11,0,"Baseline","2020-01-15","Y",67.01,0.1,0.1471,"Y"
+"CDISCPILOT01-01-701-1047","CDISCPILOT01","DIABP","DIABP (mmHg)",65.06,4,"Week 4","2020-02-15","Y",67.01,-1.95,-2.9121,""
+"CDISCPILOT01-01-701-1047","CDISCPILOT01","DIABP","DIABP (mmHg)",67.51,12,"Week 12","2020-04-15","Y",67.01,0.5,0.744,""
+"CDISCPILOT01-01-701-1047","CDISCPILOT01","PULSE","PULSE (beats/min)",78.6,0,"Baseline","2020-01-15","Y",82.07,-3.47,-4.2335,"Y"
+"CDISCPILOT01-01-701-1047","CDISCPILOT01","PULSE","PULSE (beats/min)",84.48,4,"Week 4","2020-02-15","Y",82.07,2.41,2.9307,""
+"CDISCPILOT01-01-701-1047","CDISCPILOT01","PULSE","PULSE (beats/min)",81.41,12,"Week 12","2020-04-15","Y",82.07,-0.66,-0.8098,""
+```
+
+### LLM Output
+No LLM output artifact was produced.
