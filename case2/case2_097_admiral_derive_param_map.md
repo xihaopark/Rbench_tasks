@@ -6,6 +6,8 @@
 - Model: `openai/gpt-5.1`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
+- Failure pattern: `package_api_hallucination`
+- Failure pattern note: ! Each element of the list in argument `by_vars` must be class/type
 
 ## Pass/Error
 ```text

@@ -6,6 +6,8 @@
 - Model: `openai/gpt-5.1`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
+- Failure pattern: `package_api_hallucination`
+- Failure pattern note: unused arguments (dataset_ae = ae, dataset_adsl = adsl, by_vars = exprs(USUBJID), trt_start_dt = TRTSDTM, trt_end_dt = TRTEDTM, start_dt = ASTDTM, end_dt = AENDTM, intensity_baseline = AEITOXGR)
 
 ## Pass/Error
 ```text

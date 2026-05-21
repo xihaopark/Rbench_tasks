@@ -6,6 +6,8 @@
 - Model: `openai/gpt-5.1`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
+- Failure pattern: `package_api_hallucination`
+- Failure pattern note: unused arguments (join_vars = expr_c(join_vars, intersect(unname(extract_vars(new_vars)), chr2vars(colnames(dataset_add)))), first_cond_lower = !!first_cond_lower, first_cond_upper = !!first_cond_upper, order = order, tmp_obs_nr_var = !!tmp_obs_nr_var, filter_add = !!filter_add, filter_join = !!filter_join, check_type = check_type)
 
 ## Pass/Error
 ```text

@@ -6,6 +6,8 @@
 - Model: `openai/gpt-5.1`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
+- Failure pattern: `package_api_hallucination`
+- Failure pattern note: Error in reduce_dataset(.) : could not find function "reduce_dataset"
 
 ## Pass/Error
 ```text

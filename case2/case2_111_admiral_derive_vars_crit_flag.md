@@ -6,6 +6,8 @@
 - Model: `openai/gpt-5.1`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
+- Failure pattern: `package_api_hallucination`
+- Failure pattern note: could not find function "derive_var_crit_flag"
 
 ## Pass/Error
 ```text
