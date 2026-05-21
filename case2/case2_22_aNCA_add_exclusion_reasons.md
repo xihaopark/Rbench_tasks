@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform add exclusion reasons using the aNCA package. The function(s) you use to solve the task must come from the aNCA package.
 
-Input: exclusion_list.tsv, pknca_data.tsv
 Output: result.csv
 
 Computation: Do not filter rows for result.csv. Preserve the pknca_data table view and original required columns; exclusion_list.tsv only describes reasons to attach in the object workflow.
@@ -27,25 +26,6 @@ Computation: Do not filter rows for result.csv. Preserve the pknca_data table vi
 
 Required columns for result.csv: USUBJID, STUDYID, PARAMCD, PARAM, AVAL, AVISITN, AVISIT, ADT, ANL01FL, BASE, CHG, PCHG, ABLFL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### exclusion_list.tsv
-x
-SYSBP
-DIABP
-PULSE
-WEIGHT
-HEIGHT
-
-### pknca_data.tsv
-USUBJID	STUDYID	PARAMCD	PARAM	AVAL	AVISITN	AVISIT	ADT	ANL01FL	BASE	CHG	PCHG	ABLFL
-CDISCPILOT01-01-701-1015	CDISCPILOT01	SYSBP	SYSBP (mmHg)	95.11	0	Baseline	2020-01-15	Y	94.9	0.21	0.2185	Y
-CDISCPILOT01-01-701-1015	CDISCPILOT01	SYSBP	SYSBP (mmHg)	95.56	4	Week 4	2020-02-15	Y	94.9	0.66	0.6927	
-CDISCPILOT01-01-701-1015	CDISCPILOT01	SYSBP	SYSBP (mmHg)	97.18	12	Week 12	2020-04-15	Y	94.9	2.28	2.3997	
-CDISCPILOT01-01-701-1015	CDISCPILOT01	DIABP	DIABP (mmHg)	65.74	0	Baseline	2020-01-15	Y	64.87	0.87	1.3419	Y
-CDISCPILOT01-01-701-1015	CDISCPILOT01	DIABP	DIABP (mmHg)	64.3	4	Week 4	2020-02-15	Y	64.87	-0.57	-0.8779	
-... [49 more lines omitted]
 ```
 
 ## Input

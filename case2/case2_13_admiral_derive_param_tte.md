@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform derive param tte using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: dataset_adsl.tsv
 Output: result.csv
 
 Computation: Derive the simplified overall-survival parameter: death records are events with CNSR=0, otherwise use the last-alive date as censored with CNSR=1, and set the fixed OS parameter fields expected by the schema.
@@ -27,14 +26,6 @@ Computation: Derive the simplified overall-survival parameter: death records are
 
 Required columns for result.csv: USUBJID, STUDYID, EVNTDESC, SRCDOM, SRCVAR, CNSR, ADT, STARTDT, PARAMCD, PARAM
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset_adsl.tsv
-USUBJID	STUDYID	TRTSDT	DTHFL	DTHDT	LSALVDT
-01	STUDY1	2021-01-01	Y	2021-04-01	2021-04-01
-02	STUDY1	2021-01-02	N		2021-03-15
-03	STUDY1	2021-01-05	N		2021-02-20
 ```
 
 ## Input

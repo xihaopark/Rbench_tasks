@@ -19,7 +19,6 @@ result.csv: Numeric mismatch in column: result
 ```text
 Write an R script for an R package task: perform convert xxtpt to hours using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: range_method.tsv, treatment_duration.tsv, xxtpt.tsv
 Output: result.csv
 
 Computation: Parse timepoint text into hours: numeric hours stay numeric; HH:MM uses hours plus minutes/60; day counts such as 4D or DAY 4 map to 4 * 24 hours; pre-dose/screening style labels map to 0.
@@ -27,24 +26,6 @@ Computation: Parse timepoint text into hours: numeric hours stay numeric; HH:MM 
 
 Required columns for result.csv: xxtpt, treatment_duration, range_method, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### range_method.tsv
-range_method
-midpoint
-
-### treatment_duration.tsv
-treatment_duration
-24
-
-### xxtpt.tsv
-xxtpt
-1 HOURS
-2H 30MIN
-3 DAYS
-DAY 2
-4D
 ```
 
 ## Input

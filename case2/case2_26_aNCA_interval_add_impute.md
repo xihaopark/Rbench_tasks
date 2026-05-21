@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform interval add impute using the aNCA package. The function(s) you use to solve the task must come from the aNCA package.
 
-Input: after.tsv, data.tsv, target_groups.tsv, target_impute.tsv, target_params.tsv
 Output: result.csv
 
 Computation: For target group rows and target parameter columns, split interval rows when needed, add the target impute token at the requested position, clear non-target parameter flags on inserted rows, and preserve original ordering with inserted rows immediately after their source row.
@@ -27,31 +26,6 @@ Computation: For target group rows and target parameter columns, split interval 
 
 Required columns for result.csv: start, end, cmax, auclast, half.life, impute, analyte, period
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### after.tsv
-after
-1
-
-### data.tsv
-start	end	cmax	auclast	half.life	impute	analyte	period
-0	12	TRUE	TRUE	FALSE	start_predose	DrugA	Single
-0	Inf	TRUE	FALSE	TRUE		DrugB	Single
-12	24	TRUE	TRUE	TRUE	start_conc0	DrugA	Multiple
-
-### target_groups.tsv
-analyte	period
-DrugA	Single
-
-### target_impute.tsv
-target_impute
-start_conc0
-
-### target_params.tsv
-target_params
-cmax
-half.life
 ```
 
 ## Input

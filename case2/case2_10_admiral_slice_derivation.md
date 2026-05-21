@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform slice derivation using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: dataset.tsv, filter.tsv
 Output: result.csv
 
 Computation: Within each subject, use the filter condition to identify the first selected visit, then keep rows through that selected visit rather than only the matching row.
@@ -27,19 +26,6 @@ Computation: Within each subject, use the filter condition to identify the first
 
 Required columns for result.csv: USUBJID, AVISITN, AVAL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	AVISITN	AVAL
-01	1	10
-01	2	12
-02	1	9
-02	2	11
-
-### filter.tsv
-filter
-AVISITN == 1
 ```
 
 ## Input

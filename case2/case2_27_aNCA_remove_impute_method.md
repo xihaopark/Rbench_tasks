@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform remove impute method using the aNCA package. The function(s) you use to solve the task must come from the aNCA package.
 
-Input: impute_vals.tsv, target_impute.tsv
 Output: result.csv
 
 Computation: Remove the target token from comma- or space-separated imputation strings; do not filter rows. Preserve blanks as blank strings and missing values as missing where applicable.
@@ -27,18 +26,6 @@ Computation: Remove the target token from comma- or space-separated imputation s
 
 Required columns for result.csv: impute_vals, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### impute_vals.tsv
-impute_vals
-start_predose,start_conc0
-start_conc0,midpoint
-start_conc0
-
-### target_impute.tsv
-target_impute
-start_conc0
 ```
 
 ## Input

@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform convert treatment patterns using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: treatment_duration.tsv, xxtpt.tsv
 Output: result.csv
 
 Computation: Map treatment-relative text patterns deterministically: treatment start/zero/pre-dose to 0, after-start to positive offsets, before-end/pre-EOT to negative offsets from end, and end/after-end patterns to the treatment end plus any offset.
@@ -27,26 +26,6 @@ Computation: Map treatment-relative text patterns deterministically: treatment s
 
 Required columns for result.csv: xxtpt, treatment_duration, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### treatment_duration.tsv
-treatment_duration
-72
-72
-72
-72
-72
-... [2 more lines omitted]
-
-### xxtpt.tsv
-xxtpt
-START OF TREATMENT
-PRE-DOSE
-30 MIN AFTER START
-2 HOURS AFTER START
-END OF TREATMENT
-... [2 more lines omitted]
 ```
 
 ## Input

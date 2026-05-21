@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform derive param map using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: dataset.tsv
 Output: result.csv
 
 Computation: Derive only MAP rows from paired DIABP and SYSBP records using (2 * DIABP + SYSBP) / 3, and set PARAMCD to MAP.
@@ -27,15 +26,6 @@ Computation: Derive only MAP rows from paired DIABP and SYSBP records using (2 *
 
 Required columns for result.csv: USUBJID, PARAMCD, AVAL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVAL
-01	SYSBP	120
-01	DIABP	80
-02	SYSBP	135
-02	DIABP	85
 ```
 
 ## Input

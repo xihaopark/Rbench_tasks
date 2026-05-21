@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform derive vars crit flag using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: dataset.tsv, description.tsv
 Output: result.csv
 
 Computation: Set CRIT1FL to Y when AVAL > 3 * ULN and to N otherwise.
@@ -27,18 +26,6 @@ Computation: Set CRIT1FL to Y when AVAL > 3 * ULN and to N otherwise.
 
 Required columns for result.csv: USUBJID, PARAMCD, AVAL, ULN, CRIT1, CRIT1FL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVAL	ULN
-01	ALT	45	20
-02	ALT	75	20
-03	AST	30	20
-
-### description.tsv
-description
-ALT greater than three times ULN
 ```
 
 ## Input

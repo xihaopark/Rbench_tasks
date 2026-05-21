@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform derive var atoxgr dir using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: dataset.tsv
 Output: result.csv
 
 Computation: Set ATOXGRDIR to L when AVAL < ANRLO, H when AVAL > ANRHI, and N otherwise.
@@ -27,15 +26,6 @@ Computation: Set ATOXGRDIR to L when AVAL < ANRLO, H when AVAL > ANRHI, and N ot
 
 Required columns for result.csv: USUBJID, PARAMCD, AVAL, ANRLO, ANRHI, ATOXGRDIR
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVAL	ANRLO	ANRHI
-01	ALT	15	20	40
-01	AST	55	10	35
-02	BILI	0.8	0.2	1.2
-03	CREAT	1.5	0.5	1.1
 ```
 
 ## Input

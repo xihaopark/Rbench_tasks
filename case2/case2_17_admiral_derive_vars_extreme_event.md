@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform derive vars extreme event using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: dataset.tsv, mode.tsv, source_datasets.tsv
 Output: result.csv
 
 Computation: Use source adverse events with AETOXGR >= 2, order by descending AETOXGR then ADT and AESEQ, and return one selected extreme event per STUDYID/USUBJID according to mode.
@@ -27,26 +26,6 @@ Computation: Use source adverse events with AETOXGR >= 2, order by descending AE
 
 Required columns for result.csv: STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-STUDYID	USUBJID	TRTSDT
-S1	01	2020-01-01
-S1	02	2020-01-05
-S1	03	2020-01-10
-
-### mode.tsv
-mode
-first
-
-### source_datasets.tsv
-STUDYID	USUBJID	ADT	AESEQ	AETERM	AETOXGR
-S1	01	2020-01-03	1	HEADACHE	1
-S1	01	2020-01-08	2	NAUSEA	3
-S1	02	2020-01-07	1	RASH	2
-S1	02	2020-01-08	2	FEVER	1
-S1	03	2020-01-15	1	COUGH	2
 ```
 
 ## Input

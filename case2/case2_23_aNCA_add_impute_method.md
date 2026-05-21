@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform add impute method using the aNCA package. The function(s) you use to solve the task must come from the aNCA package.
 
-Input: after.tsv, impute_vals.tsv, target_impute.tsv
 Output: result.csv
 
 Computation: Insert the target impute token into the impute_vals vector at the requested after position; this is vector insertion, not row filtering.
@@ -27,23 +26,6 @@ Computation: Insert the target impute token into the impute_vals vector at the r
 
 Required columns for result.csv: impute_vals, after, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### after.tsv
-after
-1
-
-### impute_vals.tsv
-impute_vals
-start_predose
-start_predose,end_obs
-end_obs
-start_conc0,end_obs
-
-### target_impute.tsv
-target_impute
-start_conc0
 ```
 
 ## Input

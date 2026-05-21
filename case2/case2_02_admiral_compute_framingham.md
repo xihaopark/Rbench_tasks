@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform compute framingham using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: age.tsv, chol.tsv, cholhdl.tsv, diabetfl.tsv, sex.tsv, smokefl.tsv, sysbp.tsv, trthypfl.tsv
 Output: result.csv
 
 Computation: Compute the deterministic fixture score as 0.1*age + 0.02*sysbp + 0.01*chol + 0.5*cholhdl + 2*I(smokefl=='Y') + 2*I(diabetfl=='Y') + I(trthypfl=='Y').
@@ -27,56 +26,6 @@ Computation: Compute the deterministic fixture score as 0.1*age + 0.02*sysbp + 0
 
 Required columns for result.csv: age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### age.tsv
-age
-45
-60
-72
-
-### chol.tsv
-chol
-180
-220
-260
-
-### cholhdl.tsv
-cholhdl
-3.5
-4.2
-5.0
-
-### diabetfl.tsv
-diabetfl
-N
-N
-Y
-
-### sex.tsv
-sex
-F
-M
-F
-
-### smokefl.tsv
-smokefl
-N
-Y
-N
-
-### sysbp.tsv
-sysbp
-118
-142
-155
-
-### trthypfl.tsv
-trthypfl
-N
-Y
-Y
 ```
 
 ## Input

@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform derive var trtemfl using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: dataset.tsv
 Output: result.csv
 
 Computation: Derive TRTEMFL using the admiral treatment-emergent rule: flag in-window events and ongoing or worsening toxicity grades relative to baseline intensity.
@@ -27,15 +26,6 @@ Computation: Derive TRTEMFL using the admiral treatment-emergent rule: flag in-w
 
 Required columns for result.csv: USUBJID, TRTSDTM, TRTEDTM, ASTDTM, AENDTM, AEITOXGR, AETOXGR, TRTEMFL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	TRTSDTM	TRTEDTM	ASTDTM	AENDTM	AEITOXGR	AETOXGR
-01	2021-01-01	2021-01-31	2020-12-20	2020-12-21	2	2
-01	2021-01-01	2021-01-31	2021-01-15	2021-01-20	1	3
-02	2021-02-01	2021-02-28	2021-03-01	2021-03-05	1	2
-03	2021-03-01	2021-03-31	2021-02-20	2021-03-02	2	3
 ```
 
 ## Input

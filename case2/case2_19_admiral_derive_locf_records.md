@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform derive locf records using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: dataset.tsv, visits.tsv
 Output: result.csv
 
 Computation: Carry the last observed value forward by USUBJID and PARAMCD ordered by AVISITN, creating only carried rows with DTYPE set to LOCF.
@@ -27,24 +26,6 @@ Computation: Carry the last observed value forward by USUBJID and PARAMCD ordere
 
 Required columns for result.csv: USUBJID, PARAMCD, AVISITN, AVAL, DTYPE
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVISITN	AVAL
-01	ALT	1	20
-01	ALT	3	30
-02	ALT	1	15
-02	ALT	4	24
-
-### visits.tsv
-USUBJID	PARAMCD	AVISITN
-01	ALT	1
-01	ALT	2
-01	ALT	3
-02	ALT	1
-02	ALT	2
-... [2 more lines omitted]
 ```
 
 ## Input

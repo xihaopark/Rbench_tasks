@@ -16,7 +16,6 @@ PASS
 ```text
 Write an R script for an R package task: perform get joined sub data using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: left.tsv, right.tsv
 Output: result.csv
 
 Computation: Use left.tsv as the primary dataset and left-join right.tsv by USUBJID, preserving unmatched left rows.
@@ -24,19 +23,6 @@ Computation: Use left.tsv as the primary dataset and left-join right.tsv by USUB
 
 Required columns for result.csv: USUBJID, AVAL, TRT01A
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### left.tsv
-USUBJID	AVAL
-01	10
-02	20
-03	30
-
-### right.tsv
-USUBJID	TRT01A
-01	Drug A
-02	Placebo
 ```
 
 ## Input

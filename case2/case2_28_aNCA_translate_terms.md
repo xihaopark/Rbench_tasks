@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform translate terms using the aNCA package. The function(s) you use to solve the task must come from the aNCA package.
 
-Input: input_terms.tsv, mapping_col.tsv, metadata.tsv, target_col.tsv
 Output: result.csv
 
 Computation: Map each input term by looking it up from mapping_col to target_col, and write a row-preserving table with input_terms, mapping_col, and result.
@@ -27,27 +26,6 @@ Computation: Map each input term by looking it up from mapping_col to target_col
 
 Required columns for result.csv: input_terms, mapping_col, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### input_terms.tsv
-input_terms
-AVAL
-PARAMCD
-
-### mapping_col.tsv
-mapping_col
-Variable
-
-### metadata.tsv
-Variable	Label
-AVAL	Analysis Value
-PARAMCD	Parameter Code
-USUBJID	Subject ID
-
-### target_col.tsv
-target_col
-Label
 ```
 
 ## Input

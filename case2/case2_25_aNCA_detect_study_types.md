@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform detect study types using the aNCA package. The function(s) you use to solve the task must come from the aNCA package.
 
-Input: data.tsv, groups.tsv, metabfl_column.tsv, route_column.tsv, volume_column.tsv
 Output: result.csv
 
 Computation: Classify rows by route/evidence: oral rows as oral, IV infusion rows as iv_infusion, and excretion rows as excretion; preserve one output row per input row.
@@ -27,31 +26,6 @@ Computation: Classify rows by route/evidence: oral rows as oral, IV infusion row
 
 Required columns for result.csv: subject, study_type
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### data.tsv
-subject	period	route	urine_volume	metabfl
-101	1	oral	0	parent
-101	2	oral	0	parent
-102	1	iv infusion	0	parent
-103	1	urine	150	metabolite
-
-### groups.tsv
-groups
-subject
-
-### metabfl_column.tsv
-metabfl_column
-metabfl
-
-### route_column.tsv
-route_column
-route
-
-### volume_column.tsv
-volume_column
-urine_volume
 ```
 
 ## Input

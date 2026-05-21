@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform compute tmf using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: dtc.tsv, dtm.tsv, ignore_seconds_flag.tsv
 Output: result.csv
 
 Computation: For this fixture's partial-time flags, map hour-only imputation to M, minute-only imputation to S, and date-only records to H.
@@ -27,24 +26,6 @@ Computation: For this fixture's partial-time flags, map hour-only imputation to 
 
 Required columns for result.csv: dtc, dtm, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dtc.tsv
-dtc
-2020-01-01T12
-2020-01-01T12:30
-2020-01-01
-
-### dtm.tsv
-dtm
-2020-01-01 12:00:00
-2020-01-01 12:30:00
-2020-01-01 00:00:00
-
-### ignore_seconds_flag.tsv
-ignore_seconds_flag
-FALSE
 ```
 
 ## Input

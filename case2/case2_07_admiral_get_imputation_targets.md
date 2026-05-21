@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform get imputation targets using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: partial.tsv
 Output: result.csv
 
 Computation: For partial date/time targets, year-only dates use month 06 and day 15; missing time components use 00.
@@ -27,14 +26,6 @@ Computation: For partial date/time targets, year-only dates use month 06 and day
 
 Required columns for result.csv: partial, year, month, day, hour, minute, second
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### partial.tsv
-partial
-2020
-2020-02
-2020-02-20T14
 ```
 
 ## Input

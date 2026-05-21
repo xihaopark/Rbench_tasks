@@ -16,7 +16,6 @@ PASS
 ```text
 Write an R script for an R package task: perform compute map using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: diabp.tsv, hr.tsv, sysbp.tsv
 Output: result.csv
 
 Computation: Call admiral::compute_map with diabp, sysbp, and hr from the aligned input vectors; include diabp, sysbp, hr, and result in result.csv.
@@ -24,29 +23,6 @@ Computation: Call admiral::compute_map with diabp, sysbp, and hr from the aligne
 
 Required columns for result.csv: diabp, sysbp, hr, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### diabp.tsv
-diabp
-80
-85
-70
-95
-
-### hr.tsv
-hr
-60
-75
-90
-110
-
-### sysbp.tsv
-sysbp
-120
-135
-110
-160
 ```
 
 ## Input

@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform keep BLQ timepoints using the aNCA package. The function(s) you use to solve the task must come from the aNCA package.
 
-Input: mean_group_var.tsv, plot_data.tsv, xvar.tsv
 Output: result.csv
 
 Computation: Write the ARM/TIME summary table of every observed ARM and TIME pair from the input data; do not restrict result.csv to only BLQ rows.
@@ -27,25 +26,6 @@ Computation: Write the ARM/TIME summary table of every observed ARM and TIME pai
 
 Required columns for result.csv: ARM, TIME
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### mean_group_var.tsv
-mean_group_var
-ARM
-
-### plot_data.tsv
-USUBJID	ARM	TIME	CONC	DOSE	PARAM	ROUTE	TSLD	BLQFL
-101	100 mg	0	0.0	100	AUC	oral	0	Y
-101	100 mg	1	34.2	100	AUC	oral	1	N
-101	100 mg	2	61.5	100	AUC	oral	2	N
-101	100 mg	4	38.1	100	AUC	oral	4	N
-102	100 mg	0	0.0	100	AUC	oral	0	Y
-... [3 more lines omitted]
-
-### xvar.tsv
-xvar
-TIME
 ```
 
 ## Input

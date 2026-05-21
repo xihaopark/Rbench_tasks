@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform propagate na values using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: partial.tsv
 Output: result.csv
 
 Computation: For ordered datetime components, keep components before the first missing component and blank all later components.
@@ -27,14 +26,6 @@ Computation: For ordered datetime components, keep components before the first m
 
 Required columns for result.csv: year, month, day, hour, minute, second
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### partial.tsv
-year	month	day	hour	minute	second
-2020	05	NA	10	30	45
-2021	NA	12	09	15	00
-2022	07	04	NA	20	30
 ```
 
 ## Input

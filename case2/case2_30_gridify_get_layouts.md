@@ -19,7 +19,6 @@ result.csv: Shape mismatch: ref=(5, 2) vs llm=(1, 2)
 ```text
 Write an R script for an R package task: perform get layouts using the gridify package. The function(s) you use to solve the task must come from the gridify package.
 
-Input: none
 Output: result.csv
 
 Computation: Call gridify::get_layouts and normalize the returned layouts to result.csv columns id and result instead of writing the raw object.

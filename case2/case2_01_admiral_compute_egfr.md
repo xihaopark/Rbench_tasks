@@ -19,7 +19,6 @@ missing artifacts: result.csv, summary.csv.
 ```text
 Write an R script for an R package task: perform compute egfr using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: age.tsv, creat.tsv, race.tsv, sex.tsv
 Output: result.csv, summary.csv
 
 Computation: Use the MDRD-style eGFR convention: 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor, with F sex_factor 0.742 and BLACK OR AFRICAN AMERICAN race_factor 1.212; also write summary.csv.
@@ -28,32 +27,6 @@ Computation: Use the MDRD-style eGFR convention: 175 * creat^(-1.154) * age^(-0.
 Required columns for result.csv: creat, age, sex, race, result
 Required columns for summary.csv: n_rows, n_cols, col_names
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### age.tsv
-age
-45
-60
-72
-
-### creat.tsv
-creat
-0.8
-1.1
-1.4
-
-### race.tsv
-race
-OTHER
-BLACK OR AFRICAN AMERICAN
-OTHER
-
-### sex.tsv
-sex
-F
-M
-F
 ```
 
 ## Input

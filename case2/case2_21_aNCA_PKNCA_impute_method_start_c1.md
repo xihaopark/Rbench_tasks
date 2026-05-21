@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform PKNCA impute method start c1 using the aNCA package. The function(s) you use to solve the task must come from the aNCA package.
 
-Input: conc.tsv, end.tsv, options.tsv, start.tsv, time.tsv
 Output: result.csv
 
 Computation: Insert a start-time row at the requested start time using the first concentration after dose, then write rows ordered by time to result.csv.
@@ -27,37 +26,6 @@ Computation: Insert a start-time row at the requested start time using the first
 
 Required columns for result.csv: conc, time
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### conc.tsv
-conc
-0.1
-1.5
-10.0
-100.0
-1000.0
-
-### end.tsv
-end
-4.5
-
-### options.tsv
-options
-method=start_conc0
-allow_blq=TRUE
-
-### start.tsv
-start
-1.5
-
-### time.tsv
-time
-1.0
-2.0
-3.0
-4.0
-5.0
 ```
 
 ## Input

@@ -19,7 +19,6 @@ missing artifacts: result.csv.
 ```text
 Write an R script for an R package task: perform derive param qtc using the admiral package. The function(s) you use to solve the task must come from the admiral package.
 
-Input: dataset.tsv
 Output: result.csv
 
 Computation: Derive only QTCBR rows from paired QT and RR records using QT / sqrt(RR), preserving the expected identifier columns.
@@ -27,15 +26,6 @@ Computation: Derive only QTCBR rows from paired QT and RR records using QT / sqr
 
 Required columns for result.csv: USUBJID, PARAMCD, AVAL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVAL
-01	QT	400
-01	RR	1000
-02	QT	360
-02	RR	800
 ```
 
 ## Input

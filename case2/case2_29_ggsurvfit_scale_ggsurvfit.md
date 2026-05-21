@@ -16,7 +16,6 @@ PASS
 ```text
 Write an R script for an R package task: perform scale ggsurvfit using the ggsurvfit package. The function(s) you use to solve the task must come from the ggsurvfit package.
 
-Input: x_scales.tsv, y_scales.tsv
 Output: result.csv
 
 Computation: Parse the x_scales and y_scales list expressions, call ggsurvfit::scale_ggsurvfit, and write a one-row class/summary table rather than the raw object.
@@ -24,16 +23,6 @@ Computation: Parse the x_scales and y_scales list expressions, call ggsurvfit::s
 
 Required columns for result.csv: scale_classes
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### x_scales.tsv
-expr
-list(expand = c(0.015, 0), n.breaks = 8)
-
-### y_scales.tsv
-expr
-list(expand = c(0.025, 0), limits = c(0, 1))
 ```
 
 ## Input
