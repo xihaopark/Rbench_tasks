@@ -4,15 +4,15 @@
 - Task ID: `pharmaverse/admiral/slice_derivation`
 - Package: `admiral`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `FAIL`
+- Failure stage: `schema_mismatch`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
+The generated output files were produced, but the schema or output shape differed from the ground truth.
 
 Main signal:
-missing artifacts: result.csv.
+result.csv: Shape mismatch: ref=(4, 3) vs llm=(2, 3)
 ```
 
 ## Prompt
@@ -70,49 +70,40 @@ library(admiral)
 library(dplyr)
 library(readr)
 
-# Create outputs directory if it doesn't exist
+# Create outputs directory if it does not exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
-# Read inputs
+# Read input data
 dataset <- read_tsv(
   file = file.path("inputs", "dataset.tsv"),
-  col_types = cols(
-    USUBJID = col_character(),
-    AVISITN = col_double(),
-    AVAL = col_double()
-  )
+  col_types = cols()
 )
 
-filter_df <- read_tsv(
+flt <- read_tsv(
   file = file.path("inputs", "filter.tsv"),
-  col_types = cols(
-    filter = col_character()
-  )
+  col_types = cols()
 )
 
-# Extract filter condition (first row, first column)
-filter_expr <- filter_df$filter[1]
+# Extract filter condition as character
+filter_condition <- flt$filter[1]
 
-# Apply slice derivation using admiral
+# Apply filter within each subject to identify first selected visit
+# Then keep all rows up to and including that visit
 result <- dataset %>%
   group_by(USUBJID) %>%
-  derive_var_first_event(
-    order = exprs(AVISITN),
-    filter = !!rlang::parse_expr(filter_expr)
-  ) %>%
-  # Keep rows through the first selected visit
-  group_by(USUBJID) %>%
+  arrange(AVISITN, .by_group = TRUE) %>%
   mutate(
-    FIRST_VISITN = min(AVISITN[!!rlang::parse_expr(filter_expr)], na.rm = TRUE)
+    .match = !! rlang::parse_expr(filter_condition),
+    .first_match_visit = if_else(any(.match), min(AVISITN[.match]), NA_real_)
   ) %>%
-  filter(AVISITN <= FIRST_VISITN) %>%
+  filter(!is.na(.first_match_visit) & AVISITN <= .first_match_visit) %>%
   ungroup() %>%
   select(USUBJID, AVISITN, AVAL)
 
-# Write output
-write_csv(result, file.path("outputs", "result.csv"), na = "")
+# Write result
+write_csv(result, file.path("outputs", "result.csv"))
 ```
 
 ## Output
@@ -128,4 +119,10 @@ write_csv(result, file.path("outputs", "result.csv"), na = "")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+USUBJID,AVISITN,AVAL
+01,1,10
+02,1,9
+```

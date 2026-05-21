@@ -4,12 +4,15 @@
 - Task ID: `pharmaverse/admiral/compute_map`
 - Package: `admiral`
 - Model: `openai/gpt-5.1`
-- Status: `PASS`
-- Failure stage: `pass`
+- Status: `FAIL`
+- Failure stage: `value_mismatch`
 
 ## Pass/Error
 ```text
-PASS
+The generated output files were produced, but one or more values differed from the ground truth.
+
+Main signal:
+result.csv: Numeric mismatch in column: result
 ```
 
 ## Prompt
@@ -75,8 +78,11 @@ write.csv(data.frame(diabp = diabp, sysbp = sysbp, hr = hr, result = result), fi
 ```r
 #!/usr/bin/env Rscript
 
-# Load required package
-library(admiral)
+suppressPackageStartupMessages({
+  library(readr)
+  library(dplyr)
+  library(admiral)
+})
 
 # Create outputs directory if it doesn't exist
 if (!dir.exists("outputs")) {
@@ -84,28 +90,27 @@ if (!dir.exists("outputs")) {
 }
 
 # Read input files
-diabp_df <- read.table("inputs/diabp.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-hr_df    <- read.table("inputs/hr.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-sysbp_df <- read.table("inputs/sysbp.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+diabp_df <- readr::read_tsv("inputs/diabp.tsv", col_types = cols())
+hr_df    <- readr::read_tsv("inputs/hr.tsv",    col_types = cols())
+sysbp_df <- readr::read_tsv("inputs/sysbp.tsv", col_types = cols())
 
-# Align vectors by row (assumes equal length and order)
-diabp <- diabp_df$diabp
-hr    <- hr_df$hr
-sysbp <- sysbp_df$sysbp
-
-# Compute MAP using admiral
-result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
-
-# Create result data frame
-out_df <- data.frame(
-  diabp  = diabp,
-  sysbp  = sysbp,
-  hr     = hr,
-  result = result
+# Align by row number (assuming equal length and correct order)
+data <- dplyr::bind_cols(
+  diabp = diabp_df$diabp,
+  sysbp = sysbp_df$sysbp,
+  hr    = hr_df$hr
 )
 
+# Compute MAP using admiral::compute_map
+data <- data %>%
+  mutate(result = admiral::compute_map(sysbp = sysbp, diabp = diabp))
+
 # Write output
-write.csv(out_df, file = "outputs/result.csv", row.names = FALSE, quote = TRUE)
+readr::write_csv(
+  data %>% select(diabp, sysbp, hr, result),
+  "outputs/result.csv",
+  na = ""
+)
 ```
 
 ## Output
@@ -124,9 +129,9 @@ write.csv(out_df, file = "outputs/result.csv", row.names = FALSE, quote = TRUE)
 #### `result.csv`
 
 ```csv
-"diabp","sysbp","hr","result"
-80,120,60,92.7395237619899
-85,135,75,103.240653638352
-70,110,90,85.9752811815739
-95,160,110,123.186790537475
+diabp,sysbp,hr,result
+80,120,60,93.33333333333333
+85,135,75,101.66666666666667
+70,110,90,83.33333333333333
+95,160,110,116.66666666666667
 ```

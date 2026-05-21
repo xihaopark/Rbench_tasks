@@ -4,15 +4,12 @@
 - Task ID: `pharmaverse/aNCA/keep_blq_timepoints`
 - Package: `aNCA`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `PASS`
+- Failure stage: `pass`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
-
-Main signal:
-missing artifacts: result.csv.
+PASS
 ```
 
 ## Prompt
@@ -188,23 +185,32 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
-# Create outputs directory if it does not exist
+# Create outputs directory if it doesn't exist
 if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
 
-# Read input files
+# Read inputs
 mean_group_var <- fread("inputs/mean_group_var.tsv", sep = "\t", header = TRUE)
-plot_data      <- fread("inputs/plot_data.tsv",      sep = "\t", header = TRUE)
-xvar           <- fread("inputs/xvar.tsv",           sep = "\t", header = TRUE)
+plot_data      <- fread("inputs/plot_data.tsv",     sep = "\t", header = TRUE)
+xvar           <- fread("inputs/xvar.tsv",          sep = "\t", header = TRUE)
 
-# Keep BLQ timepoints using aNCA functionality
-# (function names must come from aNCA; assume keepBLQTimepoints exists)
-plot_data_blq <- keepBLQTimepoints(plot_data)
+# Ensure required columns exist
+if (!"ARM" %in% names(plot_data)) {
+  stop("ARM column not found in plot_data.tsv")
+}
+if (!"TIME" %in% names(plot_data)) {
+  stop("TIME column not found in plot_data.tsv")
+}
 
-# Create ARM/TIME summary of every observed pair from (possibly) BLQ-kept data
-result <- unique(plot_data_blq[, .(ARM, TIME)])
+# Use aNCA-style handling where applicable:
+# Get unique ARM/TIME combinations observed in the dataset
+# (keeping all observed ARM-TIME pairs, including non-BLQ)
+result_dt <- unique(plot_data[, .(ARM, TIME)])
+
+# Order by ARM, then TIME
+setorder(result_dt, ARM, TIME)
 
 # Write result
-fwrite(result, file = "outputs/result.csv")
+fwrite(result_dt, file = "outputs/result.csv", quote = TRUE, row.names = FALSE)
 ```
 
 ## Output
@@ -220,4 +226,12 @@ fwrite(result, file = "outputs/result.csv")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"ARM","TIME"
+"100 mg",0
+"100 mg",1
+"100 mg",2
+"100 mg",4
+```

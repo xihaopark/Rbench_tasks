@@ -62,9 +62,9 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
 library(readr)
 library(dplyr)
+library(admiral)
 
 # Create outputs directory if it does not exist
 if (!dir.exists("outputs")) {
@@ -86,13 +86,15 @@ crit1_text <- description$description[1]
 
 # Derive CRIT1 and CRIT1FL using admiral
 result <- dataset %>%
-  derive_vars_crit_flag(
-    new_vars = vars(CRIT1 = crit1_text, CRIT1FL = "Y"),
+  mutate(
+    CRIT1 = crit1_text
+  ) %>%
+  derive_var_crit_flag(
+    new_var = CRIT1FL,
     condition = AVAL > 3 * ULN
   ) %>%
   mutate(
-    CRIT1FL = if_else(is.na(CRIT1FL), "N", CRIT1FL),
-    CRIT1   = if_else(is.na(CRIT1), crit1_text, CRIT1)
+    CRIT1FL = if_else(is.na(CRIT1FL), "N", CRIT1FL)
   ) %>%
   select(USUBJID, PARAMCD, AVAL, ULN, CRIT1, CRIT1FL)
 

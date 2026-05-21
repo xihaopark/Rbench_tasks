@@ -64,14 +64,14 @@ library(admiral)
 library(dplyr)
 library(readr)
 
-# Create outputs directory if it doesn't exist
+# Create outputs directory if it does not exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
 # Read input
-adat <- read_tsv(
-  file = "inputs/dataset.tsv",
+input_df <- read_tsv(
+  file = file.path("inputs", "dataset.tsv"),
   col_types = cols(
     USUBJID = col_character(),
     PARAMCD = col_character(),
@@ -79,17 +79,33 @@ adat <- read_tsv(
   )
 )
 
-# Derive QTCBR from paired QT and RR using QT / sqrt(RR)
-res <- adat %>%
-  derive_param_qtcbr(
-    by_vars = exprs(USUBJID),
-    logbase = 10
+# Split QT and RR
+qt_df <- input_df %>%
+  filter(PARAMCD == "QT") %>%
+  rename(AVAL_QT = AVAL)
+
+rr_df <- input_df %>%
+  filter(PARAMCD == "RR") %>%
+  rename(AVAL_RR = AVAL)
+
+# Join QT and RR by subject
+qt_rr <- derivation_add_merged(
+  dataset_add = qt_df,
+  dataset_ref = rr_df,
+  by_vars = exprs(USUBJID),
+  new_vars = exprs(AVAL_RR)
+)
+
+# Derive QTCBR
+qtcbr_df <- qt_rr %>%
+  mutate(
+    PARAMCD = "QTCBR",
+    AVAL = AVAL_QT / sqrt(AVAL_RR)
   ) %>%
-  filter(PARAMCD == "QTCBR") %>%
   select(USUBJID, PARAMCD, AVAL)
 
-# Write result
-write_csv(res, "outputs/result.csv", na = "")
+# Write output
+write_csv(qtcbr_df, file.path("outputs", "result.csv"))
 ```
 
 ## Output

@@ -91,40 +91,76 @@ library(admiral)
 library(dplyr)
 library(readr)
 
-# Create output directory if it doesn't exist
+# Create outputs directory if it doesn't exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
 # Read input data
-dataset <- read.delim(
-  file = "inputs/dataset.tsv",
-  header = TRUE,
-  sep = "\t",
-  stringsAsFactors = FALSE
+dataset <- read_tsv(
+  file = file.path("inputs", "dataset.tsv"),
+  col_types = cols(
+    USUBJID = col_character(),
+    PARAMCD = col_character(),
+    AVISITN = col_double(),
+    AVAL    = col_double()
+  )
 )
 
-visits <- read.delim(
-  file = "inputs/visits.tsv",
-  header = TRUE,
-  sep = "\t",
-  stringsAsFactors = FALSE
+visits <- read_tsv(
+  file = file.path("inputs", "visits.tsv"),
+  col_types = cols(
+    USUBJID = col_character(),
+    PARAMCD = col_character(),
+    AVISITN = col_double()
+  )
 )
 
-# Derive LOCF records
-result <- derive_locf_records(
-  dataset,
-  dataset_add = visits,
-  by_vars = exprs(USUBJID, PARAMCD),
-  order = exprs(AVISITN),
-  new_var = AVAL,
-  filter_source = !is.na(AVAL)
-) %>%
-  filter(DTYPE == "LOCF") %>%
-  select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
+# Ensure only needed columns
+dataset <- dataset %>%
+  select(USUBJID, PARAMCD, AVISITN, AVAL)
 
-# Write output
-write.csv(result, file = "outputs/result.csv", row.names = FALSE)
+visits <- visits %>%
+  select(USUBJID, PARAMCD, AVISITN)
+
+# Derive LOCF records using admiral
+# Merge visits with existing data, then apply LOCF within USUBJID/PARAMCD ordered by AVISITN
+adslike <- visits %>%
+  left_join(dataset, by = c("USUBJID", "PARAMCD", "AVISITN")) %>%
+  arrange(USUBJID, PARAMCD, AVISITN)
+
+locf_derived <- adslike %>%
+  derive_var_extreme_flag(
+    by_vars     = exprs(USUBJID, PARAMCD),
+    order       = exprs(AVISITN),
+    new_var     = AVAL,
+    mode        = "locf",
+    inclusive   = TRUE
+  )
+
+# Keep only rows that were imputed (no original AVAL but have LOCF value)
+# In this context, we identify carried-forward records as those where original AVAL was NA
+# but after LOCF we have a non-NA AVAL.
+result <- locf_derived %>%
+  mutate(
+    AVAL_LOCF = AVAL,
+    AVAL_ORIG = dataset$AVAL[match(
+      paste(USUBJID, PARAMCD, AVISITN),
+      paste(dataset$USUBJID, dataset$PARAMCD, dataset$AVISITN)
+    )]
+  ) %>%
+  filter(is.na(AVAL_ORIG) & !is.na(AVAL_LOCF)) %>%
+  transmute(
+    USUBJID,
+    PARAMCD,
+    AVISITN,
+    AVAL = AVAL_LOCF,
+    DTYPE = "LOCF"
+  ) %>%
+  arrange(USUBJID, PARAMCD, AVISITN)
+
+# Write result to CSV
+write_csv(result, file.path("outputs", "result.csv"), na = "")
 ```
 
 ## Output

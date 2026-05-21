@@ -4,15 +4,12 @@
 - Task ID: `pharmaverse/admiral/derive_vars_extreme_event`
 - Package: `admiral`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `PASS`
+- Failure stage: `pass`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
-
-Main signal:
-missing artifacts: result.csv.
+PASS
 ```
 
 ## Prompt
@@ -99,68 +96,84 @@ library(admiral)
 library(dplyr)
 library(readr)
 
-# Create outputs directory if it doesn't exist
+# Create output directory --------------------------------------------------
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
-# Read inputs
-adsl <- read_tsv(
+# Read inputs --------------------------------------------------------------
+adsl <- read_delim(
   file = "inputs/dataset.tsv",
+  delim = "\t",
   col_types = cols(
     STUDYID = col_character(),
     USUBJID = col_character(),
-    TRTSDT = col_date(format = "%Y-%m-%d")
+    TRTSDT  = col_date()
   )
 )
 
-mode_df <- read_tsv(
+mode_df <- read_delim(
   file = "inputs/mode.tsv",
+  delim = "\t",
   col_types = cols(
     mode = col_character()
   )
 )
 
-ae <- read_tsv(
+ae <- read_delim(
   file = "inputs/source_datasets.tsv",
+  delim = "\t",
   col_types = cols(
     STUDYID = col_character(),
     USUBJID = col_character(),
-    ADT = col_date(format = "%Y-%m-%d"),
-    AESEQ = col_double(),
-    AETERM = col_character(),
+    ADT     = col_date(),
+    AESEQ   = col_double(),
+    AETERM  = col_character(),
     AETOXGR = col_double()
   )
 )
 
-# Determine mode
-ext_mode <- mode_df$mode[1]
-
-# Filter source AEs: AETOXGR >= 2
+# Filter source AEs --------------------------------------------------------
 ae_filt <- ae %>%
   filter(AETOXGR >= 2)
 
-# Derive extreme event per STUDYID/USUBJID using admiral
-adsl_ext <- derive_vars_extreme_event(
-  adsl = adsl,
-  dataset_add = ae_filt,
-  order = vars(desc(AETOXGR), ADT, AESEQ),
-  mode = ext_mode,
-  by_vars = vars(STUDYID, USUBJID),
-  new_var = EXTDT,
-  source_vars = vars(ADT, AETERM, AETOXGR),
-  check_type = "none"
-)
+# Determine selection mode -------------------------------------------------
+sel_mode <- mode_df$mode[1]
 
-# Rename / derive required variables
-result <- adsl_ext %>%
-  mutate(
-    EXTTERM = AETERM,
-    EXTGR = AETOXGR
+# Derive extreme event -----------------------------------------------------
+# Sort by descending AETOXGR, then ADT, then AESEQ
+# For "first": select first after ordering
+# For "last":  select last after ordering
+ae_ext <- ae_filt %>%
+  arrange(STUDYID, USUBJID, desc(AETOXGR), ADT, AESEQ)
+
+if (identical(sel_mode, "last")) {
+  ae_ext <- ae_ext %>%
+    group_by(STUDYID, USUBJID) %>%
+    slice_tail(n = 1) %>%
+    ungroup()
+} else {
+  ae_ext <- ae_ext %>%
+    group_by(STUDYID, USUBJID) %>%
+    slice_head(n = 1) %>%
+    ungroup()
+}
+
+# Derive variables using admiral helpers ----------------------------------
+# Join with ADSL for TRTSDT and derive EXT variables
+result <- adsl %>%
+  derive_vars_merged(
+    dataset_add = ae_ext,
+    new_vars = exprs(
+      EXTDT   = ADT,
+      EXTTERM = AETERM,
+      EXTGR   = AETOXGR
+    ),
+    by_vars = exprs(STUDYID, USUBJID)
   ) %>%
   select(STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
 
-# Write output
+# Write output -------------------------------------------------------------
 write_csv(result, "outputs/result.csv", na = "")
 ```
 
@@ -176,4 +189,11 @@ write_csv(result, "outputs/result.csv", na = "")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+STUDYID,USUBJID,TRTSDT,EXTDT,EXTTERM,EXTGR
+S1,01,2020-01-01,2020-01-08,NAUSEA,3
+S1,02,2020-01-05,2020-01-07,RASH,2
+S1,03,2020-01-10,2020-01-15,COUGH,2
+```

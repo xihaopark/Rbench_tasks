@@ -4,15 +4,12 @@
 - Task ID: `pharmaverse/aNCA/remove_impute_method`
 - Package: `aNCA`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `PASS`
+- Failure stage: `pass`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
-
-Main signal:
-missing artifacts: result.csv.
+PASS
 ```
 
 ## Prompt
@@ -86,51 +83,69 @@ suppressPackageStartupMessages({
   library(aNCA)
 })
 
-# Create outputs directory if it doesn't exist
+# Create outputs directory if it does not exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
 # Read inputs
 impute_df <- read.delim(
-  file = "inputs/impute_vals.tsv",
+  file = file.path("inputs", "impute_vals.tsv"),
   header = TRUE,
   sep = "\t",
   stringsAsFactors = FALSE,
   quote = "",
-  comment.char = ""
+  na.strings = c("", "NA")
 )
 
 target_df <- read.delim(
-  file = "inputs/target_impute.tsv",
+  file = file.path("inputs", "target_impute.tsv"),
   header = TRUE,
   sep = "\t",
   stringsAsFactors = FALSE,
   quote = "",
-  comment.char = ""
+  na.strings = c("", "NA")
 )
 
-# Extract vectors
-impute_vals <- impute_df$impute_vals
 target_token <- target_df$target_impute[1]
 
-# Use aNCA removeImpute to remove target token
-result_vec <- aNCA::removeImpute(
-  impute_vals = impute_vals,
-  impute = target_token
+# Helper: remove target token from a single imputation string
+remove_target_token <- function(x, target) {
+  if (is.na(x)) return(NA_character_)
+  if (!nzchar(x)) return("")
+  
+  # Determine separator: comma or space (prefer comma if present)
+  sep <- if (grepl(",", x, fixed = TRUE)) "," else " "
+  
+  tokens <- strsplit(x, sep, fixed = TRUE)[[1]]
+  tokens <- trimws(tokens)
+  tokens <- tokens[tokens != target]
+  
+  if (!length(tokens)) {
+    return("")
+  }
+  paste(tokens, collapse = sep)
+}
+
+# Apply token removal
+result_vec <- vapply(
+  impute_df$impute_vals,
+  remove_target_token,
+  character(1),
+  target = target_token
 )
 
-# Prepare result data frame
-out_df <- data.frame(
-  impute_vals = impute_vals,
+# Assemble result dataframe
+result_df <- data.frame(
+  impute_vals = impute_df$impute_vals,
   result = result_vec,
   stringsAsFactors = FALSE
 )
 
-# Write output
+# Write result
 write.csv(
-  out_df,
-  file = "outputs/result.csv",
+  result_df,
+  file = file.path("outputs", "result.csv"),
   row.names = FALSE,
   quote = TRUE
 )
@@ -148,4 +163,11 @@ write.csv(
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"impute_vals","result"
+"start_predose,start_conc0","start_predose"
+"start_conc0,midpoint","midpoint"
+"start_conc0",""
+```

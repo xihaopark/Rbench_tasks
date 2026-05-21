@@ -79,10 +79,10 @@ write.csv(data.frame(dtc = dtc, dtm = dtm_chr, result = result), file.path("outp
 
 library(readr)
 library(dplyr)
-library(admiral)
 library(stringr)
+library(admiral)
 
-# Create outputs directory if it doesn't exist
+# Create outputs directory if it does not exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
@@ -98,52 +98,49 @@ dtm_df <- read_tsv(
   show_col_types = FALSE
 )
 
-ignore_flag_df <- read_tsv(
+ignore_seconds_flag_df <- read_tsv(
   file = file.path("inputs", "ignore_seconds_flag.tsv"),
   show_col_types = FALSE
 )
 
-ignore_seconds_flag <- ignore_flag_df$ignore_seconds_flag[1]
+ignore_seconds <- ignore_seconds_flag_df$ignore_seconds_flag[1]
 
-# Join dtc and dtm to work row-wise
-df <- bind_cols(dtc_df, dtm_df)
-
-# Use admiral partial-time utilities to determine granularity
-# Convert dtc to character and inspect time component using admiral helpers
-df <- df %>%
+# Prepare data
+df <- dtc_df %>%
+  bind_cols(dtm_df) %>%
   mutate(
-    dtc_chr = as.character(dtc),
-    # Extract time part from ISO 8601-like DTC using admiral utility
-    time_part = admiral:::extract_time_dtc(dtc_chr),
-    has_hour = admiral:::has_hours(time_part),
-    has_min  = admiral:::has_minutes(time_part),
-    has_sec  = admiral:::has_seconds(time_part)
+    # Derive analysis datetime from DTC using admiral helper
+    ADTM = convert_dtc_to_dtm(
+      dtc = dtc,
+      highest_imputation = "h",
+      include_time = TRUE
+    ),
+    ADTM = as.POSIXct(ADTM),
+    DTM  = as.POSIXct(dtm)
   )
 
-# Map flags according to specification:
-# - hour-only imputation -> "M"
-# - minute-only imputation -> "S"
-# - date-only records     -> "H"
-#
-# Determine partiality based on dtc granularity:
-#   date-only: no time_part
-#   hour-only: has_hour & !has_min & !has_sec
-#   minute-only: has_hour & has_min & !has_sec
-#
-# dtm is already given and not used to derive granularity per instructions
+# Compute time imputation flag
+# H: date-only (no time in DTC)
+# M: hour-only imputation
+# S: minute-only imputation
 df <- df %>%
   mutate(
-    result = case_when(
-      is.na(time_part) | time_part == "" ~ "H",
-      has_hour & !has_min & !has_sec ~ "M",
-      has_hour & has_min & !has_sec ~ "S",
-      TRUE ~ NA_character_
+    has_time   = str_detect(dtc, "T"),
+    has_minute = str_detect(dtc, ":\\d{2}"),
+    has_second = str_detect(dtc, ":\\d{2}:\\d{2}$"),
+    tmf = case_when(
+      !has_time ~ "H",
+      has_time & !has_minute ~ "M",
+      has_minute & !has_second ~ "S",
+      TRUE ~ ""
     )
-  ) %>%
-  select(dtc, dtm, result)
+  )
 
-# Write output
-write_csv(df, file.path("outputs", "result.csv"), na = "")
+# Select required columns and write output
+result <- df %>%
+  select(dtc, dtm, result = tmf)
+
+write_csv(result, file.path("outputs", "result.csv"), na = "")
 ```
 
 ## Output

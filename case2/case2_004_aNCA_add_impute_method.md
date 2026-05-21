@@ -4,15 +4,15 @@
 - Task ID: `pharmaverse/aNCA/add_impute_method`
 - Package: `aNCA`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `FAIL`
+- Failure stage: `schema_mismatch`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
+The generated output files were produced, but the schema or output shape differed from the ground truth.
 
 Main signal:
-missing artifacts: result.csv.
+result.csv: Shape mismatch: ref=(4, 3) vs llm=(1, 3)
 ```
 
 ## Prompt
@@ -89,38 +89,51 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 
 suppressPackageStartupMessages({
   library(aNCA)
+  library(utils)
 })
 
-# Create outputs directory if it doesn't exist
-if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
+# Create outputs directory if it does not exist
+if (!dir.exists("outputs")) {
+  dir.create("outputs", recursive = TRUE)
+}
 
 # Read inputs
-after_df <- read.delim("inputs/after.tsv", stringsAsFactors = FALSE)
-impute_df <- read.delim("inputs/impute_vals.tsv", stringsAsFactors = FALSE)
-target_df <- read.delim("inputs/target_impute.tsv", stringsAsFactors = FALSE)
+after_df <- read.table("inputs/after.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+impute_df <- read.table("inputs/impute_vals.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+target_df <- read.table("inputs/target_impute.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-after_val   <- after_df$after[1]
-impute_vec  <- impute_df$impute_vals
-target_val  <- target_df$target_impute[1]
+after_val <- after_df$after[1]
+impute_vec <- impute_df$impute_vals
+target_token <- target_df$target_impute[1]
 
-# Perform add impute method using aNCA
-# aNCA::addImputeMethod(impute_vals, after, target_impute)
-result_vec <- addImputeMethod(
-  impute_vals   = impute_vec,
-  after         = after_val,
-  target_impute = target_val
-)
+# Use aNCA-style insertion logic (vector insertion)
+# If aNCA has a specific helper for impute method handling, use it; otherwise do base insertion
+# Here we mimic an aNCA-compatible insertion of the token at the requested position
 
-# Prepare result
+# Ensure position is within valid range
+after_val <- max(0, min(after_val, length(impute_vec)))
+
+# Perform insertion
+if (after_val == 0) {
+  result_vec <- c(target_token, impute_vec)
+} else if (after_val == length(impute_vec)) {
+  result_vec <- c(impute_vec, target_token)
+} else {
+  result_vec <- c(impute_vec[seq_len(after_val)],
+                  target_token,
+                  impute_vec[(after_val + 1):length(impute_vec)])
+}
+
+# Prepare result data.frame
 result_df <- data.frame(
-  impute_vals = impute_vec,
+  impute_vals = paste(impute_vec, collapse = ";"),
   after       = after_val,
-  result      = I(list(result_vec)),
+  result      = paste(result_vec, collapse = ";"),
   stringsAsFactors = FALSE
 )
 
-# Write result
-write.csv(result_df, file = "outputs/result.csv", row.names = FALSE)
+# Write output
+write.csv(result_df, file = "outputs/result.csv", row.names = FALSE, quote = TRUE)
 ```
 
 ## Output
@@ -136,4 +149,9 @@ write.csv(result_df, file = "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"impute_vals","after","result"
+"start_predose;start_predose,end_obs;end_obs;start_conc0,end_obs",1,"start_predose;start_conc0;start_predose,end_obs;end_obs;start_conc0,end_obs"
+```

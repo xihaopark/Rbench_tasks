@@ -4,12 +4,15 @@
 - Task ID: `pharmaverse/admiral/derive_vars_query`
 - Package: `admiral`
 - Model: `openai/gpt-5.1`
-- Status: `PASS`
-- Failure stage: `pass`
+- Status: `NO_OUTPUT`
+- Failure stage: `execution_failure`
 
 ## Pass/Error
 ```text
-PASS
+The generated code failed while running before valid outputs could be evaluated.
+
+Main signal:
+missing artifacts: result.csv.
 ```
 
 ## Prompt
@@ -63,17 +66,19 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(dplyr)
 library(readr)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(admiral)
 
-# Create outputs directory if it doesn't exist
+# Create outputs directory if it does not exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
-# Read input data
-adsl <- read_tsv(
+# Read input datasets
+ae <- read_tsv(
   file = file.path("inputs", "dataset.tsv"),
   col_types = cols(.default = col_character())
 )
@@ -83,32 +88,62 @@ queries <- read_tsv(
   col_types = cols(.default = col_character())
 )
 
-# Apply each query using admiral's derive_var_merged_exist_flag()
-# to generate Y/N flags per condition
-out <- adsl
-
-for (i in seq_len(nrow(queries))) {
-  src_var <- queries$SRCVAR[i]
-  termchar <- queries$TERMCHAR[i]
-  new_var <- queries$NEWVAR[i]
-
-  out <- derive_var_merged_exist_flag(
-    dataset = out,
-    dataset_add = out,
-    by_vars = exprs(USUBJID, AETERM, AEREL, AESEV),
-    condition = !!rlang::sym(src_var) == termchar,
-    new_var = !!rlang::sym(new_var),
-    true_value = "Y",
-    false_value = "N"
-  )
+# Ensure required columns exist
+required_ae <- c("USUBJID", "AETERM", "AEREL", "AESEV")
+if (!all(required_ae %in% names(ae))) {
+  stop("Input AE dataset is missing required columns.")
 }
 
-# Keep only required columns in the specified order
-result <- out %>%
-  select(USUBJID, AETERM, AEREL, AESEV, CQ01FL, CQ02FL)
+required_queries <- c("QUERY_ID", "SRCVAR", "TERMCHAR", "NEWVAR")
+if (!all(required_queries %in% names(queries))) {
+  stop("Input queries dataset is missing required columns.")
+}
 
-# Write output
-write_csv(result, file.path("outputs", "result.csv"), na = "")
+# Initialize result data
+result <- ae
+
+# For each query, derive the corresponding flag variable using admiral-style derivation
+for (i in seq_len(nrow(queries))) {
+  q <- queries[i, ]
+
+  src_var <- q$SRCVAR
+  term_char <- q$TERMCHAR
+  new_var <- q$NEWVAR
+
+  # Skip if source variable is not in the dataset
+  if (!src_var %in% names(result)) next
+
+  # Build condition: source variable equals TERMCHAR
+  cond <- expr_text(!!sym(src_var) == !!term_char)
+
+  # Use admiral::derive_var_flagvisits-like pattern via derive_vars_merged
+  # Here, we define a simple condition-based derivation using dplyr within a loop
+  result <- result %>%
+    mutate(
+      !!sym(new_var) := if_else(
+        .data[[src_var]] == term_char,
+        "Y",
+        "N"
+      )
+    )
+}
+
+# Keep only required columns for output
+required_output <- c("USUBJID", "AETERM", "AEREL", "AESEV",
+                     "CQ01FL", "CQ02FL")
+
+# Ensure all required flag columns exist, even if no matching query was applied
+for (v in required_output) {
+  if (!v %in% names(result)) {
+    result[[v]] <- NA_character_
+  }
+}
+
+result_out <- result %>%
+  select(all_of(required_output))
+
+# Write result to CSV
+write_csv(result_out, file.path("outputs", "result.csv"), na = "")
 ```
 
 ## Output
@@ -123,11 +158,4 @@ write_csv(result, file.path("outputs", "result.csv"), na = "")
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-USUBJID,AETERM,AEREL,AESEV,CQ01FL,CQ02FL
-01,HEADACHE,RELATED,MILD,Y,Y
-02,NAUSEA,NOT RELATED,MODERATE,N,N
-03,HEADACHE,RELATED,SEVERE,Y,Y
-```
+No LLM output artifact was produced.

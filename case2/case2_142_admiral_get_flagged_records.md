@@ -4,15 +4,15 @@
 - Task ID: `pharmaverse/admiral/get_flagged_records`
 - Package: `admiral`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `FAIL`
+- Failure stage: `schema_mismatch`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
+The generated output files were produced, but the schema or output shape differed from the ground truth.
 
 Main signal:
-missing artifacts: result.csv.
+result.csv: Shape mismatch: ref=(1, 5) vs llm=(2, 5)
 ```
 
 ## Prompt
@@ -71,9 +71,9 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(dplyr)
 library(readr)
+library(dplyr)
+library(admiral)
 
 # Create outputs directory if it doesn't exist
 if (!dir.exists("outputs")) {
@@ -81,26 +81,29 @@ if (!dir.exists("outputs")) {
 }
 
 # Read inputs
-dataset   <- readr::read_tsv("inputs/dataset.tsv", show_col_types = FALSE)
-new_var   <- readr::read_tsv("inputs/new_var.tsv", show_col_types = FALSE)
-threshold <- readr::read_tsv("inputs/threshold.tsv", show_col_types = FALSE)
+dataset   <- read_tsv("inputs/dataset.tsv", col_types = cols())
+new_var   <- read_tsv("inputs/new_var.tsv", col_types = cols())
+threshold <- read_tsv("inputs/threshold.tsv", col_types = cols())
 
 flag_var <- new_var$new_var[1]
-thr_val  <- threshold$threshold[1]
+thresh   <- threshold$threshold[1]
 
-# Apply admiral flagging and filtering
+# Flag using admiral::derive_var_merged_exist_flag then filter
 result <- dataset %>%
-  admiral::derive_var_robust_flag(
-    new_var     = !!rlang::sym(flag_var),
-    condition   = AVAL > thr_val,
-    false_value = NA_character_,
-    true_value  = "Y"
+  derive_var_merged_exist_flag(
+    dataset_add = dataset,
+    by_vars = exprs(USUBJID, PARAMCD, AVISIT),
+    new_var = !!sym(flag_var),
+    condition = AVAL > thresh,
+    true_value = "Y",
+    false_value = NA_character_
   ) %>%
-  filter(AVAL > thr_val) %>%
-  select(USUBJID, PARAMCD, AVAL, AVISIT, HIGHFL = !!rlang::sym(flag_var))
+  filter(AVAL > thresh) %>%
+  select(USUBJID, PARAMCD, AVAL, AVISIT, !!sym(flag_var)) %>%
+  rename(HIGHFL = !!sym(flag_var))
 
 # Write output
-readr::write_csv(result, "outputs/result.csv", na = "")
+write_csv(result, "outputs/result.csv", na = "")
 ```
 
 ## Output
@@ -113,4 +116,10 @@ readr::write_csv(result, "outputs/result.csv", na = "")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+USUBJID,PARAMCD,AVAL,AVISIT,HIGHFL
+01,ALT,45,WEEK 1,Y
+02,AST,52,WEEK 1,Y
+```

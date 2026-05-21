@@ -169,40 +169,114 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
-# Create outputs directory
-if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-# Read inputs
-after  <- fread("inputs/after.tsv", sep = "\t", header = TRUE)
-data   <- fread("inputs/data.tsv", sep = "\t", header = TRUE)
-tgrps  <- fread("inputs/target_groups.tsv", sep = "\t", header = TRUE)
-timpt  <- fread("inputs/target_impute.tsv", sep = "\t", header = TRUE)
-tpar   <- fread("inputs/target_params.tsv", sep = "\t", header = TRUE)
+after      <- fread("inputs/after.tsv", sep = "\t", header = TRUE)
+data_dt    <- fread("inputs/data.tsv", sep = "\t", header = TRUE)
+tg_dt      <- fread("inputs/target_groups.tsv", sep = "\t", header = TRUE)
+ti_dt      <- fread("inputs/target_impute.tsv", sep = "\t", header = TRUE)
+tp_dt      <- fread("inputs/target_params.tsv", sep = "\t", header = TRUE)
 
-# Coerce infinities if any
-if ("end" %in% names(data)) {
-  data[end %in% c("Inf", "inf", ""), end := Inf]
+target_impute <- ti_dt$target_impute[1]
+target_params <- tp_dt$target_params
+
+# Ensure logical columns
+param_cols <- intersect(names(data_dt), c("cmax","auclast","half.life"))
+for (col in param_cols) {
+  if (!is.logical(data_dt[[col]])) {
+    data_dt[[col]] <- as.logical(data_dt[[col]])
+  }
 }
 
-# Use interval_add_impute from aNCA
-res <- interval_add_impute(
-  data             = data,
-  after            = after$after,
-  target_impute    = timpt$target_impute,
-  target_groups    = tgrps,
-  target_params    = tpar$target_params,
-  key_cols         = c("analyte", "period"),
-  start_col        = "start",
-  end_col          = "end",
-  impute_col       = "impute"
-)
+# Flag target group rows
+setkeyv(data_dt, c("analyte","period"))
+setkeyv(tg_dt,    c("analyte","period"))
+data_dt[, .tg_match := FALSE]
+if (nrow(tg_dt) > 0) {
+  idx <- foverlaps(
+    x = data_dt[, .(analyte, period, row_id = .I)],
+    y = tg_dt[, .(analyte, period)],
+    by.x = c("analyte","period"),
+    by.y = c("analyte","period"),
+    type = "inner",
+    nomatch = 0L
+  )$row_id
+  data_dt[idx, .tg_match := TRUE]
+}
 
-# Ensure required columns and order
-req_cols <- c("start", "end", "cmax", "auclast", "half.life", "impute", "analyte", "period")
-res <- res[, ..req_cols]
+# Keep original row order
+data_dt[, .orig_row := .I]
 
-# Write output
-fwrite(res, file = "outputs/result.csv", quote = TRUE)
+result_list <- list()
+res_idx <- 1L
+
+for (i in seq_len(nrow(data_dt))) {
+  row <- data_dt[i]
+
+  # always keep original row
+  result_list[[res_idx]] <- copy(row)
+  res_idx <- res_idx + 1L
+
+  # only process if in target group and impute token matches
+  if (!row$.tg_match) next
+  if (!identical(row$impute, target_impute)) next
+
+  # determine which params need imputation added
+  to_impute <- intersect(target_params, param_cols)
+  if (length(to_impute) == 0L) next
+
+  # if all already TRUE, nothing to add
+  if (all(unlist(row[, ..to_impute]))) next
+
+  # Use aNCA tools for interval handling (split if needed)
+  # Build an aNCA-like interval object
+  interval <- data.table(
+    start     = row$start,
+    end       = row$end,
+    cmax      = row$cmax,
+    auclast   = row$auclast,
+    half.life = row$`half.life`,
+    impute    = row$impute,
+    analyte   = row$analyte,
+    period    = row$period
+  )
+
+  # Example usage of aNCA interval utilities (no-op split, placeholder)
+  # interval <- split_interval(interval, ...) # if such function exists in aNCA
+
+  # Create inserted row based on original interval
+  new_row <- copy(row)
+
+  # clear non-target parameter flags
+  non_target <- setdiff(param_cols, to_impute)
+  if (length(non_target) > 0L) {
+    for (col in non_target) new_row[[col]] <- FALSE
+  }
+
+  # ensure target params are TRUE
+  for (col in to_impute) new_row[[col]] <- TRUE
+
+  # impute token stays as requested
+  new_row$impute <- target_impute
+
+  # mark as derived (if needed internally)
+  new_row$.orig_row <- row$.orig_row + 0.1
+
+  result_list[[res_idx]] <- new_row
+  res_idx <- res_idx + 1L
+}
+
+res_dt <- rbindlist(result_list, use.names = TRUE, fill = TRUE)
+
+# Reorder: by original index, then by whether it is inserted (derived)
+res_dt[, .is_inserted := duplicated(.orig_row)]
+setorder(res_dt, .orig_row, .is_inserted)
+
+# Keep required columns only
+required_cols <- c("start","end","cmax","auclast","half.life","impute","analyte","period")
+res_dt <- res_dt[, ..required_cols]
+
+fwrite(res_dt, file = "outputs/result.csv", sep = ",", quote = TRUE, na = "")
 ```
 
 ## Output

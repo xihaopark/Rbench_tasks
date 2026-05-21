@@ -4,15 +4,15 @@
 - Task ID: `pharmaverse/admiral/convert_xxtpt_to_hours`
 - Package: `admiral`
 - Model: `openai/gpt-5.1`
-- Status: `FAIL`
-- Failure stage: `value_mismatch`
+- Status: `NO_OUTPUT`
+- Failure stage: `execution_failure`
 
 ## Pass/Error
 ```text
-The generated output files were produced, but one or more values differed from the ground truth.
+The generated code failed while running before valid outputs could be evaluated.
 
 Main signal:
-result.csv: Numeric mismatch in column: result
+missing artifacts: result.csv.
 ```
 
 ## Prompt
@@ -94,93 +94,103 @@ write.csv(data.frame(xxtpt = xxtpt, treatment_duration = treatment_duration, ran
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(readr)
-library(dplyr)
-library(stringr)
-library(fs)
+suppressPackageStartupMessages({
+  library(admiral)
+  library(dplyr)
+  library(readr)
+  library(stringr)
+})
 
-# Input paths
-range_method_path <- file.path("inputs", "range_method.tsv")
-treatment_duration_path <- file.path("inputs", "treatment_duration.tsv")
-xxtpt_path <- file.path("inputs", "xxtpt.tsv")
-
-# Output dir
-dir_create("outputs")
-output_path <- file.path("outputs", "result.csv")
-
-# Read inputs
-range_method_df <- read_tsv(range_method_path, show_col_types = FALSE)
-treatment_duration_df <- read_tsv(treatment_duration_path, show_col_types = FALSE)
-xxtpt_df <- read_tsv(xxtpt_path, show_col_types = FALSE)
-
-range_method <- range_method_df$range_method[1]
-treatment_duration <- treatment_duration_df$treatment_duration[1]
-
-# Use admiral's character parsing utilities to normalize text
-parse_time_to_hours <- function(x) {
-  x_norm <- x %>%
-    str_squish() %>%
-    str_to_upper()
-
-  # Pre-dose / screening style labels -> 0
-  is_zero <- str_detect(
-    x_norm,
-    "PRE[- ]?DOSE|SCREEN|BASELINE|PRETREAT|PRE[- ]?TREAT|PRE[- ]?TREATMENT"
-  )
-  if (is_zero) return(0)
-
-  # Pure numeric hours
-  if (str_detect(x_norm, "^[0-9]+(\\.[0-9]+)?$")) {
-    return(as.numeric(x_norm))
-  }
-
-  # "1 HOURS", "1 HOUR", "1H", "1 H" etc.
-  if (str_detect(x_norm, "^[0-9]+(\\.[0-9]+)?\\s*(H|HR|HOUR|HOURS)")) {
-    num <- as.numeric(str_extract(x_norm, "^[0-9]+(\\.[0-9]+)?"))
-    return(num)
-  }
-
-  # "2H 30MIN", "2 H 30 MIN", "2:30", "02:30"
-  if (str_detect(x_norm, "^[0-9]+(\\.[0-9]+)?\\s*H\\s*[0-9]+(\\.[0-9]+)?\\s*MIN")) {
-    hrs <- as.numeric(str_extract(x_norm, "^[0-9]+(\\.[0-9]+)?"))
-    mins <- as.numeric(str_match(x_norm, "H\\s*([0-9]+(\\.[0-9]+)?)\\s*MIN")[, 2])
-    return(hrs + mins / 60)
-  }
-
-  # HH:MM
-  if (str_detect(x_norm, "^[0-9]{1,2}:[0-9]{2}$")) {
-    parts <- str_split(x_norm, ":", simplify = TRUE)
-    hrs <- as.numeric(parts[, 1])
-    mins <- as.numeric(parts[, 2])
-    return(hrs + mins / 60)
-  }
-
-  # "3 DAYS", "3 DAY", "3D", "DAY 3"
-  if (str_detect(x_norm, "^[0-9]+\\s*(D|DAY|DAYS)$")) {
-    days <- as.numeric(str_extract(x_norm, "^[0-9]+"))
-    return(days * 24)
-  }
-  if (str_detect(x_norm, "^DAY\\s*[0-9]+$")) {
-    days <- as.numeric(str_extract(x_norm, "[0-9]+$"))
-    return(days * 24)
-  }
-
-  NA_real_
+# Create outputs directory if it doesn't exist
+if (!dir.exists("outputs")) {
+  dir.create("outputs", recursive = TRUE)
 }
 
+# Read inputs
+range_method <- readr::read_tsv(
+  file = file.path("inputs", "range_method.tsv"),
+  show_col_types = FALSE
+) %>%
+  slice(1) %>%
+  pull(range_method)
+
+treatment_duration <- readr::read_tsv(
+  file = file.path("inputs", "treatment_duration.tsv"),
+  show_col_types = FALSE
+) %>%
+  slice(1) %>%
+  pull(treatment_duration)
+
+xxtpt_df <- readr::read_tsv(
+  file = file.path("inputs", "xxtpt.tsv"),
+  show_col_types = FALSE
+)
+
+# Helper to map text timepoints to hours using admiral-style parsing logic
+derive_hours_from_xxtpt <- function(xxtpt) {
+  xxtpt_clean <- str_trim(toupper(xxtpt))
+
+  # Pre-dose / screening labels -> 0
+  ifelse(
+    str_detect(xxtpt_clean, "PRE\\s*-?DOSE|SCREEN|BASELINE|CYCLE 1 DAY 1|C1D1|DAY 1 PRE"),
+    0,
+    NA_real_
+  ) %>%
+    # Numeric-only -> hours
+    coalesce(ifelse(
+      str_detect(xxtpt_clean, "^\\d+(\\.\\d+)?$"),
+      as.numeric(xxtpt_clean),
+      NA_real_
+    )) %>%
+    # HH:MM or H:MM -> hours + minutes/60
+    coalesce(ifelse(
+      str_detect(xxtpt_clean, "^\\d{1,2}:\\d{2}$"),
+      {
+        h <- as.numeric(str_extract(xxtpt_clean, "^\\d{1,2}(?=:)"))
+        m <- as.numeric(str_extract(xxtpt_clean, "(?<=:)\\d{2}$"))
+        h + m / 60
+      },
+      NA_real_
+    )) %>%
+    # Patterns with hours and minutes, e.g. "2H 30MIN", "2 HOURS 30 MINUTES"
+    coalesce(ifelse(
+      str_detect(xxtpt_clean, "\\d+\\s*H|HOUR"),
+      {
+        h <- as.numeric(str_extract(xxtpt_clean, "\\d+(?=\\s*H|\\s*HOUR)"))
+        m <- ifelse(
+          str_detect(xxtpt_clean, "\\d+\\s*MIN"),
+          as.numeric(str_extract(xxtpt_clean, "\\d+(?=\\s*MIN)")),
+          0
+        )
+        h + m / 60
+      },
+      NA_real_
+    )) %>%
+    # Day counts, e.g. "3 DAYS", "DAY 2", "4D"
+    coalesce(ifelse(
+      str_detect(xxtpt_clean, "\\bDAY\\b|\\bDAYS\\b|\\d+\\s*D\\b|^DAY\\s*\\d+"),
+      {
+        d1 <- as.numeric(str_extract(xxtpt_clean, "(?<=DAY\\s*)\\d+"))
+        d2 <- as.numeric(str_extract(xxtpt_clean, "\\d+(?=\\s*D\\b)"))
+        d3 <- as.numeric(str_extract(xxtpt_clean, "\\d+(?=\\s*DAYS\\b)"))
+        d <- coalesce(d1, d2, d3)
+        d * 24
+      },
+      NA_real_
+    ))
+}
+
+# Apply conversion
 result_df <- xxtpt_df %>%
   mutate(
-    result = vctrs::vec_cast(
-      purrr::map_dbl(.data$xxtpt, parse_time_to_hours),
-      double()
-    ),
+    result = derive_hours_from_xxtpt(xxtpt),
     treatment_duration = treatment_duration,
     range_method = range_method
   ) %>%
   select(xxtpt, treatment_duration, range_method, result)
 
-write_csv(result_df, output_path)
+# Write output
+readr::write_csv(result_df, file.path("outputs", "result.csv"))
 ```
 
 ## Output
@@ -197,13 +207,4 @@ write_csv(result_df, output_path)
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-xxtpt,treatment_duration,range_method,result
-1 HOURS,24,midpoint,1
-2H 30MIN,24,midpoint,2
-3 DAYS,24,midpoint,72
-DAY 2,24,midpoint,48
-4D,24,midpoint,96
-```
+No LLM output artifact was produced.

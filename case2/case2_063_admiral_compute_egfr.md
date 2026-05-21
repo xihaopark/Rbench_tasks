@@ -4,15 +4,15 @@
 - Task ID: `pharmaverse/admiral/compute_egfr`
 - Package: `admiral`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `FAIL`
+- Failure stage: `value_mismatch`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
+The generated output files were produced, but one or more values differed from the ground truth.
 
 Main signal:
-missing artifacts: result.csv, summary.csv.
+summary.csv: Value mismatch in column: col_names
 ```
 
 ## Prompt
@@ -90,66 +90,68 @@ write.csv(summary_df, file.path("outputs", "summary.csv"), row.names = FALSE)
 #!/usr/bin/env Rscript
 
 library(admiral)
+library(dplyr)
+library(readr)
+library(purrr)
+library(stringr)
+library(tidyr)
 
-# Create output directory if it doesn't exist
+# Create outputs directory if it does not exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
 # Read inputs
-age   <- read.delim("inputs/age.tsv",   stringsAsFactors = FALSE)
-creat <- read.delim("inputs/creat.tsv", stringsAsFactors = FALSE)
-race  <- read.delim("inputs/race.tsv",  stringsAsFactors = FALSE)
-sex   <- read.delim("inputs/sex.tsv",   stringsAsFactors = FALSE)
+age_df   <- read_tsv("inputs/age.tsv", col_types = cols())
+creat_df <- read_tsv("inputs/creat.tsv", col_types = cols())
+race_df  <- read_tsv("inputs/race.tsv", col_types = cols())
+sex_df   <- read_tsv("inputs/sex.tsv", col_types = cols())
 
-# Combine into a single dataset
-adsl <- cbind(age, creat, sex, race)
+# Combine inputs
+adat <- 
+  bind_cols(
+    creat_df,
+    age_df,
+    sex_df,
+    race_df
+  ) %>%
+  # Ensure correct column order
+  select(creat, age, sex, race)
 
-# Derive MDRD-style eGFR using admiral
-adsl <- admiral::derive_var_egfr(
-  adsl,
-  method = "MDRD",
-  creat = CREAT,
-  age = AGE,
-  sex = SEX,
-  race = RACE
-)
+# Compute eGFR using MDRD-style equation
+# 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
+# sex_factor: 0.742 if F, 1 otherwise
+# race_factor: 1.212 if BLACK OR AFRICAN AMERICAN, 1 otherwise
 
-# Align column names to match function arguments
-names(adsl)[names(adsl) == "age"]   <- "AGE"
-names(adsl)[names(adsl) == "creat"] <- "CREAT"
-names(adsl)[names(adsl) == "sex"]   <- "SEX"
-names(adsl)[names(adsl) == "race"]  <- "RACE"
+result_df <- 
+  adat %>%
+  mutate(
+    sex_factor = case_when(
+      sex == "F" ~ 0.742,
+      TRUE       ~ 1
+    ),
+    race_factor = case_when(
+      race == "BLACK OR AFRICAN AMERICAN" ~ 1.212,
+      TRUE                                ~ 1
+    ),
+    result = 175 * (creat ^ (-1.154)) * (age ^ (-0.203)) * sex_factor * race_factor
+  ) %>%
+  select(creat, age, sex, race, result)
 
-# Re-run derive_var_egfr after renaming
-adsl <- admiral::derive_var_egfr(
-  adsl,
-  method = "MDRD",
-  creat = CREAT,
-  age = AGE,
-  sex = SEX,
-  race = RACE
-)
+# Write result.csv
+write_csv(result_df, "outputs/result.csv")
 
-# Prepare result.csv
-result <- data.frame(
-  creat = adsl$CREAT,
-  age   = adsl$AGE,
-  sex   = adsl$SEX,
-  race  = adsl$RACE,
-  result = adsl$EGFR
-)
+# Create summary
+summary_df <- 
+  result_df %>%
+  summarise(
+    n_rows = n(),
+    n_cols = ncol(.),
+    col_names = paste(colnames(.), collapse = ",")
+  )
 
-write.csv(result, "outputs/result.csv", row.names = FALSE, quote = TRUE)
-
-# Prepare summary.csv
-summary_df <- data.frame(
-  n_rows   = nrow(result),
-  n_cols   = ncol(result),
-  col_names = I(list(colnames(result)))
-)
-
-write.csv(summary_df, "outputs/summary.csv", row.names = FALSE, quote = TRUE)
+# Write summary.csv
+write_csv(summary_df, "outputs/summary.csv")
 ```
 
 ## Output
@@ -171,4 +173,18 @@ write.csv(summary_df, "outputs/summary.csv", row.names = FALSE, quote = TRUE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+creat,age,sex,race,result
+0.8,45,F,OTHER,77.566459506687
+1.1,60,M,BLACK OR AFRICAN AMERICAN,82.75777503293826
+1.4,72,F,OTHER,36.96338229464978
+```
+
+#### `summary.csv`
+
+```csv
+n_rows,n_cols,col_names
+3,5,"creat,age,sex,race,result"
+```

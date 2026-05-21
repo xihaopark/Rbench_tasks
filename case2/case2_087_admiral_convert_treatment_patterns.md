@@ -4,15 +4,15 @@
 - Task ID: `pharmaverse/admiral/convert_treatment_patterns`
 - Package: `admiral`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `FAIL`
+- Failure stage: `value_mismatch`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
+The generated output files were produced, but one or more values differed from the ground truth.
 
 Main signal:
-missing artifacts: result.csv.
+result.csv: Numeric mismatch in column: result
 ```
 
 ## Prompt
@@ -96,77 +96,83 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 #!/usr/bin/env Rscript
 
 library(admiral)
+library(dplyr)
+library(readr)
+library(stringr)
 
-# Create output directory -------------------------------------------------
+# Create outputs directory if it doesn't exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
-# Read inputs -------------------------------------------------------------
-dur <- read.delim("inputs/treatment_duration.tsv", stringsAsFactors = FALSE)
-pat <- read.delim("inputs/xxtpt.tsv", stringsAsFactors = FALSE)
+# Read inputs
+treat_dur <- read_tsv(
+  file = file.path("inputs", "treatment_duration.tsv"),
+  show_col_types = FALSE
+)
 
-# Assume one treatment duration value applied row-wise --------------------
-dur_val <- dur$treatment_duration[1]
+xxtpt <- read_tsv(
+  file = file.path("inputs", "xxtpt.tsv"),
+  show_col_types = FALSE
+)
 
-# Prepare treatment pattern mapping using admiral -------------------------
-# Represent patterns as numeric time from treatment start (in hours)
-# START/PRE-DOSE -> 0
-# "X UNIT AFTER START" -> +offset
-# "X UNIT BEFORE END"/"PRE-EOT" -> -offset from end
-# "END OF TREATMENT" -> dur_val
-# "X UNIT AFTER END" -> dur_val + offset
-
-# Helper: convert strings like "30 MIN", "2 HOURS" to hours
-conv_to_hours <- function(x) {
-  x <- trimws(toupper(x))
-  num <- as.numeric(sub(" .*", "", x))
-  unit <- sub("^[0-9.]+\\s*", "", x)
-  unit <- gsub("S$", "", unit)
-  unit[unit == "MIN"] <- num[unit == "MIN"] / 60
-  unit[unit == "HOUR"] <- num[unit == "HOUR"]
-  as.numeric(unit)
+# Ensure same number of rows; recycle if needed
+if (nrow(treat_dur) != nrow(xxtpt)) {
+  n_rep <- ceiling(nrow(xxtpt) / nrow(treat_dur))
+  treat_dur <- treat_dur[rep(seq_len(nrow(treat_dur)), length.out = nrow(xxtpt)), , drop = FALSE]
 }
 
-# Use admiral text utilities to parse patterns deterministically ----------
-# (use admiral string helpers where sensible in pipeline)
-library(dplyr)
+# Helper to convert time unit text to hours
+parse_offset_to_hours <- function(text) {
+  text <- str_trim(str_to_upper(text))
+  num <- as.numeric(str_extract(text, "\\d+\\.?\\d*"))
+  if (is.na(num)) num <- 0
 
-res <- pat %>%
+  if (str_detect(text, "HOUR")) {
+    num
+  } else if (str_detect(text, "MIN")) {
+    num / 60
+  } else if (str_detect(text, "DAY")) {
+    num * 24
+  } else {
+    0
+  }
+}
+
+# Derive numeric treatment-relative pattern result
+result_df <- xxtpt %>%
   mutate(
-    xxtpt_std = stringr::str_trim(toupper(xxtpt)),
-    pattern_type = case_when(
-      xxtpt_std %in% c("START OF TREATMENT", "PRE-DOSE") ~ "AT_START",
-      stringr::str_detect(xxtpt_std, "AFTER START") ~ "AFTER_START",
-      stringr::str_detect(xxtpt_std, "BEFORE END") |
-        xxtpt_std %in% c("PRE-EOT", "PRE END OF TREATMENT") ~ "BEFORE_END",
-      xxtpt_std %in% c("END OF TREATMENT") ~ "AT_END",
-      stringr::str_detect(xxtpt_std, "AFTER END") ~ "AFTER_END",
-      TRUE ~ "UNKNOWN"
-    ),
-    # Extract numeric+unit part where applicable
-    num_unit = case_when(
-      pattern_type %in% c("AFTER_START", "BEFORE_END", "AFTER_END") ~
-        stringr::str_extract(xxtpt_std, "^[0-9.]+\\s+[A-Z]+"),
-      TRUE ~ NA_character_
-    ),
-    offset_hours = case_when(
-      pattern_type %in% c("AFTER_START", "BEFORE_END", "AFTER_END") ~ conv_to_hours(num_unit),
-      TRUE ~ 0
-    ),
+    treatment_duration = treat_dur$treatment_duration,
+    xxtpt_up = str_to_upper(str_trim(xxtpt))
+  ) %>%
+  rowwise() %>%
+  mutate(
     result = case_when(
-      pattern_type == "AT_START" ~ 0,
-      pattern_type == "AFTER_START" ~ offset_hours,
-      pattern_type == "BEFORE_END" ~ dur_val - offset_hours,
-      pattern_type == "AT_END" ~ dur_val,
-      pattern_type == "AFTER_END" ~ dur_val + offset_hours,
+      # Start / zero / pre-dose -> 0
+      xxtpt_up %in% c("START OF TREATMENT", "PRE-DOSE", "TREATMENT START", "ZERO") ~ 0,
+
+      # Patterns AFTER START -> positive offsets from start
+      str_detect(xxtpt_up, "AFTER START") ~ parse_offset_to_hours(xxtpt_up),
+
+      # BEFORE END / PRE-EOT -> negative offsets from end
+      str_detect(xxtpt_up, "BEFORE END") | str_detect(xxtpt_up, "PRE-EOT") ~ {
+        -parse_offset_to_hours(xxtpt_up)
+      },
+
+      # END / AFTER END -> end plus any offset
+      xxtpt_up %in% c("END OF TREATMENT", "TREATMENT END") ~ as.numeric(treatment_duration),
+      str_detect(xxtpt_up, "AFTER END") ~ {
+        as.numeric(treatment_duration) + parse_offset_to_hours(xxtpt_up)
+      },
+
       TRUE ~ NA_real_
     )
   ) %>%
-  select(xxtpt, treatment_duration = dur_val, result)
+  ungroup() %>%
+  select(xxtpt, treatment_duration, result)
 
-# Write output ------------------------------------------------------------
-write.csv(res, file = "outputs/result.csv", row.names = FALSE, na = "")
+# Write output
+write_csv(result_df, file.path("outputs", "result.csv"))
 ```
 
 ## Output
@@ -185,4 +191,15 @@ write.csv(res, file = "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+xxtpt,treatment_duration,result
+START OF TREATMENT,72,0
+PRE-DOSE,72,0
+30 MIN AFTER START,72,0.5
+2 HOURS AFTER START,72,2
+END OF TREATMENT,72,72
+4 HOURS BEFORE END,72,-4
+6 HOURS AFTER END,72,78
+```

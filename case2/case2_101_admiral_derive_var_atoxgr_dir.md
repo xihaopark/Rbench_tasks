@@ -4,15 +4,12 @@
 - Task ID: `pharmaverse/admiral/derive_var_atoxgr_dir`
 - Package: `admiral`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `PASS`
+- Failure stage: `pass`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
-
-Main signal:
-missing artifacts: result.csv.
+PASS
 ```
 
 ## Prompt
@@ -58,6 +55,7 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
+# Load required packages
 library(admiral)
 library(dplyr)
 library(readr)
@@ -67,8 +65,8 @@ if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
-# Read input
-adslab <- readr::read_tsv(
+# Read input dataset
+adsl_like <- read_tsv(
   file = file.path("inputs", "dataset.tsv"),
   col_types = cols(
     USUBJID = col_character(),
@@ -79,22 +77,19 @@ adslab <- readr::read_tsv(
   )
 )
 
-# Derive ATOXGRDIR using admiral
-adslab <- adslab %>%
-  admiral::derive_var_atoxgr_dir(
-    new_var = ATOXGRDIR,
-    aval = AVAL,
-    anrlo = ANRLO,
-    anrhi = ANRHI
-  )
+# Derive ATOXGRDIR
+result <- adsl_like %>%
+  mutate(
+    ATOXGRDIR = case_when(
+      !is.na(ANRLO) & AVAL < ANRLO ~ "L",
+      !is.na(ANRHI) & AVAL > ANRHI ~ "H",
+      TRUE ~ "N"
+    )
+  ) %>%
+  select(USUBJID, PARAMCD, AVAL, ANRLO, ANRHI, ATOXGRDIR)
 
-# Select required columns and write output
-adslab %>%
-  select(USUBJID, PARAMCD, AVAL, ANRLO, ANRHI, ATOXGRDIR) %>%
-  readr::write_csv(
-    file = file.path("outputs", "result.csv"),
-    na = ""
-  )
+# Write output
+write_csv(result, file.path("outputs", "result.csv"), na = "")
 ```
 
 ## Output
@@ -110,4 +105,12 @@ adslab %>%
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+USUBJID,PARAMCD,AVAL,ANRLO,ANRHI,ATOXGRDIR
+01,ALT,15,20,40,L
+01,AST,55,10,35,H
+02,BILI,0.8,0.2,1.2,N
+03,CREAT,1.5,0.5,1.1,H
+```

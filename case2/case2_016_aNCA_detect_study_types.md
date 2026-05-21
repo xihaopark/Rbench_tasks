@@ -4,15 +4,15 @@
 - Task ID: `pharmaverse/aNCA/detect_study_types`
 - Package: `aNCA`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `FAIL`
+- Failure stage: `schema_mismatch`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
+The generated output files were produced, but the schema or output shape differed from the ground truth.
 
 Main signal:
-missing artifacts: result.csv.
+result.csv: Shape mismatch: ref=(3, 2) vs llm=(4, 2)
 ```
 
 ## Prompt
@@ -134,36 +134,49 @@ suppressPackageStartupMessages({
 })
 
 # Create outputs directory if it doesn't exist
-if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
+if (!dir.exists("outputs")) {
+  dir.create("outputs", recursive = TRUE)
+}
 
 # Read input files
-data_df <- read_tsv("inputs/data.tsv", col_types = cols())
-groups_df <- read_tsv("inputs/groups.tsv", col_types = cols())
-metabfl_col_df <- read_tsv("inputs/metabfl_column.tsv", col_types = cols())
-route_col_df <- read_tsv("inputs/route_column.tsv", col_types = cols())
-volume_col_df <- read_tsv("inputs/volume_column.tsv", col_types = cols())
+data <- readr::read_tsv("inputs/data.tsv", show_col_types = FALSE)
+groups <- readr::read_tsv("inputs/groups.tsv", show_col_types = FALSE)
+metabfl_col <- readr::read_tsv("inputs/metabfl_column.tsv", show_col_types = FALSE)$metabfl_column[1]
+route_col <- readr::read_tsv("inputs/route_column.tsv", show_col_types = FALSE)$route_column[1]
+volume_col <- readr::read_tsv("inputs/volume_column.tsv", show_col_types = FALSE)$volume_column[1]
 
-metabfl_col <- metabfl_col_df$metabfl_column[1]
-route_col <- route_col_df$route_column[1]
-volume_col <- volume_col_df$volume_column[1]
-
-# Detect study types using aNCA
-detected <- detect_study_type(
-  data = data_df,
-  subject = groups_df$groups[1],
-  route = route_col,
-  metabfl = metabfl_col,
-  volume = volume_col
+# Ensure required columns exist
+stopifnot(
+  metabfl_col %in% colnames(data),
+  route_col %in% colnames(data),
+  volume_col %in% colnames(data),
+  groups$groups[1] %in% colnames(data)
 )
 
-# Prepare output: one row per input row, required columns only
-result <- data_df %>%
-  left_join(detected %>% select(subject = !!sym(groups_df$groups[1]), study_type),
-            by = "subject") %>%
-  select(subject, study_type)
+subject_col <- groups$groups[1]
 
-# Write result
-write_csv(result, "outputs/result.csv")
+# Use aNCA-style helper to standardize route column if available
+if ("detectRoute" %in% getNamespaceExports("aNCA")) {
+  data[[route_col]] <- aNCA::detectRoute(data[[route_col]])
+}
+
+# Detect study types per row
+result <- data %>%
+  mutate(
+    study_type = dplyr::case_when(
+      !!rlang::sym(route_col) %in% c("oral", "ORAL") ~ "oral",
+      !!rlang::sym(route_col) %in% c("iv infusion", "IV INFUSION", "iv_infusion") ~ "iv_infusion",
+      !!rlang::sym(route_col) %in% c("urine", "URINE") ~ "excretion",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  select(
+    subject = !!rlang::sym(subject_col),
+    study_type
+  )
+
+# Write output
+readr::write_csv(result, "outputs/result.csv", na = "")
 ```
 
 ## Output
@@ -178,4 +191,12 @@ write_csv(result, "outputs/result.csv")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+subject,study_type
+101,oral
+101,oral
+102,iv_infusion
+103,excretion
+```

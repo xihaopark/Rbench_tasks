@@ -62,53 +62,78 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE, na =
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(readr)
-library(dplyr)
+suppressPackageStartupMessages({
+  library(admiral)
+  library(dplyr)
+  library(readr)
+  library(stringr)
+})
 
-# Create outputs directory if it doesn't exist
+# Ensure outputs directory exists
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
 # Read input
+input_path <- file.path("inputs", "partial.tsv")
 df <- read_tsv(
-  file = file.path("inputs", "partial.tsv"),
+  input_path,
+  show_col_types = FALSE,
   col_types = cols(
-    year = col_character(),
-    month = col_character(),
-    day = col_character(),
-    hour = col_character(),
+    year   = col_character(),
+    month  = col_character(),
+    day    = col_character(),
+    hour   = col_character(),
     minute = col_character(),
     second = col_character()
   )
 )
 
-# Propagate missing date-time components using admiral
+# Convert literal "NA" strings to NA and trim whitespace
+df <- df %>%
+  mutate(across(
+    c(year, month, day, hour, minute, second),
+    ~ na_if(str_trim(.x), "NA")
+  ))
+
+# Create a partial datetime character and propagate missing components
 df_res <- df %>%
   derive_vars_dt(
-    dtc = paste0(
-      year, "-",
-      month, "-",
-      day, "T",
-      hour, ":",
-      minute, ":",
-      second
-    ),
-    flag_imputation = FALSE
+    new_vars_prefix = "DT",
+    dtc = paste(year, month, day, hour, minute, second, sep = "-")
   ) %>%
   mutate(
-    year   = if_else(is.na(year)   | is.na(dtc), NA_character_, year),
-    month  = if_else(is.na(month)  | is.na(dtc), NA_character_, month),
-    day    = if_else(is.na(day)    | is.na(dtc), NA_character_, day),
-    hour   = if_else(is.na(hour)   | is.na(dtc), NA_character_, hour),
-    minute = if_else(is.na(minute) | is.na(dtc), NA_character_, minute),
-    second = if_else(is.na(second) | is.na(dtc), NA_character_, second)
+    dtc_propagated = convert_dtc_to_dt(dtc = DT, highest_imputation = "s"),
+    # Split back into components
+    year   = substr(dtc_propagated, 1, 4),
+    month  = substr(dtc_propagated, 6, 7),
+    day    = substr(dtc_propagated, 9, 10),
+    hour   = substr(dtc_propagated, 12, 13),
+    minute = substr(dtc_propagated, 15, 16),
+    second = substr(dtc_propagated, 18, 19)
   ) %>%
+  # Convert fully imputed components beyond first missing to blank
+  rowwise() %>%
+  mutate(
+    comps = c(year, month, day, hour, minute, second),
+    first_na_pos = match(TRUE, is.na(c_across(c(year, month, day, hour, minute, second)))),
+    first_na_pos = ifelse(is.na(first_na_pos), length(comps) + 1, first_na_pos),
+    comps = ifelse(seq_along(comps) >= first_na_pos, "", comps)
+  ) %>%
+  mutate(
+    year   = comps[1],
+    month  = comps[2],
+    day    = comps[3],
+    hour   = comps[4],
+    minute = comps[5],
+    second = comps[6]
+  ) %>%
+  ungroup() %>%
   select(year, month, day, hour, minute, second)
 
 # Write output
-write_csv(df_res, file.path("outputs", "result.csv"), na = "")
+output_path <- file.path("outputs", "result.csv")
+write_csv(df_res, output_path, na = "")
 ```
 
 ## Output

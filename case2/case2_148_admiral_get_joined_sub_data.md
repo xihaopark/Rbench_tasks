@@ -4,12 +4,15 @@
 - Task ID: `pharmaverse/admiral/get_joined_sub_data`
 - Package: `admiral`
 - Model: `openai/gpt-5.1`
-- Status: `PASS`
-- Failure stage: `pass`
+- Status: `NO_OUTPUT`
+- Failure stage: `execution_failure`
 
 ## Pass/Error
 ```text
-PASS
+The generated code failed while running before valid outputs could be evaluated.
+
+Main signal:
+missing artifacts: result.csv.
 ```
 
 ## Prompt
@@ -59,10 +62,9 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-# Load required packages
 library(admiral)
-library(readr)
 library(dplyr)
+library(readr)
 
 # Create outputs directory if it doesn't exist
 if (!dir.exists("outputs")) {
@@ -70,32 +72,34 @@ if (!dir.exists("outputs")) {
 }
 
 # Read input data
-left <- read_tsv(
+left <- readr::read_tsv(
   file = file.path("inputs", "left.tsv"),
-  col_types = cols()
+  col_types = cols(
+    USUBJID = col_character(),
+    AVAL    = col_double()
+  )
 )
 
-right <- read_tsv(
+right <- readr::read_tsv(
   file = file.path("inputs", "right.tsv"),
-  col_types = cols()
+  col_types = cols(
+    USUBJID = col_character(),
+    TRT01A  = col_character()
+  )
 )
 
-# Perform left join using admiral
-result <- derive_vars_merged(
+# Perform left join using admiral helper
+result <- admiral::derive_vars_joined(
   dataset = left,
   dataset_add = right,
   by_vars = exprs(USUBJID),
-  new_vars = exprs(TRT01A),
-  filter_add = TRUE,
-  mode = "first"
-)
-
-# Keep only required columns
-result <- result %>%
+  join_type = "left",
+  filter_add = TRUE
+) %>%
   select(USUBJID, AVAL, TRT01A)
 
 # Write output
-write_csv(result, file.path("outputs", "result.csv"), na = "")
+readr::write_csv(result, file.path("outputs", "result.csv"), na = "")
 ```
 
 ## Output
@@ -110,11 +114,4 @@ write_csv(result, file.path("outputs", "result.csv"), na = "")
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-USUBJID,AVAL,TRT01A
-01,10,Drug A
-02,20,Placebo
-03,30,
-```
+No LLM output artifact was produced.

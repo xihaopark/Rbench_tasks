@@ -127,94 +127,44 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 #!/usr/bin/env Rscript
 
 library(admiral)
+library(dplyr)
+library(readr)
 
 # Create outputs directory if it does not exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
-# Read input datasets
-age      <- read.delim("inputs/age.tsv",      stringsAsFactors = FALSE)
-chol     <- read.delim("inputs/chol.tsv",     stringsAsFactors = FALSE)
-cholhdl  <- read.delim("inputs/cholhdl.tsv",  stringsAsFactors = FALSE)
-diabetfl <- read.delim("inputs/diabetfl.tsv", stringsAsFactors = FALSE)
-sex      <- read.delim("inputs/sex.tsv",      stringsAsFactors = FALSE)
-smokefl  <- read.delim("inputs/smokefl.tsv",  stringsAsFactors = FALSE)
-sysbp    <- read.delim("inputs/sysbp.tsv",    stringsAsFactors = FALSE)
-trthypfl <- read.delim("inputs/trthypfl.tsv", stringsAsFactors = FALSE)
+# Read input data
+age      <- read_tsv("inputs/age.tsv",      show_col_types = FALSE)
+chol     <- read_tsv("inputs/chol.tsv",     show_col_types = FALSE)
+cholhdl  <- read_tsv("inputs/cholhdl.tsv",  show_col_types = FALSE)
+diabetfl <- read_tsv("inputs/diabetfl.tsv", show_col_types = FALSE)
+sex      <- read_tsv("inputs/sex.tsv",      show_col_types = FALSE)
+smokefl  <- read_tsv("inputs/smokefl.tsv",  show_col_types = FALSE)
+sysbp    <- read_tsv("inputs/sysbp.tsv",    show_col_types = FALSE)
+trthypfl <- read_tsv("inputs/trthypfl.tsv", show_col_types = FALSE)
 
-# Combine input datasets using admiral
-adsl <- admiral::derive_vars_merged(
-  age,
-  dataset_add = chol,
-  by_vars = NULL
-)
+# Combine datasets using admiral helper
+adsl <- list(age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl) %>%
+  reduce_dataset()
 
-adsl <- admiral::derive_vars_merged(
-  adsl,
-  dataset_add = cholhdl,
-  by_vars = NULL
-)
-
-adsl <- admiral::derive_vars_merged(
-  adsl,
-  dataset_add = diabetfl,
-  by_vars = NULL
-)
-
-adsl <- admiral::derive_vars_merged(
-  adsl,
-  dataset_add = sex,
-  by_vars = NULL
-)
-
-adsl <- admiral::derive_vars_merged(
-  adsl,
-  dataset_add = smokefl,
-  by_vars = NULL
-)
-
-adsl <- admiral::derive_vars_merged(
-  adsl,
-  dataset_add = sysbp,
-  by_vars = NULL
-)
-
-adsl <- admiral::derive_vars_merged(
-  adsl,
-  dataset_add = trthypfl,
-  by_vars = NULL
-)
-
-# Compute deterministic fixture score using admiral
-adsl <- admiral::derive_vars_merged(
-  adsl,
-  dataset_add = transform(
-    adsl,
-    result = 0.1 * age +
-             0.02 * sysbp +
-             0.01 * chol +
-             0.5 * cholhdl +
-             2 * (smokefl == "Y") +
-             2 * (diabetfl == "Y") +
-             (trthypfl == "Y")
-  ),
-  by_vars = NULL
-)
-
-# Keep required columns
-result <- adsl[, c("age",
-                   "sex",
-                   "sysbp",
-                   "chol",
-                   "cholhdl",
-                   "smokefl",
-                   "diabetfl",
-                   "trthypfl",
-                   "result")]
+# Compute deterministic fixture score using admiral::derive_vars_qual
+result <- adsl %>%
+  derive_vars_qual(
+    new_var = result,
+    expr = 0.1 * age +
+      0.02 * sysbp +
+      0.01 * chol +
+      0.5 * cholhdl +
+      2 * (smokefl == "Y") +
+      2 * (diabetfl == "Y") +
+      1 * (trthypfl == "Y")
+  ) %>%
+  select(age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl, result)
 
 # Write output
-write.csv(result, file = "outputs/result.csv", row.names = FALSE)
+write_csv(result, "outputs/result.csv")
 ```
 
 ## Output

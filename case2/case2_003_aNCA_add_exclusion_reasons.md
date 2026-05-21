@@ -135,46 +135,84 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages({
-  library(aNCA)
-})
+# Load required package
+suppressPackageStartupMessages(library(aNCA))
 
 # Create outputs directory if it does not exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
-# Read input files
-excl <- read.delim("inputs/exclusion_list.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-pknca <- read.delim("inputs/pknca_data.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-
-# Ensure date column is Date class if needed
-if (!inherits(pknca$ADT, "Date")) {
-  pknca$ADT <- as.Date(pknca$ADT)
-}
-
-# Use aNCA to attach exclusion reasons based on exclusion_list
-# (exclusion_list used only in the object workflow; no row filtering)
-aNCA_obj <- aNCA::analyze_nca(data = pknca,
-                              exclusion_list = excl,
-                              keep_all = TRUE)
-
-# Extract the underlying data preserving original rows/columns
-# Assuming aNCA provides a function to get data with attached metadata; keep data as-is
-result <- aNCA_obj$data
-
-# Keep only required columns in specified order
-required_cols <- c(
-  "USUBJID", "STUDYID", "PARAMCD", "PARAM", "AVAL",
-  "AVISITN", "AVISIT", "ADT", "ANL01FL", "BASE", "CHG",
-  "PCHG", "ABLFL"
+# Read input data
+excl <- read.delim(
+  file = file.path("inputs", "exclusion_list.tsv"),
+  header = TRUE,
+  sep = "\t",
+  stringsAsFactors = FALSE
 )
 
-# Subset and reorder columns if they exist
-result_out <- result[, required_cols]
+pknca_data <- read.delim(
+  file = file.path("inputs", "pknca_data.tsv"),
+  header = TRUE,
+  sep = "\t",
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
 
-# Write output as CSV
-write.csv(result_out, file = "outputs/result.csv", row.names = FALSE)
+# Ensure required columns exist in pknca_data
+required_cols <- c(
+  "USUBJID", "STUDYID", "PARAMCD", "PARAM", "AVAL",
+  "AVISITN", "AVISIT", "ADT", "ANL01FL", "BASE",
+  "CHG", "PCHG", "ABLFL"
+)
+
+missing_cols <- setdiff(required_cols, colnames(pknca_data))
+if (length(missing_cols) > 0) {
+  stop("Missing required column(s) in pknca_data.tsv: ",
+       paste(missing_cols, collapse = ", "))
+}
+
+# Prepare exclusion list in aNCA format (one record per PARAMCD)
+# Here we map exclusion_list column 'x' to analyte/parameter identifier
+excl_list <- excl$x
+excl_df <- data.frame(
+  PARAMCD = excl_list,
+  EXCLREAS = paste("Excluded per exclusion_list for", excl_list),
+  stringsAsFactors = FALSE
+)
+
+# Attach exclusion reasons in an aNCA object workflow
+
+## Convert pknca_data to an aNCA PK dataset object
+## (using generic creation to keep all rows; aNCA will handle metadata)
+pk_obj <- as_nca_pk(pknca_data)
+
+## Add exclusion reasons on parameter level without filtering records
+## (assumes aNCA supports exclusion attachment via add_exclusion_reason)
+for (i in seq_len(nrow(excl_df))) {
+  pk_obj <- add_exclusion_reason(
+    pk_obj,
+    where = "parameter",
+    id_var = "PARAMCD",
+    id_val = excl_df$PARAMCD[i],
+    reason = excl_df$EXCLREAS[i],
+    apply_filter = FALSE
+  )
+}
+
+# Extract data for output - preserve original table view and all rows
+result <- pk_obj$data
+
+# Keep only required columns (in order)
+result <- result[required_cols]
+
+# Write result
+write.csv(
+  result,
+  file = file.path("outputs", "result.csv"),
+  row.names = FALSE,
+  na = ""
+)
 ```
 
 ## Output

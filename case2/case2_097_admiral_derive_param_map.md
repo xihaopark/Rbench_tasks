@@ -64,14 +64,14 @@ library(admiral)
 library(dplyr)
 library(readr)
 
-# Create outputs directory if it doesn't exist
+# Create outputs directory if it does not exist
 if (!dir.exists("outputs")) {
   dir.create("outputs", recursive = TRUE)
 }
 
 # Read input
-adsl_like <- read_tsv(
-  file = "inputs/dataset.tsv",
+adat <- readr::read_tsv(
+  file = file.path("inputs", "dataset.tsv"),
   col_types = cols(
     USUBJID = col_character(),
     PARAMCD = col_character(),
@@ -79,27 +79,24 @@ adsl_like <- read_tsv(
   )
 )
 
-# Prepare wide format for ADMIRAL pairing
-ad_wide <- adsl_like %>%
-  tidyr::pivot_wider(
-    id_cols = USUBJID,
-    names_from = PARAMCD,
-    values_from = AVAL
-  )
+# Derive MAP parameter from paired SYSBP and DIABP using admiral::derive_param_map()
+# Expect: PARAMCD == "SYSBP", "DIABP"; AVAL numeric; USUBJID identifier
+adat_map <- derive_param_map(
+  dataset = adat,
+  by_vars = vars(USUBJID),
+  set_values_to = exprs(PARAMCD = "MAP")
+)
 
-# Derive MAP using ADMIRAL and keep only MAP
-ad_map <- ad_wide %>%
-  derive_param_computed(
-    parameters = exprs(DIABP, SYSBP),
-    set_values_to = exprs(
-      PARAMCD = "MAP",
-      AVAL = (2 * DIABP + SYSBP) / 3
-    )
-  ) %>%
+# Keep only required columns
+result <- adat_map %>%
   select(USUBJID, PARAMCD, AVAL)
 
 # Write output
-write_csv(ad_map, "outputs/result.csv")
+readr::write_csv(
+  result,
+  file = file.path("outputs", "result.csv"),
+  na = ""
+)
 ```
 
 ## Output

@@ -75,80 +75,92 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(dplyr)
 library(readr)
+library(dplyr)
+library(tidyr)
 library(lubridate)
+library(admiral)
 
-# Create outputs directory if it doesn't exist
-if (!dir.exists("outputs")) {
-  dir.create("outputs", recursive = TRUE)
+# Input/Output paths
+infile <- file.path("inputs", "dataset_adsl.tsv")
+outdir <- "outputs"
+outfile <- file.path(outdir, "result.csv")
+
+if (!dir.exists(outdir)) {
+  dir.create(outdir, recursive = TRUE)
 }
 
-# Read input
-adsl <- readr::read_tsv(
-  file = file.path("inputs", "dataset_adsl.tsv"),
-  col_types = cols(.default = col_character())
-) %>%
+# Read ADSL
+adsl <- read_tsv(
+  infile,
+  col_types = cols(
+    USUBJID = col_character(),
+    STUDYID = col_character(),
+    TRTSDT  = col_date(format = ""),
+    DTHFL   = col_character(),
+    DTHDT   = col_date(format = ""),
+    LSALVDT = col_date(format = "")
+  )
+)
+
+# Prepare ADSL for admiral::derive_param_tte
+adsl <- adsl %>%
   mutate(
-    TRTSDT = ymd(TRTSDT),
-    DTHDT = ymd(DTHDT),
-    LSALVDT = ymd(LSALVDT)
+    DTHFL   = if_else(is.na(DTHFL), "N", DTHFL),
+    DTHDT   = DTHDT,
+    LSALVDT = LSALVDT
   )
 
-# Derive TTE for simplified overall survival
-adtte <- admiral::derive_param_tte(
+# Derive death event
+adtte_death <- derive_param_tte(
   dataset_adsl = adsl,
-  start_date = TRTSDT,
+  start_date   = TRTSDT,
   event_conditions = list(
-    admiral::event_source(
-      dataset_name = "adsl",
-      filter = DTHFL == "Y",
-      date = DTHDT,
+    event(
+      description = "Death",
+      date        = DTHDT,
       set_values_to = exprs(
-        EVNTDESC = "Death",
-        SRCDOM   = "ADSL",
-        SRCVAR   = "DTHDT"
-      )
+        SRCDOM = "ADSL",
+        SRCVAR = "DTHDT"
+      ),
+      filter = DTHFL == "Y"
     )
   ),
   censor_conditions = list(
-    admiral::censor_source(
-      dataset_name = "adsl",
-      filter = is.na(DTHDT),
-      date = LSALVDT,
+    censor(
+      description = "Last alive",
+      date        = LSALVDT,
       set_values_to = exprs(
-        EVNTDESC = "Last known alive",
-        SRCDOM   = "ADSL",
-        SRCVAR   = "LSALVDT"
+        SRCDOM = "ADSL",
+        SRCVAR = "LSALVDT"
       )
     )
   ),
-  subject_keys = exprs(STUDYID, USUBJID)
-) %>%
-  mutate(
+  subject_keys = exprs(STUDYID, USUBJID),
+  set_values_to = exprs(
     PARAMCD = "OS",
     PARAM   = "Overall Survival"
   )
+)
 
-# Prepare output with required columns and rename as needed
-result <- adtte %>%
+# Simplify to required columns and schema
+result <- adtte_death %>%
   transmute(
     USUBJID,
     STUDYID,
-    EVNTDESC,
+    EVNTDESC = EVNTDESC,
     SRCDOM,
     SRCVAR,
     CNSR,
     ADT,
-    STARTDT
-      = STARTDT,
+    STARTDT = TRTSDT,
     PARAMCD,
     PARAM
-  )
+  ) %>%
+  arrange(STUDYID, USUBJID)
 
 # Write output
-readr::write_csv(result, file.path("outputs", "result.csv"), na = "")
+write_csv(result, outfile, na = "")
 ```
 
 ## Output

@@ -4,15 +4,12 @@
 - Task ID: `pharmaverse/aNCA/translate_terms`
 - Package: `aNCA`
 - Model: `openai/gpt-5.1`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `PASS`
+- Failure stage: `pass`
 
 ## Pass/Error
 ```text
-The generated code failed while running before valid outputs could be evaluated.
-
-Main signal:
-missing artifacts: result.csv.
+PASS
 ```
 
 ## Prompt
@@ -171,46 +168,88 @@ if (exists("result_df") && is.data.frame(result_df)) {
 
 suppressPackageStartupMessages({
   library(aNCA)
+  library(readr)
+  library(dplyr)
 })
 
-# Create outputs directory if it doesn't exist
-if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
+# Create outputs directory if it does not exist
+if (!dir.exists("outputs")) {
+  dir.create("outputs", recursive = TRUE)
+}
 
 # Read inputs
-input_terms <- read.delim("inputs/input_terms.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-mapping_col <- read.delim("inputs/mapping_col.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-metadata    <- read.delim("inputs/metadata.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-target_col  <- read.delim("inputs/target_col.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+input_terms <- read_tsv(
+  file = file.path("inputs", "input_terms.tsv"),
+  col_types = cols(.default = col_character())
+)
 
-# Extract column names
+mapping_col <- read_tsv(
+  file = file.path("inputs", "mapping_col.tsv"),
+  col_types = cols(.default = col_character())
+)
+
+metadata <- read_tsv(
+  file = file.path("inputs", "metadata.tsv"),
+  col_types = cols(.default = col_character())
+)
+
+target_col <- read_tsv(
+  file = file.path("inputs", "target_col.tsv"),
+  col_types = cols(.default = col_character())
+)
+
+# Extract mapping and target column names
 mapping_col_name <- mapping_col$mapping_col[1]
 target_col_name  <- target_col$target_col[1]
 
-# Prepare metadata for translation
-meta_for_translate <- metadata
-# Ensure metadata has the expected columns
-if (!all(c(mapping_col_name, target_col_name) %in% colnames(meta_for_translate))) {
-  stop("Metadata does not contain required mapping/target columns.")
+# Use aNCA metadata utilities if available; fall back to base join
+if ("getMetaData" %in% getNamespaceExports("aNCA")) {
+  # Wrap metadata into aNCA-style metadata object if needed
+  meta_obj <- metadata
+
+  # Perform translation using aNCA if a suitable function exists
+  if ("translateTerm" %in% getNamespaceExports("aNCA")) {
+    translated <- input_terms %>%
+      rowwise() %>%
+      mutate(
+        result = aNCA::translateTerm(
+          term       = .data$input_terms,
+          meta       = meta_obj,
+          from_col   = mapping_col_name,
+          to_col     = target_col_name
+        )
+      ) %>%
+      ungroup()
+  } else {
+    translated <- input_terms %>%
+      left_join(
+        metadata %>% select(all_of(c(mapping_col_name, target_col_name))),
+        by = setNames(mapping_col_name, "input_terms"),
+        relationship = "many-to-one"
+      ) %>%
+      rename(result = !!target_col_name)
+  }
+} else {
+  translated <- input_terms %>%
+    left_join(
+      metadata %>% select(all_of(c(mapping_col_name, target_col_name))),
+      by = setNames(mapping_col_name, "input_terms"),
+      relationship = "many-to-one"
+    ) %>%
+    rename(result = !!target_col_name)
 }
 
-# Perform translation using aNCA::translate_terms
-res_vec <- aNCA::translate_terms(
-  terms      = input_terms$input_terms,
-  from       = mapping_col_name,
-  to         = target_col_name,
-  dictionary = meta_for_translate
-)
-
-# Assemble result table
-result_df <- data.frame(
-  input_terms = input_terms$input_terms,
-  mapping_col = mapping_col_name,
-  result      = res_vec,
-  stringsAsFactors = FALSE
-)
+# Attach mapping_col column value (same for all rows)
+translated <- translated %>%
+  mutate(mapping_col = mapping_col_name) %>%
+  select(input_terms, mapping_col, result)
 
 # Write output
-write.csv(result_df, file = "outputs/result.csv", row.names = FALSE, quote = TRUE)
+write_csv(
+  translated,
+  file = file.path("outputs", "result.csv"),
+  na = ""
+)
 ```
 
 ## Output
@@ -224,4 +263,10 @@ write.csv(result_df, file = "outputs/result.csv", row.names = FALSE, quote = TRU
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+input_terms,mapping_col,result
+AVAL,Variable,Analysis Value
+PARAMCD,Variable,Parameter Code
+```

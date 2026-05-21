@@ -131,66 +131,49 @@ suppressPackageStartupMessages({
   library(aNCA)
 })
 
-# Create outputs directory
-if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
+# Create outputs directory if it does not exist
+if (!dir.exists("outputs")) {
+  dir.create("outputs", recursive = TRUE)
+}
 
 # Read inputs
-conc    <- read.table("inputs/conc.tsv",    header = TRUE, sep = "\t")
-end     <- read.table("inputs/end.tsv",     header = TRUE, sep = "\t")
-options <- read.table("inputs/options.tsv", header = TRUE, sep = "\t")
-start   <- read.table("inputs/start.tsv",   header = TRUE, sep = "\t")
-time    <- read.table("inputs/time.tsv",    header = TRUE, sep = "\t")
+conc_df   <- read.table("inputs/conc.tsv",   header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+end_df    <- read.table("inputs/end.tsv",    header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+opt_df    <- read.table("inputs/options.tsv",header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+start_df  <- read.table("inputs/start.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+time_df   <- read.table("inputs/time.tsv",   header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-# Build dose-time-concentration data frame expected by aNCA
-# Assume single dose at time 0, with observed times from time.tsv
-# and corresponding concentrations from conc.tsv
-dat <- data.frame(
-  TIME = time$time,
-  CONC = conc$conc
+# Extract needed values
+start_time <- start_df$start[1]
+
+# Assume a single profile with known sampling times from time.tsv
+# and corresponding concentrations from conc.tsv (same order/length)
+time_vec <- time_df$time
+conc_vec <- conc_df$conc
+
+# Build aNCA-style input data frame
+df <- data.frame(
+  ID   = 1L,
+  TIME = time_vec,
+  CONC = conc_vec
 )
 
-# Add START and END times (single interval)
-start_time <- start$start[1]
-end_time   <- end$end[1]
-
-# Use aNCA imputation method "start c1"
-# aNCA uses setMethodImputeNCA() and imputeNCA()
-method <- setMethodImputeNCA("start c1")
-
-# Prepare imputation arguments
-imp_args <- list(
-  TIME  = dat$TIME,
-  CONC  = dat$CONC,
-  START = start_time,
-  END   = end_time
+# Use aNCA to impute concentration at requested start time
+# and insert that row, then sort by time
+df_imputed <- impute_start_conc0(
+  data      = df,
+  id        = "ID",
+  time      = "TIME",
+  conc      = "CONC",
+  starttime = start_time
 )
 
-# Perform imputation
-imp_res <- imputeNCA(
-  TIME  = imp_args$TIME,
-  CONC  = imp_args$CONC,
-  START = imp_args$START,
-  END   = imp_args$END,
-  method = method
-)
+# Keep only required columns and rename as requested
+result <- df_imputed[order(df_imputed$TIME), c("CONC", "TIME")]
+colnames(result) <- c("conc", "time")
 
-# imp_res is expected to contain imputed TIME and CONC
-# Ensure we have a data frame with TIME and CONC
-res_df <- data.frame(
-  time = imp_res$TIME,
-  conc = imp_res$CONC
-)
-
-# Order by time
-res_df <- res_df[order(res_df$time), ]
-
-# Write result.csv with required columns and header
-write.csv(
-  res_df[, c("conc", "time")],
-  file = "outputs/result.csv",
-  row.names = FALSE,
-  quote = FALSE
-)
+# Write result
+write.csv(result, file = "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output

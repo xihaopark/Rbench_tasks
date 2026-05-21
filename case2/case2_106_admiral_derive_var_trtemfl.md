@@ -72,63 +72,72 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 library(admiral)
 library(dplyr)
 library(readr)
+library(lubridate)
+library(fs)
 
 # Create outputs directory if it does not exist
-if (!dir.exists("outputs")) {
-  dir.create("outputs", recursive = TRUE)
+if (!dir_exists("outputs")) {
+  dir_create("outputs")
 }
 
 # Read input
-adsl <- read_tsv(
+adsl_ae <- read_tsv(
   file = file.path("inputs", "dataset.tsv"),
   col_types = cols(
-    USUBJID = col_character(),
-    TRTSDTM = col_character(),
-    TRTEDTM = col_character(),
-    ASTDTM  = col_character(),
-    AENDTM  = col_character(),
+    USUBJID  = col_character(),
+    TRTSDTM  = col_character(),
+    TRTEDTM  = col_character(),
+    ASTDTM   = col_character(),
+    AENDTM   = col_character(),
     AEITOXGR = col_double(),
     AETOXGR  = col_double()
   )
+) %>%
+  mutate(
+    TRTSDTM = ymd(TRTSDTM),
+    TRTEDTM = ymd(TRTEDTM),
+    ASTDTM  = ymd(ASTDTM),
+    AENDTM  = ymd(AENDTM)
+  )
+
+# Split into ADSL-like and AE-like objects
+adsl <- adsl_ae %>%
+  distinct(USUBJID, TRTSDTM, TRTEDTM)
+
+ae <- adsl_ae %>%
+  select(USUBJID, ASTDTM, AENDTM, AEITOXGR, AETOXGR)
+
+# Derive treatment-emergent flag using admiral:
+# - in-window: event starts on/after TRTSDTM and on/before TRTEDTM
+# - or: any AE with worsening toxicity grade post-baseline
+ae_te <- derive_var_trtemfl(
+  dataset_ae   = ae,
+  dataset_adsl = adsl,
+  by_vars      = exprs(USUBJID),
+  trt_start_dt = TRTSDTM,
+  trt_end_dt   = TRTEDTM,
+  start_dt     = ASTDTM,
+  end_dt       = AENDTM,
+  intensity_baseline = AEITOXGR,
+  intensity          = AETOXGR
 )
 
-# Convert character dates to datetime
-adsl <- adsl %>%
-  mutate(
-    TRTSDTM = lubridate::ymd(TRTSDTM),
-    TRTEDTM = lubridate::ymd(TRTEDTM),
-    ASTDTM  = lubridate::ymd(ASTDTM),
-    AENDTM  = lubridate::ymd(AENDTM)
+# Join back treatment dates for output
+result <- ae_te %>%
+  left_join(adsl, by = "USUBJID") %>%
+  select(
+    USUBJID,
+    TRTSDTM,
+    TRTEDTM,
+    ASTDTM,
+    AENDTM,
+    AEITOXGR,
+    AETOXGR,
+    TRTEMFL
   )
 
-# Prepare ADSL-like dataset (unique per subject)
-adsl_sub <- adsl %>%
-  select(USUBJID, TRTSDTM, TRTEDTM) %>%
-  distinct()
-
-# Derive treatment-emergent flag
-result <- adsl %>%
-  derive_var_trtemfl(
-    dataset_adsl = adsl_sub,
-    new_var = TRTEMFL,
-    start_date = ASTDTM,
-    end_date = AENDTM,
-    trt_start_date = TRTSDTM,
-    trt_end_date = TRTEDTM,
-    toxgr_var = AETOXGR,
-    itoxgr_var = AEITOXGR
-  )
-
-# Select required columns and write output
-result %>%
-  mutate(
-    TRTSDTM = format(TRTSDTM, "%Y-%m-%d"),
-    TRTEDTM = format(TRTEDTM, "%Y-%m-%d"),
-    ASTDTM  = format(ASTDTM, "%Y-%m-%d"),
-    AENDTM  = format(AENDTM, "%Y-%m-%d")
-  ) %>%
-  select(USUBJID, TRTSDTM, TRTEDTM, ASTDTM, AENDTM, AEITOXGR, AETOXGR, TRTEMFL) %>%
-  write_csv(file.path("outputs", "result.csv"), na = "")
+# Write output
+write_csv(result, file.path("outputs", "result.csv"), na = "")
 ```
 
 ## Output

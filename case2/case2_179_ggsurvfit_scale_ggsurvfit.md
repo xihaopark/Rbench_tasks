@@ -75,30 +75,40 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 suppressPackageStartupMessages({
   library(ggsurvfit)
+  library(readr)
+  library(dplyr)
 })
 
 # ensure outputs directory exists
-if (!dir.exists("outputs")) {
-  dir.create("outputs", recursive = TRUE)
-}
+if (!dir.exists("outputs")) dir.create("outputs", recursive = TRUE)
 
 # read inputs
-x_tbl <- read.delim("inputs/x_scales.tsv", stringsAsFactors = FALSE)
-y_tbl <- read.delim("inputs/y_scales.tsv", stringsAsFactors = FALSE)
+x_tbl <- readr::read_tsv("inputs/x_scales.tsv", show_col_types = FALSE)
+y_tbl <- readr::read_tsv("inputs/y_scales.tsv", show_col_types = FALSE)
 
-# parse list expressions
-x_expr <- eval(parse(text = x_tbl$expr[[1]]))
-y_expr <- eval(parse(text = y_tbl$expr[[1]]))
+# parse list expressions safely
+parse_list_expr <- function(expr_chr) {
+  expr_parsed <- parse(text = expr_chr)[[1L]]
+  val <- eval(expr_parsed, envir = baseenv())
+  if (!is.list(val)) {
+    stop("Parsed expression is not a list: ", expr_chr)
+  }
+  val
+}
+
+x_scales <- parse_list_expr(x_tbl$expr[[1L]])
+y_scales <- parse_list_expr(y_tbl$expr[[1L]])
 
 # call scale_ggsurvfit
-scales_obj <- ggsurvfit::scale_ggsurvfit(x = x_expr, y = y_expr)
+scaled_obj <- ggsurvfit::scale_ggsurvfit(x = x_scales, y = y_scales)
 
-# create one-row class/summary table
-scale_classes <- paste(class(scales_obj), collapse = ";")
-res <- data.frame(scale_classes = scale_classes, stringsAsFactors = FALSE)
+# build one-row class/summary table
+scale_classes <- paste(class(scaled_obj), collapse = ";")
+
+result <- tibble::tibble(scale_classes = scale_classes)
 
 # write result
-write.csv(res, file = "outputs/result.csv", row.names = FALSE)
+readr::write_csv(result, "outputs/result.csv")
 ```
 
 ## Output
@@ -114,6 +124,6 @@ write.csv(res, file = "outputs/result.csv", row.names = FALSE)
 #### `result.csv`
 
 ```csv
-"scale_classes"
-"scale_ggsurvfit"
+scale_classes
+scale_ggsurvfit
 ```
