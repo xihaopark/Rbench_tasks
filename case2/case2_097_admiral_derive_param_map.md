@@ -1,4 +1,4 @@
-# Case2 11: pharmaverse/admiral/derive_param_map
+# Case 097: pharmaverse/admiral/derive_param_map
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/derive_param_map`

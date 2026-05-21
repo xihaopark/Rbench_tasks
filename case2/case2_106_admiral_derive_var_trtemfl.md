@@ -1,4 +1,4 @@
-# Case2 15: pharmaverse/admiral/derive_var_trtemfl
+# Case 106: pharmaverse/admiral/derive_var_trtemfl
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/derive_var_trtemfl`

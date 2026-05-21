@@ -1,4 +1,4 @@
-# Case2 30: pharmaverse/gridify/get_layouts
+# Case 180: pharmaverse/gridify/get_layouts
 
 ## Metadata
 - Task ID: `pharmaverse/gridify/get_layouts`

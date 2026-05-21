@@ -1,4 +1,4 @@
-# Case2 02: pharmaverse/admiral/compute_framingham
+# Case 064: pharmaverse/admiral/compute_framingham
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/compute_framingham`

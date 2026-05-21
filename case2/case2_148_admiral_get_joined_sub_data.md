@@ -1,4 +1,4 @@
-# Case2 09: pharmaverse/admiral/get_joined_sub_data
+# Case 148: pharmaverse/admiral/get_joined_sub_data
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/get_joined_sub_data`

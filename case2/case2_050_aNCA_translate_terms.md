@@ -1,4 +1,4 @@
-# Case2 28: pharmaverse/aNCA/translate_terms
+# Case 050: pharmaverse/aNCA/translate_terms
 
 ## Metadata
 - Task ID: `pharmaverse/aNCA/translate_terms`

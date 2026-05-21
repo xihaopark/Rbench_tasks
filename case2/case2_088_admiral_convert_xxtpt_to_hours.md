@@ -1,4 +1,4 @@
-# Case2 06: pharmaverse/admiral/convert_xxtpt_to_hours
+# Case 088: pharmaverse/admiral/convert_xxtpt_to_hours
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/convert_xxtpt_to_hours`

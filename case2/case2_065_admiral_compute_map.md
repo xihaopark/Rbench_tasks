@@ -1,4 +1,4 @@
-# Case2 03: pharmaverse/admiral/compute_map
+# Case 065: pharmaverse/admiral/compute_map
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/compute_map`

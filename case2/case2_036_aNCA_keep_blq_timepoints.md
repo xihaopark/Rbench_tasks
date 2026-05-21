@@ -1,4 +1,4 @@
-# Case2 24: pharmaverse/aNCA/keep_blq_timepoints
+# Case 036: pharmaverse/aNCA/keep_blq_timepoints
 
 ## Metadata
 - Task ID: `pharmaverse/aNCA/keep_blq_timepoints`

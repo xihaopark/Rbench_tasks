@@ -1,4 +1,4 @@
-# Case2 18: pharmaverse/admiral/derive_vars_query
+# Case 123: pharmaverse/admiral/derive_vars_query
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/derive_vars_query`

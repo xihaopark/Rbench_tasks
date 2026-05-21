@@ -1,4 +1,4 @@
-# Case2 17: pharmaverse/admiral/derive_vars_extreme_event
+# Case 118: pharmaverse/admiral/derive_vars_extreme_event
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/derive_vars_extreme_event`

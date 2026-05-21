@@ -1,4 +1,4 @@
-# Case2 29: pharmaverse/ggsurvfit/scale_ggsurvfit
+# Case 179: pharmaverse/ggsurvfit/scale_ggsurvfit
 
 ## Metadata
 - Task ID: `pharmaverse/ggsurvfit/scale_ggsurvfit`

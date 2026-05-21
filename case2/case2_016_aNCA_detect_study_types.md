@@ -1,4 +1,4 @@
-# Case2 25: pharmaverse/aNCA/detect_study_types
+# Case 016: pharmaverse/aNCA/detect_study_types
 
 ## Metadata
 - Task ID: `pharmaverse/aNCA/detect_study_types`

@@ -1,4 +1,4 @@
-# Case2 08: pharmaverse/admiral/get_flagged_records
+# Case 142: pharmaverse/admiral/get_flagged_records
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/get_flagged_records`

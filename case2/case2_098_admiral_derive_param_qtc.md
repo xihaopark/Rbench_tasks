@@ -1,4 +1,4 @@
-# Case2 12: pharmaverse/admiral/derive_param_qtc
+# Case 098: pharmaverse/admiral/derive_param_qtc
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/derive_param_qtc`

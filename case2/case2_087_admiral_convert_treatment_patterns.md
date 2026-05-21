@@ -1,4 +1,4 @@
-# Case2 05: pharmaverse/admiral/convert_treatment_patterns
+# Case 087: pharmaverse/admiral/convert_treatment_patterns
 
 ## Metadata
 - Task ID: `pharmaverse/admiral/convert_treatment_patterns`
