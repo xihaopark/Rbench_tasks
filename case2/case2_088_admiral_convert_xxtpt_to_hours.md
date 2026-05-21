@@ -17,7 +17,7 @@ result.csv: Numeric mismatch in column: result
 
 ## Prompt
 ```text
-Write an R script for an R package task: perform convert xxtpt to hours using the admiral package. The function(s) you use to solve the task must come from the admiral package.
+Write an R script for an R package task: perform convert xxtpt to hours using the admiral package. Use functions from the admiral package when suitable.
 
 Output: result.csv
 

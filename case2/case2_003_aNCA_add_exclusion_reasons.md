@@ -17,7 +17,7 @@ missing artifacts: result.csv.
 
 ## Prompt
 ```text
-Write an R script for an R package task: perform add exclusion reasons using the aNCA package. The function(s) you use to solve the task must come from the aNCA package.
+Write an R script for an R package task: perform add exclusion reasons using the aNCA package. Use functions from the aNCA package when suitable.
 
 Output: result.csv
 

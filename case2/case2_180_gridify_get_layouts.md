@@ -17,7 +17,7 @@ result.csv: Shape mismatch: ref=(5, 2) vs llm=(1, 2)
 
 ## Prompt
 ```text
-Write an R script for an R package task: perform get layouts using the gridify package. The function(s) you use to solve the task must come from the gridify package.
+Write an R script for an R package task: perform get layouts using the gridify package. Use functions from the gridify package when suitable.
 
 Output: result.csv
 

@@ -14,7 +14,7 @@ PASS
 
 ## Prompt
 ```text
-Write an R script for an R package task: perform scale ggsurvfit using the ggsurvfit package. The function(s) you use to solve the task must come from the ggsurvfit package.
+Write an R script for an R package task: perform scale ggsurvfit using the ggsurvfit package. Use functions from the ggsurvfit package when suitable.
 
 Output: result.csv
 
