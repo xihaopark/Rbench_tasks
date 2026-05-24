@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `FAIL`
 - Failure stage: `value_mismatch`
 - Pattern: ``
@@ -44,32 +43,6 @@ Computation: Use the MDRD-style eGFR convention: 175 * creat^(-1.154) * age^(-0.
 Required columns for result.csv: creat, age, sex, race, result
 Required columns for summary.csv: n_rows, n_cols, col_names
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### age.tsv
-age
-45
-60
-72
-
-### creat.tsv
-creat
-0.8
-1.1
-1.4
-
-### race.tsv
-race
-OTHER
-BLACK OR AFRICAN AMERICAN
-OTHER
-
-### sex.tsv
-sex
-F
-M
-F
 ```
 
 ## Input

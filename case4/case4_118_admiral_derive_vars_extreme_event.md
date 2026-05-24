@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -43,26 +42,6 @@ Computation: Use source adverse events with AETOXGR >= 2, order by descending AE
 
 Required columns for result.csv: STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-STUDYID	USUBJID	TRTSDT
-S1	01	2020-01-01
-S1	02	2020-01-05
-S1	03	2020-01-10
-
-### mode.tsv
-mode
-first
-
-### source_datasets.tsv
-STUDYID	USUBJID	ADT	AESEQ	AETERM	AETOXGR
-S1	01	2020-01-03	1	HEADACHE	1
-S1	01	2020-01-08	2	NAUSEA	3
-S1	02	2020-01-07	1	RASH	2
-S1	02	2020-01-08	2	FEVER	1
-S1	03	2020-01-15	1	COUGH	2
 ```
 
 ## Input

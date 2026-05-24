@@ -5,7 +5,6 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -43,37 +42,6 @@ Computation: Insert a start-time row at the requested start time using the first
 
 Required columns for result.csv: conc, time
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### conc.tsv
-conc
-0.1
-1.5
-10.0
-100.0
-1000.0
-
-### end.tsv
-end
-4.5
-
-### options.tsv
-options
-method=start_conc0
-allow_blq=TRUE
-
-### start.tsv
-start
-1.5
-
-### time.tsv
-time
-1.0
-2.0
-3.0
-4.0
-5.0
 ```
 
 ## Input

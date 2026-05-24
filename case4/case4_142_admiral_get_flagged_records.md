@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `FAIL`
 - Failure stage: `schema_mismatch`
 - Pattern: ``
@@ -43,23 +42,6 @@ Computation: Return only records satisfying AVAL > threshold and set the request
 
 Required columns for result.csv: USUBJID, PARAMCD, AVAL, AVISIT, HIGHFL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVAL	AVISIT
-01	ALT	45	WEEK 1
-01	ALT	18	WEEK 2
-02	AST	52	WEEK 1
-02	ALT	38	WEEK 1
-
-### new_var.tsv
-new_var
-HIGHFL
-
-### threshold.tsv
-threshold
-40
 ```
 
 ## Input

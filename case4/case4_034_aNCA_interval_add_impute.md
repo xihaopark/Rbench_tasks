@@ -5,7 +5,6 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -43,31 +42,6 @@ Computation: For target group rows and target parameter columns, split interval 
 
 Required columns for result.csv: start, end, cmax, auclast, half.life, impute, analyte, period
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### after.tsv
-after
-1
-
-### data.tsv
-start	end	cmax	auclast	half.life	impute	analyte	period
-0	12	TRUE	TRUE	FALSE	start_predose	DrugA	Single
-0	Inf	TRUE	FALSE	TRUE		DrugB	Single
-12	24	TRUE	TRUE	TRUE	start_conc0	DrugA	Multiple
-
-### target_groups.tsv
-analyte	period
-DrugA	Single
-
-### target_impute.tsv
-target_impute
-start_conc0
-
-### target_params.tsv
-target_params
-cmax
-half.life
 ```
 
 ## Input

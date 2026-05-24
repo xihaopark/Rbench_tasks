@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `FAIL`
 - Failure stage: `schema_mismatch`
 - Pattern: ``
@@ -43,24 +42,6 @@ Computation: Carry the last observed value forward by USUBJID and PARAMCD ordere
 
 Required columns for result.csv: USUBJID, PARAMCD, AVISITN, AVAL, DTYPE
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVISITN	AVAL
-01	ALT	1	20
-01	ALT	3	30
-02	ALT	1	15
-02	ALT	4	24
-
-### visits.tsv
-USUBJID	PARAMCD	AVISITN
-01	ALT	1
-01	ALT	2
-01	ALT	3
-02	ALT	1
-02	ALT	2
-... [2 more lines omitted]
 ```
 
 ## Input

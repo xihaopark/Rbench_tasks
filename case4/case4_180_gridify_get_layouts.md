@@ -5,7 +5,6 @@
 - Package: `gridify`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``

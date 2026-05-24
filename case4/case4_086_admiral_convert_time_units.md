@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
 - Pattern: `invalid_or_internal_package_api`
@@ -41,29 +40,6 @@ Output: result.csv
 
 Required columns for result.csv: xxtpt, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### na_idx.tsv
-na_idx
-FALSE
-FALSE
-FALSE
-FALSE
-
-### result.tsv
-result
-NA
-NA
-NA
-NA
-
-### xxtpt.tsv
-xxtpt
-2H 30MIN
-3 DAYS
-DAY 2
-4D
 ```
 
 ## Input

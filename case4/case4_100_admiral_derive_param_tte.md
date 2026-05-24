@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
 - Pattern: ``
@@ -43,14 +42,6 @@ Computation: Derive the simplified overall-survival parameter: death records are
 
 Required columns for result.csv: USUBJID, STUDYID, EVNTDESC, SRCDOM, SRCVAR, CNSR, ADT, STARTDT, PARAMCD, PARAM
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset_adsl.tsv
-USUBJID	STUDYID	TRTSDT	DTHFL	DTHDT	LSALVDT
-01	STUDY1	2021-01-01	Y	2021-04-01	2021-04-01
-02	STUDY1	2021-01-02	N		2021-03-15
-03	STUDY1	2021-01-05	N		2021-02-20
 ```
 
 ## Input

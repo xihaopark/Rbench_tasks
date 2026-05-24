@@ -5,7 +5,6 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
 - Pattern: `invalid_or_internal_package_api`
@@ -43,25 +42,6 @@ Computation: Write the ARM/TIME summary table of every observed ARM and TIME pai
 
 Required columns for result.csv: ARM, TIME
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### mean_group_var.tsv
-mean_group_var
-ARM
-
-### plot_data.tsv
-USUBJID	ARM	TIME	CONC	DOSE	PARAM	ROUTE	TSLD	BLQFL
-101	100 mg	0	0.0	100	AUC	oral	0	Y
-101	100 mg	1	34.2	100	AUC	oral	1	N
-101	100 mg	2	61.5	100	AUC	oral	2	N
-101	100 mg	4	38.1	100	AUC	oral	4	N
-102	100 mg	0	0.0	100	AUC	oral	0	Y
-... [3 more lines omitted]
-
-### xvar.tsv
-xvar
-TIME
 ```
 
 ## Input

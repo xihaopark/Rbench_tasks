@@ -5,7 +5,6 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `FAIL`
 - Failure stage: `schema_mismatch`
 - Pattern: ``
@@ -43,31 +42,6 @@ Computation: Classify rows by route/evidence: oral rows as oral, IV infusion row
 
 Required columns for result.csv: subject, study_type
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### data.tsv
-subject	period	route	urine_volume	metabfl
-101	1	oral	0	parent
-101	2	oral	0	parent
-102	1	iv infusion	0	parent
-103	1	urine	150	metabolite
-
-### groups.tsv
-groups
-subject
-
-### metabfl_column.tsv
-metabfl_column
-metabfl
-
-### route_column.tsv
-route_column
-route
-
-### volume_column.tsv
-volume_column
-urine_volume
 ```
 
 ## Input

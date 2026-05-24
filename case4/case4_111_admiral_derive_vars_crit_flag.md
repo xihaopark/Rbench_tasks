@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -43,18 +42,6 @@ Computation: Set CRIT1FL to Y when AVAL > 3 * ULN and to N otherwise.
 
 Required columns for result.csv: USUBJID, PARAMCD, AVAL, ULN, CRIT1, CRIT1FL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVAL	ULN
-01	ALT	45	20
-02	ALT	75	20
-03	AST	30	20
-
-### description.tsv
-description
-ALT greater than three times ULN
 ```
 
 ## Input

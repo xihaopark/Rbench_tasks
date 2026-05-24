@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `FAIL`
 - Failure stage: `value_mismatch`
 - Pattern: ``
@@ -43,15 +42,6 @@ Computation: Derive only QTCBR rows from paired QT and RR records using QT / sqr
 
 Required columns for result.csv: USUBJID, PARAMCD, AVAL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVAL
-01	QT	400
-01	RR	1000
-02	QT	360
-02	RR	800
 ```
 
 ## Input

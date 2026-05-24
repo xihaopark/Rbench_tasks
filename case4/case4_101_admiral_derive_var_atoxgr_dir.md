@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -43,15 +42,6 @@ Computation: Set ATOXGRDIR to L when AVAL < ANRLO, H when AVAL > ANRHI, and N ot
 
 Required columns for result.csv: USUBJID, PARAMCD, AVAL, ANRLO, ANRHI, ATOXGRDIR
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVAL	ANRLO	ANRHI
-01	ALT	15	20	40
-01	AST	55	10	35
-02	BILI	0.8	0.2	1.2
-03	CREAT	1.5	0.5	1.1
 ```
 
 ## Input

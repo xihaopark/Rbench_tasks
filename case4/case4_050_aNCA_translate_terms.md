@@ -5,7 +5,6 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `NO_OUTPUT`
 - Failure stage: `missing_artifact`
 - Pattern: ``
@@ -43,27 +42,6 @@ Computation: Map each input term by looking it up from mapping_col to target_col
 
 Required columns for result.csv: input_terms, mapping_col, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### input_terms.tsv
-input_terms
-AVAL
-PARAMCD
-
-### mapping_col.tsv
-mapping_col
-Variable
-
-### metadata.tsv
-Variable	Label
-AVAL	Analysis Value
-PARAMCD	Parameter Code
-USUBJID	Subject ID
-
-### target_col.tsv
-target_col
-Label
 ```
 
 ## Input

@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `FAIL`
 - Failure stage: `value_mismatch`
 - Pattern: `invalid_or_internal_package_api`
@@ -43,14 +42,6 @@ Computation: For ordered datetime components, keep components before the first m
 
 Required columns for result.csv: year, month, day, hour, minute, second
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### partial.tsv
-year	month	day	hour	minute	second
-2020	05	NA	10	30	45
-2021	NA	12	09	15	00
-2022	07	04	NA	20	30
 ```
 
 ## Input

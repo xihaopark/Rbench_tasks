@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
 - Pattern: `invalid_or_internal_package_api`
@@ -43,26 +42,6 @@ Computation: Map treatment-relative text patterns deterministically: treatment s
 
 Required columns for result.csv: xxtpt, treatment_duration, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### treatment_duration.tsv
-treatment_duration
-72
-72
-72
-72
-72
-... [2 more lines omitted]
-
-### xxtpt.tsv
-xxtpt
-START OF TREATMENT
-PRE-DOSE
-30 MIN AFTER START
-2 HOURS AFTER START
-END OF TREATMENT
-... [2 more lines omitted]
 ```
 
 ## Input

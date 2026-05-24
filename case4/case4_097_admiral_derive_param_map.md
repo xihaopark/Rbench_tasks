@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
 - Pattern: ``
@@ -43,15 +42,6 @@ Computation: Derive only MAP rows from paired DIABP and SYSBP records using (2 *
 
 Required columns for result.csv: USUBJID, PARAMCD, AVAL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	PARAMCD	AVAL
-01	SYSBP	120
-01	DIABP	80
-02	SYSBP	135
-02	DIABP	85
 ```
 
 ## Input

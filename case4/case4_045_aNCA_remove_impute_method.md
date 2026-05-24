@@ -5,7 +5,6 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
 - Pattern: `invalid_or_internal_package_api`
@@ -43,18 +42,6 @@ Computation: Remove the target token from comma- or space-separated imputation s
 
 Required columns for result.csv: impute_vals, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### impute_vals.tsv
-impute_vals
-start_predose,start_conc0
-start_conc0,midpoint
-start_conc0
-
-### target_impute.tsv
-target_impute
-start_conc0
 ```
 
 ## Input

@@ -5,7 +5,6 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -43,23 +42,6 @@ Computation: Insert the target impute token into the impute_vals vector at the r
 
 Required columns for result.csv: impute_vals, after, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### after.tsv
-after
-1
-
-### impute_vals.tsv
-impute_vals
-start_predose
-start_predose,end_obs
-end_obs
-start_conc0,end_obs
-
-### target_impute.tsv
-target_impute
-start_conc0
 ```
 
 ## Input

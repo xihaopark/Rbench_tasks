@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
 - Pattern: ``
@@ -43,24 +42,6 @@ Computation: Parse timepoint text into hours: numeric hours stay numeric; HH:MM 
 
 Required columns for result.csv: xxtpt, treatment_duration, range_method, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### range_method.tsv
-range_method
-midpoint
-
-### treatment_duration.tsv
-treatment_duration
-24
-
-### xxtpt.tsv
-xxtpt
-1 HOURS
-2H 30MIN
-3 DAYS
-DAY 2
-4D
 ```
 
 ## Input

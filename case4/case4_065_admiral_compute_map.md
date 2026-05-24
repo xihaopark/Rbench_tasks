@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -43,29 +42,6 @@ Computation: Call admiral::compute_map with diabp, sysbp, and hr from the aligne
 
 Required columns for result.csv: diabp, sysbp, hr, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### diabp.tsv
-diabp
-80
-85
-70
-95
-
-### hr.tsv
-hr
-60
-75
-90
-110
-
-### sysbp.tsv
-sysbp
-120
-135
-110
-160
 ```
 
 ## Input

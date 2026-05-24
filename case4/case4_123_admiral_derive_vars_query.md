@@ -5,7 +5,6 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -43,19 +42,6 @@ Computation: Evaluate each condition from dataset_queries.tsv against every reco
 
 Required columns for result.csv: USUBJID, AETERM, AEREL, AESEV, CQ01FL, CQ02FL
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
-
-## Input preview
-
-### dataset.tsv
-USUBJID	AETERM	AEREL	AESEV
-01	HEADACHE	RELATED	MILD
-02	NAUSEA	NOT RELATED	MODERATE
-03	HEADACHE	RELATED	SEVERE
-
-### dataset_queries.tsv
-QUERY_ID	SRCVAR	TERMCHAR	NEWVAR
-Q1	AETERM	HEADACHE	CQ01FL
-Q2	AEREL	RELATED	CQ02FL
 ```
 
 ## Input
