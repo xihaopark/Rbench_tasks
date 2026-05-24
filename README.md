@@ -1,5 +1,23 @@
 # RBench Clinic Study Tasks
 
+## Codex CLI GPT-5.5 Experiments on the 31-Case Subset
+
+The Codex experiments use the same selected 31 clinical cases as `case2` and
+`case3`. All three runs use Codex CLI as the black-box coding agent with
+`gpt-5.5`; the differences are only in the task metadata/prompt setting.
+
+| Folder | Setting | Strict pass@1 | Notes |
+| --- | --- | ---: | --- |
+| [`case4`](./case4/) | Sanitized metadata baseline. `TASK.md` is authoritative; raw task metadata no longer leaks package-function hints. | 19 / 31 = 0.6129 | Invalid/internal package API pattern: 0 / 31. |
+| [`case6`](./case6/) | Same sanitized metadata, with public CRAN/r-universe/GitHub package documentation lookup explicitly allowed. | 19 / 31 = 0.6129 | No net gain over case4; failures shifted slightly. |
+| [`case7`](./case7/) | Same sanitized metadata, with the hidden reference solution's package-function list added to the prompt. | 22 / 31 = 0.7097 | Best Codex result so far; execution failures were eliminated in this run. |
+
+Interpretation: case4 is the clean Codex baseline after removing metadata
+contamination. Allowing public documentation lookup alone did not improve the
+aggregate score in case6. Providing the reference package-function list in case7
+improved the score by reducing tool/API selection failures, but the remaining
+errors are still value or schema mismatches.
+
 This repository contains one Markdown document per clinical benchmark case.
 
 Each case file includes:
@@ -23,6 +41,8 @@ Case folders:
 - `case2/`: selected 31 harder cases, GPT-5.1 rerun.
 - `case3/`: the same 31 selected cases, GPT-5.5 rerun.
 - `case4/`: the same 31 selected cases, Codex CLI with GPT-5.5.
+- `case6/`: the same 31 selected cases, Codex CLI with GPT-5.5 and public package docs allowed.
+- `case7/`: the same 31 selected cases, Codex CLI with GPT-5.5 and reference package-function list included.
 
 Summary:
 
