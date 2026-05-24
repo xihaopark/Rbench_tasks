@@ -1,22 +1,22 @@
 # RBench Clinic Study Tasks
 
-## Codex CLI GPT-5.5 Experiments on the 31-Case Subset
+## Codex Agent Experiments
 
-The Codex experiments use the same selected 31 clinical cases as `case2` and
-`case3`. All three runs use Codex CLI as the black-box coding agent with
-`gpt-5.5`; the differences are only in the task metadata/prompt setting.
+We tested Codex CLI with GPT-5.5 on the same 31 R clinical coding tasks. In each
+task, the agent reads input files, writes an R solution script, and the output is
+graded by an automatic evaluator.
 
-| Folder | Setting | Strict pass@1 | Notes |
-| --- | --- | ---: | --- |
-| [`case4`](./case4/) | Sanitized metadata baseline. `TASK.md` is authoritative; raw task metadata no longer leaks package-function hints. | 19 / 31 = 0.6129 | Invalid/internal package API pattern: 0 / 31. |
-| [`case6`](./case6/) | Same sanitized metadata, with public CRAN/r-universe/GitHub package documentation lookup explicitly allowed. | 19 / 31 = 0.6129 | No net gain over case4; failures shifted slightly. |
-| [`case7`](./case7/) | Same sanitized metadata, with the hidden reference solution's package-function list added to the prompt. | 22 / 31 = 0.7097 | Best Codex result so far; execution failures were eliminated in this run. |
+The three Codex runs differ only in how much help the prompt gives the agent:
 
-Interpretation: case4 is the clean Codex baseline after removing metadata
-contamination. Allowing public documentation lookup alone did not improve the
-aggregate score in case6. Providing the reference package-function list in case7
-improved the score by reducing tool/API selection failures, but the remaining
-errors are still value or schema mismatches.
+| Folder | What the agent was given | Result |
+| --- | --- | ---: |
+| [`case4`](./case4/) | Task description and input files only. | 19 / 31 = 61.29% |
+| [`case6`](./case6/) | Same as case4, but the agent was explicitly allowed to look up public R package documentation such as CRAN, r-universe, and GitHub docs. | 19 / 31 = 61.29% |
+| [`case7`](./case7/) | Same as case4, plus a short list of R package functions used by the reference solution. | 22 / 31 = 70.97% |
+
+In short, simply allowing documentation lookup did not improve the overall
+score, while giving the agent a concise package-function hint improved the
+result on this 31-task subset.
 
 This repository contains one Markdown document per clinical benchmark case.
 
