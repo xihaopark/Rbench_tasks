@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -89,80 +93,68 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 
 ### LLM Generated Code
 ```r
-library(admiral)
-library(dplyr)
-library(readr)
+#!/usr/bin/env Rscript
 
-input_path <- file.path("inputs", "dataset_adsl.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-adsl <- read_tsv(
-  input_path,
-  col_types = cols(.default = col_character()),
-  show_col_types = FALSE
+adsl <- read.delim(
+  "inputs/dataset_adsl.tsv",
+  sep = "\t",
+  header = TRUE,
+  na.strings = c("", "NA"),
+  colClasses = "character",
+  check.names = FALSE
 )
 
-required_input_cols <- c("USUBJID", "STUDYID", "TRTSDT", "DTHFL", "DTHDT", "LSALVDT")
-missing_input_cols <- setdiff(required_input_cols, names(adsl))
-if (length(missing_input_cols) > 0) {
-  stop("Missing required input column(s): ", paste(missing_input_cols, collapse = ", "))
+for (date_var in c("TRTSDT", "DTHDT", "LSALVDT")) {
+  adsl[[date_var]] <- as.Date(adsl[[date_var]])
 }
 
-adsl <- adsl %>%
-  mutate(
-    TRTSDT = as.Date(TRTSDT),
-    DTHDT = as.Date(DTHDT),
-    LSALVDT = as.Date(LSALVDT)
-  )
-
-death <- event_source(
+death <- admiral::event_source(
   dataset_name = "adsl",
   filter = DTHFL == "Y",
   date = DTHDT,
-  set_values_to = exprs(
+  set_values_to = rlang::exprs(
     EVNTDESC = "DEATH",
     SRCDOM = "ADSL",
     SRCVAR = "DTHDT"
   )
 )
 
-last_alive <- censor_source(
+last_alive <- admiral::censor_source(
   dataset_name = "adsl",
   date = LSALVDT,
-  set_values_to = exprs(
-    EVNTDESC = "LAST DATE KNOWN ALIVE",
+  set_values_to = rlang::exprs(
+    EVNTDESC = "LAST KNOWN ALIVE DATE",
     SRCDOM = "ADSL",
     SRCVAR = "LSALVDT"
   )
 )
 
-result <- derive_param_tte(
+result <- admiral::derive_param_tte(
   dataset_adsl = adsl,
-  start_date = TRTSDT,
+  source_datasets = list(adsl = adsl),
   event_conditions = list(death),
   censor_conditions = list(last_alive),
-  source_datasets = list(adsl = adsl),
-  set_values_to = exprs(
+  set_values_to = rlang::exprs(
     PARAMCD = "OS",
     PARAM = "Overall Survival"
   )
-) %>%
-  select(
-    USUBJID,
-    STUDYID,
-    EVNTDESC,
-    SRCDOM,
-    SRCVAR,
-    CNSR,
-    ADT,
-    STARTDT,
-    PARAMCD,
-    PARAM
-  )
+)
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write_csv(result, output_path, na = "")
+result <- result[c(
+  "USUBJID",
+  "STUDYID",
+  "EVNTDESC",
+  "SRCDOM",
+  "SRCVAR",
+  "CNSR",
+  "ADT",
+  "STARTDT",
+  "PARAMCD",
+  "PARAM"
+)]
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -201,20 +193,9 @@ No LLM output artifact was produced.
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-
-Attaching package: ‘dplyr’
-
-The following objects are masked from ‘package:stats’:
-
-    filter, lag
-
-The following objects are masked from ‘package:base’:
-
-    intersect, setdiff, setequal, union
-
 Error in filter_date_sources(sources = event_conditions, source_datasets = source_datasets,  : 
   unused arguments (source_datasets = source_datasets, by_vars = by_vars, create_datetime = create_datetime, subject_keys = subject_keys, mode = "first", check_type = check_type)
-Calls: %>% -> select -> derive_param_tte -> %>% -> mutate
+Calls: <Anonymous> -> %>% -> mutate
 Execution halted
 ```
 
@@ -238,78 +219,66 @@ Execution halted
 
 ## Raw Agent Response
 ```text
-library(admiral)
-library(dplyr)
-library(readr)
+#!/usr/bin/env Rscript
 
-input_path <- file.path("inputs", "dataset_adsl.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-adsl <- read_tsv(
-  input_path,
-  col_types = cols(.default = col_character()),
-  show_col_types = FALSE
+adsl <- read.delim(
+  "inputs/dataset_adsl.tsv",
+  sep = "\t",
+  header = TRUE,
+  na.strings = c("", "NA"),
+  colClasses = "character",
+  check.names = FALSE
 )
 
-required_input_cols <- c("USUBJID", "STUDYID", "TRTSDT", "DTHFL", "DTHDT", "LSALVDT")
-missing_input_cols <- setdiff(required_input_cols, names(adsl))
-if (length(missing_input_cols) > 0) {
-  stop("Missing required input column(s): ", paste(missing_input_cols, collapse = ", "))
+for (date_var in c("TRTSDT", "DTHDT", "LSALVDT")) {
+  adsl[[date_var]] <- as.Date(adsl[[date_var]])
 }
 
-adsl <- adsl %>%
-  mutate(
-    TRTSDT = as.Date(TRTSDT),
-    DTHDT = as.Date(DTHDT),
-    LSALVDT = as.Date(LSALVDT)
-  )
-
-death <- event_source(
+death <- admiral::event_source(
   dataset_name = "adsl",
   filter = DTHFL == "Y",
   date = DTHDT,
-  set_values_to = exprs(
+  set_values_to = rlang::exprs(
     EVNTDESC = "DEATH",
     SRCDOM = "ADSL",
     SRCVAR = "DTHDT"
   )
 )
 
-last_alive <- censor_source(
+last_alive <- admiral::censor_source(
   dataset_name = "adsl",
   date = LSALVDT,
-  set_values_to = exprs(
-    EVNTDESC = "LAST DATE KNOWN ALIVE",
+  set_values_to = rlang::exprs(
+    EVNTDESC = "LAST KNOWN ALIVE DATE",
     SRCDOM = "ADSL",
     SRCVAR = "LSALVDT"
   )
 )
 
-result <- derive_param_tte(
+result <- admiral::derive_param_tte(
   dataset_adsl = adsl,
-  start_date = TRTSDT,
+  source_datasets = list(adsl = adsl),
   event_conditions = list(death),
   censor_conditions = list(last_alive),
-  source_datasets = list(adsl = adsl),
-  set_values_to = exprs(
+  set_values_to = rlang::exprs(
     PARAMCD = "OS",
     PARAM = "Overall Survival"
   )
-) %>%
-  select(
-    USUBJID,
-    STUDYID,
-    EVNTDESC,
-    SRCDOM,
-    SRCVAR,
-    CNSR,
-    ADT,
-    STARTDT,
-    PARAMCD,
-    PARAM
-  )
+)
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write_csv(result, output_path, na = "")
+result <- result[c(
+  "USUBJID",
+  "STUDYID",
+  "EVNTDESC",
+  "SRCDOM",
+  "SRCVAR",
+  "CNSR",
+  "ADT",
+  "STARTDT",
+  "PARAMCD",
+  "PARAM"
+)]
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```

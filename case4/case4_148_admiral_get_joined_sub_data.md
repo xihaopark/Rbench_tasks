@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -78,41 +82,25 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages(library(admiral))
-
 left <- read.delim(
-  file = file.path("inputs", "left.tsv"),
+  file.path("inputs", "left.tsv"),
   sep = "\t",
-  header = TRUE,
   stringsAsFactors = FALSE,
   colClasses = c(USUBJID = "character")
 )
 
 right <- read.delim(
-  file = file.path("inputs", "right.tsv"),
+  file.path("inputs", "right.tsv"),
   sep = "\t",
-  header = TRUE,
   stringsAsFactors = FALSE,
-  colClasses = c(USUBJID = "character", TRT01A = "character")
+  colClasses = c(USUBJID = "character")
 )
 
-required_left <- c("USUBJID", "AVAL")
-required_right <- c("USUBJID", "TRT01A")
-
-if (!all(required_left %in% names(left))) {
-  stop("left.tsv is missing required columns: ", paste(setdiff(required_left, names(left)), collapse = ", "))
-}
-
-if (!all(required_right %in% names(right))) {
-  stop("right.tsv is missing required columns: ", paste(setdiff(required_right, names(right)), collapse = ", "))
-}
-
-left_join_input <- left[required_left]
-left_join_input$.left_order <- seq_len(nrow(left_join_input))
+left$.left_order <- seq_len(nrow(left))
 
 result <- merge(
-  x = left_join_input,
-  y = right[required_right],
+  left,
+  right,
   by = "USUBJID",
   all.x = TRUE,
   sort = FALSE
@@ -121,7 +109,7 @@ result <- merge(
 result <- result[order(result$.left_order), c("USUBJID", "AVAL", "TRT01A")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -191,41 +179,25 @@ write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, 
 ```text
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages(library(admiral))
-
 left <- read.delim(
-  file = file.path("inputs", "left.tsv"),
+  file.path("inputs", "left.tsv"),
   sep = "\t",
-  header = TRUE,
   stringsAsFactors = FALSE,
   colClasses = c(USUBJID = "character")
 )
 
 right <- read.delim(
-  file = file.path("inputs", "right.tsv"),
+  file.path("inputs", "right.tsv"),
   sep = "\t",
-  header = TRUE,
   stringsAsFactors = FALSE,
-  colClasses = c(USUBJID = "character", TRT01A = "character")
+  colClasses = c(USUBJID = "character")
 )
 
-required_left <- c("USUBJID", "AVAL")
-required_right <- c("USUBJID", "TRT01A")
-
-if (!all(required_left %in% names(left))) {
-  stop("left.tsv is missing required columns: ", paste(setdiff(required_left, names(left)), collapse = ", "))
-}
-
-if (!all(required_right %in% names(right))) {
-  stop("right.tsv is missing required columns: ", paste(setdiff(required_right, names(right)), collapse = ", "))
-}
-
-left_join_input <- left[required_left]
-left_join_input$.left_order <- seq_len(nrow(left_join_input))
+left$.left_order <- seq_len(nrow(left))
 
 result <- merge(
-  x = left_join_input,
-  y = right[required_right],
+  left,
+  right,
   by = "USUBJID",
   all.x = TRUE,
   sort = FALSE
@@ -234,5 +206,5 @@ result <- merge(
 result <- result[order(result$.left_order), c("USUBJID", "AVAL", "TRT01A")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```

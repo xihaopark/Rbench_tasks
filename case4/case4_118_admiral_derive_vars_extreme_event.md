@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -111,62 +115,78 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(dplyr)
-library(rlang)
-
 read_tsv_chars <- function(path) {
   read.delim(
-    file = path,
+    path,
     sep = "\t",
     header = TRUE,
     stringsAsFactors = FALSE,
     colClasses = "character",
-    check.names = FALSE,
-    na.strings = c("", "NA")
+    check.names = FALSE
   )
 }
 
-dataset <- read_tsv_chars(file.path("inputs", "dataset.tsv")) %>%
-  mutate(TRTSDT = as.Date(TRTSDT))
+dataset <- read_tsv_chars(file.path("inputs", "dataset.tsv"))
+mode_data <- read_tsv_chars(file.path("inputs", "mode.tsv"))
+source <- read_tsv_chars(file.path("inputs", "source_datasets.tsv"))
 
-mode_tbl <- read_tsv_chars(file.path("inputs", "mode.tsv"))
-selection_mode <- mode_tbl$mode[1]
-if (!selection_mode %in% c("first", "last")) {
-  stop("mode.tsv must contain mode 'first' or 'last'")
+mode <- mode_data$mode[[1]]
+if (!mode %in% c("first", "last")) {
+  stop("Unsupported mode: ", mode)
 }
 
-ae <- read_tsv_chars(file.path("inputs", "source_datasets.tsv")) %>%
-  mutate(
-    ADT = as.Date(ADT),
-    AESEQ = as.numeric(AESEQ),
-    AETOXGR = as.numeric(AETOXGR)
-  )
+source$ADT_sort <- as.Date(source$ADT)
+source$AESEQ_sort <- suppressWarnings(as.numeric(source$AESEQ))
+source$AETOXGR_sort <- suppressWarnings(as.numeric(source$AETOXGR))
 
-result <- derive_vars_extreme_event(
-  dataset = dataset,
-  by_vars = exprs(STUDYID, USUBJID),
-  events = list(
-    event(
-      dataset_name = "ae",
-      condition = !is.na(AETOXGR) & AETOXGR >= 2,
-      order = exprs(desc(AETOXGR), ADT, AESEQ),
-      mode = selection_mode,
-      set_values_to = exprs(
-        EXTDT = ADT,
-        EXTTERM = AETERM,
-        EXTGR = AETOXGR
-      )
-    )
-  ),
-  source_datasets = list(ae = ae),
-  tmp_event_nr_var = event_nr,
-  order = exprs(desc(EXTGR), EXTDT, AESEQ, event_nr),
-  mode = selection_mode,
-  check_type = "none",
-  new_vars = exprs(EXTDT, EXTTERM, EXTGR)
-) %>%
-  select(STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
+eligible <- source[!is.na(source$AETOXGR_sort) & source$AETOXGR_sort >= 2, , drop = FALSE]
+
+if (nrow(eligible) > 0) {
+  eligible <- eligible[order(
+    eligible$STUDYID,
+    eligible$USUBJID,
+    -eligible$AETOXGR_sort,
+    eligible$ADT_sort,
+    eligible$AESEQ_sort,
+    na.last = TRUE
+  ), , drop = FALSE]
+
+  selected_index <- unlist(
+    tapply(
+      seq_len(nrow(eligible)),
+      interaction(eligible$STUDYID, eligible$USUBJID, drop = TRUE, lex.order = TRUE),
+      function(index) {
+        if (mode == "first") {
+          index[[1]]
+        } else {
+          index[[length(index)]]
+        }
+      }
+    ),
+    use.names = FALSE
+  )
+  selected <- eligible[selected_index, c("STUDYID", "USUBJID", "ADT", "AETERM", "AETOXGR"), drop = FALSE]
+  names(selected) <- c("STUDYID", "USUBJID", "EXTDT", "EXTTERM", "EXTGR")
+} else {
+  selected <- data.frame(
+    STUDYID = character(),
+    USUBJID = character(),
+    EXTDT = character(),
+    EXTTERM = character(),
+    EXTGR = character(),
+    stringsAsFactors = FALSE
+  )
+}
+
+result <- merge(
+  dataset,
+  selected,
+  by = c("STUDYID", "USUBJID"),
+  all.x = TRUE,
+  sort = FALSE
+)
+
+result <- result[, c("STUDYID", "USUBJID", "TRTSDT", "EXTDT", "EXTTERM", "EXTGR"), drop = FALSE]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
@@ -188,9 +208,9 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 
 ```csv
 "STUDYID","USUBJID","TRTSDT","EXTDT","EXTTERM","EXTGR"
-"S1","01",2020-01-01,2020-01-08,"NAUSEA",3
-"S1","02",2020-01-05,2020-01-07,"RASH",2
-"S1","03",2020-01-10,2020-01-15,"COUGH",2
+"S1","01","2020-01-01","2020-01-08","NAUSEA","3"
+"S1","02","2020-01-05","2020-01-07","RASH","2"
+"S1","03","2020-01-10","2020-01-15","COUGH","2"
 ```
 
 #### `case_01/stderr.txt`
@@ -215,16 +235,6 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-
-Attaching package: ‘dplyr’
-
-The following objects are masked from ‘package:stats’:
-
-    filter, lag
-
-The following objects are masked from ‘package:base’:
-
-    intersect, setdiff, setequal, union
 ```
 
 ## Evaluation Result
@@ -249,62 +259,78 @@ The following objects are masked from ‘package:base’:
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(dplyr)
-library(rlang)
-
 read_tsv_chars <- function(path) {
   read.delim(
-    file = path,
+    path,
     sep = "\t",
     header = TRUE,
     stringsAsFactors = FALSE,
     colClasses = "character",
-    check.names = FALSE,
-    na.strings = c("", "NA")
+    check.names = FALSE
   )
 }
 
-dataset <- read_tsv_chars(file.path("inputs", "dataset.tsv")) %>%
-  mutate(TRTSDT = as.Date(TRTSDT))
+dataset <- read_tsv_chars(file.path("inputs", "dataset.tsv"))
+mode_data <- read_tsv_chars(file.path("inputs", "mode.tsv"))
+source <- read_tsv_chars(file.path("inputs", "source_datasets.tsv"))
 
-mode_tbl <- read_tsv_chars(file.path("inputs", "mode.tsv"))
-selection_mode <- mode_tbl$mode[1]
-if (!selection_mode %in% c("first", "last")) {
-  stop("mode.tsv must contain mode 'first' or 'last'")
+mode <- mode_data$mode[[1]]
+if (!mode %in% c("first", "last")) {
+  stop("Unsupported mode: ", mode)
 }
 
-ae <- read_tsv_chars(file.path("inputs", "source_datasets.tsv")) %>%
-  mutate(
-    ADT = as.Date(ADT),
-    AESEQ = as.numeric(AESEQ),
-    AETOXGR = as.numeric(AETOXGR)
-  )
+source$ADT_sort <- as.Date(source$ADT)
+source$AESEQ_sort <- suppressWarnings(as.numeric(source$AESEQ))
+source$AETOXGR_sort <- suppressWarnings(as.numeric(source$AETOXGR))
 
-result <- derive_vars_extreme_event(
-  dataset = dataset,
-  by_vars = exprs(STUDYID, USUBJID),
-  events = list(
-    event(
-      dataset_name = "ae",
-      condition = !is.na(AETOXGR) & AETOXGR >= 2,
-      order = exprs(desc(AETOXGR), ADT, AESEQ),
-      mode = selection_mode,
-      set_values_to = exprs(
-        EXTDT = ADT,
-        EXTTERM = AETERM,
-        EXTGR = AETOXGR
-      )
-    )
-  ),
-  source_datasets = list(ae = ae),
-  tmp_event_nr_var = event_nr,
-  order = exprs(desc(EXTGR), EXTDT, AESEQ, event_nr),
-  mode = selection_mode,
-  check_type = "none",
-  new_vars = exprs(EXTDT, EXTTERM, EXTGR)
-) %>%
-  select(STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
+eligible <- source[!is.na(source$AETOXGR_sort) & source$AETOXGR_sort >= 2, , drop = FALSE]
+
+if (nrow(eligible) > 0) {
+  eligible <- eligible[order(
+    eligible$STUDYID,
+    eligible$USUBJID,
+    -eligible$AETOXGR_sort,
+    eligible$ADT_sort,
+    eligible$AESEQ_sort,
+    na.last = TRUE
+  ), , drop = FALSE]
+
+  selected_index <- unlist(
+    tapply(
+      seq_len(nrow(eligible)),
+      interaction(eligible$STUDYID, eligible$USUBJID, drop = TRUE, lex.order = TRUE),
+      function(index) {
+        if (mode == "first") {
+          index[[1]]
+        } else {
+          index[[length(index)]]
+        }
+      }
+    ),
+    use.names = FALSE
+  )
+  selected <- eligible[selected_index, c("STUDYID", "USUBJID", "ADT", "AETERM", "AETOXGR"), drop = FALSE]
+  names(selected) <- c("STUDYID", "USUBJID", "EXTDT", "EXTTERM", "EXTGR")
+} else {
+  selected <- data.frame(
+    STUDYID = character(),
+    USUBJID = character(),
+    EXTDT = character(),
+    EXTTERM = character(),
+    EXTGR = character(),
+    stringsAsFactors = FALSE
+  )
+}
+
+result <- merge(
+  dataset,
+  selected,
+  by = c("STUDYID", "USUBJID"),
+  all.x = TRUE,
+  sort = FALSE
+)
+
+result <- result[, c("STUDYID", "USUBJID", "TRTSDT", "EXTDT", "EXTTERM", "EXTGR"), drop = FALSE]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")

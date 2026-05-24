@@ -7,7 +7,7 @@
 - Agent: `Codex CLI`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
-- Pattern: `invalid_or_internal_package_api`
+- Pattern: ``
 
 ## Pass/Error
 ```text
@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -111,56 +115,20 @@ write.csv(data.frame(xxtpt = xxtpt, result = as.numeric(result)), file.path("out
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-
-read_single_column <- function(path, col_name, col_class) {
-  data <- read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    na.strings = c("NA", "")
-  )
-
-  if (!identical(names(data), col_name)) {
-    stop(sprintf("Expected %s to contain only column '%s'.", path, col_name))
-  }
-
-  value <- data[[col_name]]
-  if (col_class == "character") {
-    return(as.character(value))
-  }
-  if (col_class == "numeric") {
-    return(as.numeric(value))
-  }
-  if (col_class == "logical") {
-    return(as.logical(value))
-  }
-
-  stop("Unsupported column class.")
+if (!requireNamespace("admiral", quietly = TRUE)) {
+  stop("The admiral package is required for this task.", call. = FALSE)
 }
 
-xxtpt <- trimws(read_single_column("inputs/xxtpt.tsv", "xxtpt", "character"))
-result <- read_single_column("inputs/result.tsv", "result", "numeric")
-na_idx <- read_single_column("inputs/na_idx.tsv", "na_idx", "logical")
+xxtpt <- read.delim("inputs/xxtpt.tsv", stringsAsFactors = FALSE, check.names = FALSE)
 
-if (length(xxtpt) != length(result) || length(xxtpt) != length(na_idx)) {
-  stop("Input vectors xxtpt, result, and na_idx must have the same length.")
-}
-
-converted_result <- getFromNamespace("convert_time_units", "admiral")(
-  xxtpt = xxtpt,
-  result = result,
-  na_idx = na_idx
-)
-
-output <- data.frame(
-  xxtpt = xxtpt,
-  result = converted_result
+result <- data.frame(
+  xxtpt = xxtpt[["xxtpt"]],
+  result = admiral::convert_xxtpt_to_hours(xxtpt[["xxtpt"]]),
+  check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, "outputs/result.csv", row.names = FALSE, na = "NA")
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "NA")
 ```
 
 ## Output
@@ -200,8 +168,9 @@ No LLM output artifact was produced.
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Error in getFromNamespace("convert_time_units", "admiral")(xxtpt = xxtpt,  : 
-  unused arguments (xxtpt = xxtpt, result = result, na_idx = na_idx)
+Error in convert_special_cases(xxtpt, result, na_idx, treatment_duration) : 
+  unused arguments (result, na_idx, treatment_duration)
+Calls: data.frame -> <Anonymous>
 Execution halted
 ```
 
@@ -227,54 +196,18 @@ Execution halted
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
-
-read_single_column <- function(path, col_name, col_class) {
-  data <- read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    na.strings = c("NA", "")
-  )
-
-  if (!identical(names(data), col_name)) {
-    stop(sprintf("Expected %s to contain only column '%s'.", path, col_name))
-  }
-
-  value <- data[[col_name]]
-  if (col_class == "character") {
-    return(as.character(value))
-  }
-  if (col_class == "numeric") {
-    return(as.numeric(value))
-  }
-  if (col_class == "logical") {
-    return(as.logical(value))
-  }
-
-  stop("Unsupported column class.")
+if (!requireNamespace("admiral", quietly = TRUE)) {
+  stop("The admiral package is required for this task.", call. = FALSE)
 }
 
-xxtpt <- trimws(read_single_column("inputs/xxtpt.tsv", "xxtpt", "character"))
-result <- read_single_column("inputs/result.tsv", "result", "numeric")
-na_idx <- read_single_column("inputs/na_idx.tsv", "na_idx", "logical")
+xxtpt <- read.delim("inputs/xxtpt.tsv", stringsAsFactors = FALSE, check.names = FALSE)
 
-if (length(xxtpt) != length(result) || length(xxtpt) != length(na_idx)) {
-  stop("Input vectors xxtpt, result, and na_idx must have the same length.")
-}
-
-converted_result <- getFromNamespace("convert_time_units", "admiral")(
-  xxtpt = xxtpt,
-  result = result,
-  na_idx = na_idx
-)
-
-output <- data.frame(
-  xxtpt = xxtpt,
-  result = converted_result
+result <- data.frame(
+  xxtpt = xxtpt[["xxtpt"]],
+  result = admiral::convert_xxtpt_to_hours(xxtpt[["xxtpt"]]),
+  check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, "outputs/result.csv", row.names = FALSE, na = "NA")
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "NA")
 ```

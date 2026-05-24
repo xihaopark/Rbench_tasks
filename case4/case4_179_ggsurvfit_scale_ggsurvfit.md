@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -92,39 +96,29 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-if (requireNamespace("ggsurvfit", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(ggsurvfit))
-}
-
 read_scale_expr <- function(path) {
-  tbl <- utils::read.delim(
-    path,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
-  )
-
-  if (!identical(names(tbl), "expr") || nrow(tbl) != 1L) {
-    stop("Expected ", path, " to contain exactly one column named 'expr' and one row.")
+  dat <- utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+  if (!"expr" %in% names(dat) || nrow(dat) < 1L) {
+    stop("Expected an 'expr' column with at least one row in ", path, call. = FALSE)
   }
 
-  value <- eval(parse(text = tbl$expr[[1]]), envir = baseenv())
-  if (!is.list(value) || is.null(names(value)) || any(names(value) == "")) {
-    stop("Scale expression in ", path, " must evaluate to a fully named list.")
+  value <- eval(parse(text = dat$expr[[1L]]), envir = baseenv())
+  if (!is.list(value)) {
+    stop("Scale expression in ", path, " did not evaluate to a list", call. = FALSE)
   }
-
   value
 }
 
-x_scales <- read_scale_expr("inputs/x_scales.tsv")
-y_scales <- read_scale_expr("inputs/y_scales.tsv")
+x_scales <- read_scale_expr(file.path("inputs", "x_scales.tsv"))
+y_scales <- read_scale_expr(file.path("inputs", "y_scales.tsv"))
 
-scale_obj <- if (requireNamespace("ggsurvfit", quietly = TRUE)) {
-  ggsurvfit::scale_ggsurvfit(
+if (requireNamespace("ggsurvfit", quietly = TRUE)) {
+  scale_obj <- ggsurvfit::scale_ggsurvfit(
     x_scales = x_scales,
     y_scales = y_scales
   )
 } else {
-  structure(
+  scale_obj <- structure(
     list(),
     x_scales = x_scales,
     y_scales = y_scales,
@@ -133,12 +127,12 @@ scale_obj <- if (requireNamespace("ggsurvfit", quietly = TRUE)) {
 }
 
 result <- data.frame(
-  scale_classes = paste(class(scale_obj), collapse = "|"),
+  scale_classes = paste(class(scale_obj), collapse = ";"),
   stringsAsFactors = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, "outputs/result.csv", row.names = FALSE)
+utils::write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -204,39 +198,29 @@ utils::write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```text
 #!/usr/bin/env Rscript
 
-if (requireNamespace("ggsurvfit", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(ggsurvfit))
-}
-
 read_scale_expr <- function(path) {
-  tbl <- utils::read.delim(
-    path,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
-  )
-
-  if (!identical(names(tbl), "expr") || nrow(tbl) != 1L) {
-    stop("Expected ", path, " to contain exactly one column named 'expr' and one row.")
+  dat <- utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+  if (!"expr" %in% names(dat) || nrow(dat) < 1L) {
+    stop("Expected an 'expr' column with at least one row in ", path, call. = FALSE)
   }
 
-  value <- eval(parse(text = tbl$expr[[1]]), envir = baseenv())
-  if (!is.list(value) || is.null(names(value)) || any(names(value) == "")) {
-    stop("Scale expression in ", path, " must evaluate to a fully named list.")
+  value <- eval(parse(text = dat$expr[[1L]]), envir = baseenv())
+  if (!is.list(value)) {
+    stop("Scale expression in ", path, " did not evaluate to a list", call. = FALSE)
   }
-
   value
 }
 
-x_scales <- read_scale_expr("inputs/x_scales.tsv")
-y_scales <- read_scale_expr("inputs/y_scales.tsv")
+x_scales <- read_scale_expr(file.path("inputs", "x_scales.tsv"))
+y_scales <- read_scale_expr(file.path("inputs", "y_scales.tsv"))
 
-scale_obj <- if (requireNamespace("ggsurvfit", quietly = TRUE)) {
-  ggsurvfit::scale_ggsurvfit(
+if (requireNamespace("ggsurvfit", quietly = TRUE)) {
+  scale_obj <- ggsurvfit::scale_ggsurvfit(
     x_scales = x_scales,
     y_scales = y_scales
   )
 } else {
-  structure(
+  scale_obj <- structure(
     list(),
     x_scales = x_scales,
     y_scales = y_scales,
@@ -245,10 +229,10 @@ scale_obj <- if (requireNamespace("ggsurvfit", quietly = TRUE)) {
 }
 
 result <- data.frame(
-  scale_classes = paste(class(scale_obj), collapse = "|"),
+  scale_classes = paste(class(scale_obj), collapse = ";"),
   stringsAsFactors = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, "outputs/result.csv", row.names = FALSE)
+utils::write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```

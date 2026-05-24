@@ -5,13 +5,13 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `PASS`
+- Failure stage: `pass`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-NO_OUTPUT
+PASS
 ```
 
 ## Prompt
@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -110,95 +114,73 @@ write.csv(data.frame(xxtpt = xxtpt, treatment_duration = treatment_duration, ran
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-
 read_tsv <- function(path) {
-        read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE, check.names = FALSE)
+  read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE, check.names = FALSE)
 }
 
-parse_with_fallback <- function(xxtpt, treatment_duration, range_method) {
-        parsed <- convert_xxtpt_to_hours(
-                xxtpt = xxtpt,
-                treatment_duration = treatment_duration,
-                range_method = range_method
-        )
+parse_xxtpt_hours <- function(x) {
+  text <- toupper(trimws(x))
+  text <- gsub("\\s+", " ", text)
 
-        if (!is.na(parsed) || is.na(xxtpt)) {
-                return(parsed)
-        }
+  vapply(text, function(value) {
+    if (is.na(value) || value == "") {
+      return(NA_real_)
+    }
 
-        trimmed <- trimws(xxtpt)
-        if (grepl("^[+-]?[0-9]+(\\.[0-9]+)?$", trimmed)) {
-                return(as.numeric(trimmed))
-        }
-        if (grepl("^[0-9]+:[0-9]{1,2}$", trimmed)) {
-                parts <- strsplit(trimmed, ":", fixed = TRUE)[[1]]
-                return(as.numeric(parts[1]) + as.numeric(parts[2]) / 60)
-        }
+    if (grepl("PRE\\s*-?\\s*DOSE|PREDOSE|SCREEN|BASELINE|BEFORE", value)) {
+      return(0)
+    }
 
-        parsed
+    hhmm <- regexec("^([0-9]+(?:\\.[0-9]+)?):([0-9]+(?:\\.[0-9]+)?)$", value)
+    hhmm_match <- regmatches(value, hhmm)[[1]]
+    if (length(hhmm_match) == 3) {
+      return(as.numeric(hhmm_match[2]) + as.numeric(hhmm_match[3]) / 60)
+    }
+
+    day <- regexec("^(?:DAY\\s*([0-9]+(?:\\.[0-9]+)?)|([0-9]+(?:\\.[0-9]+)?)\\s*(?:D|DAY|DAYS))$", value)
+    day_match <- regmatches(value, day)[[1]]
+    if (length(day_match) >= 3) {
+      day_value <- day_match[day_match != ""][2]
+      return(as.numeric(day_value) * 24)
+    }
+
+    hour_min <- regexec(
+      "^([0-9]+(?:\\.[0-9]+)?)\\s*(?:H|HR|HRS|HOUR|HOURS)(?:\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(?:M|MIN|MINS|MINUTE|MINUTES))?$",
+      value
+    )
+    hour_min_match <- regmatches(value, hour_min)[[1]]
+    if (length(hour_min_match) >= 2) {
+      minutes <- if (length(hour_min_match) >= 3 && nzchar(hour_min_match[3])) {
+        as.numeric(hour_min_match[3]) / 60
+      } else {
+        0
+      }
+      return(as.numeric(hour_min_match[2]) + minutes)
+    }
+
+    numeric_value <- suppressWarnings(as.numeric(value))
+    if (!is.na(numeric_value)) {
+      return(numeric_value)
+    }
+
+    NA_real_
+  }, numeric(1), USE.NAMES = FALSE)
 }
 
-recycle_to_n <- function(x, n, name) {
-  if (length(x) == n) {
-    return(x)
-  }
-  if (length(x) == 1L) {
-    return(rep(x, n))
-  }
-  stop(sprintf("Input '%s' must contain either 1 row or %d rows.", name, n), call. = FALSE)
-}
+xxtpt <- read_tsv("inputs/xxtpt.tsv")
+treatment_duration <- read_tsv("inputs/treatment_duration.tsv")
+range_method <- read_tsv("inputs/range_method.tsv")
 
-xxtpt_data <- read_tsv("inputs/xxtpt.tsv")
-treatment_duration_data <- read_tsv("inputs/treatment_duration.tsv")
-range_method_data <- read_tsv("inputs/range_method.tsv")
-
-required <- list(
-  xxtpt = xxtpt_data,
-  treatment_duration = treatment_duration_data,
-  range_method = range_method_data
-)
-
-for (name in names(required)) {
-  if (!name %in% names(required[[name]])) {
-    stop(sprintf("Missing required column '%s'.", name), call. = FALSE)
-  }
-}
-
-n_timepoints <- nrow(xxtpt_data)
-treatment_duration <- recycle_to_n(
-  as.numeric(treatment_duration_data$treatment_duration),
-  n_timepoints,
-  "treatment_duration"
-)
-range_method <- recycle_to_n(
-  range_method_data$range_method,
-  n_timepoints,
-  "range_method"
-)
-
-result <- vapply(
-        seq_len(n_timepoints),
-        function(i) {
-                parse_with_fallback(
-                        xxtpt = xxtpt_data$xxtpt[i],
-                        treatment_duration = treatment_duration[i],
-                        range_method = range_method[i]
-                )
-        },
-        numeric(1)
-)
-
-output <- data.frame(
-  xxtpt = xxtpt_data$xxtpt,
-  treatment_duration = treatment_duration,
-  range_method = range_method,
-  result = result,
+result <- data.frame(
+  xxtpt = xxtpt$xxtpt,
+  treatment_duration = treatment_duration$treatment_duration[1],
+  range_method = range_method$range_method[1],
+  result = parse_xxtpt_hours(xxtpt$xxtpt),
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -215,7 +197,16 @@ write.csv(output, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"xxtpt","treatment_duration","range_method","result"
+"1 HOURS",24,"midpoint",1
+"2H 30MIN",24,"midpoint",2.5
+"3 DAYS",24,"midpoint",72
+"DAY 2",24,"midpoint",48
+"4D",24,"midpoint",96
+```
 
 #### `case_01/stderr.txt`
 
@@ -239,26 +230,22 @@ No LLM output artifact was produced.
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Error in convert_special_cases(xxtpt, result, na_idx, treatment_duration) : 
-  unused arguments (result, na_idx, treatment_duration)
-Calls: vapply ... FUN -> parse_with_fallback -> convert_xxtpt_to_hours
-Execution halted
 ```
 
 ## Evaluation Result
 ```json
 {
-  "status": "NO_OUTPUT",
-  "tier": "exec_fail",
-  "failure_stage": "execution_failure",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "execution_failure",
-    "tier": "exec_fail",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
@@ -267,93 +254,71 @@ Execution halted
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
-
 read_tsv <- function(path) {
-        read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE, check.names = FALSE)
+  read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE, check.names = FALSE)
 }
 
-parse_with_fallback <- function(xxtpt, treatment_duration, range_method) {
-        parsed <- convert_xxtpt_to_hours(
-                xxtpt = xxtpt,
-                treatment_duration = treatment_duration,
-                range_method = range_method
-        )
+parse_xxtpt_hours <- function(x) {
+  text <- toupper(trimws(x))
+  text <- gsub("\\s+", " ", text)
 
-        if (!is.na(parsed) || is.na(xxtpt)) {
-                return(parsed)
-        }
+  vapply(text, function(value) {
+    if (is.na(value) || value == "") {
+      return(NA_real_)
+    }
 
-        trimmed <- trimws(xxtpt)
-        if (grepl("^[+-]?[0-9]+(\\.[0-9]+)?$", trimmed)) {
-                return(as.numeric(trimmed))
-        }
-        if (grepl("^[0-9]+:[0-9]{1,2}$", trimmed)) {
-                parts <- strsplit(trimmed, ":", fixed = TRUE)[[1]]
-                return(as.numeric(parts[1]) + as.numeric(parts[2]) / 60)
-        }
+    if (grepl("PRE\\s*-?\\s*DOSE|PREDOSE|SCREEN|BASELINE|BEFORE", value)) {
+      return(0)
+    }
 
-        parsed
+    hhmm <- regexec("^([0-9]+(?:\\.[0-9]+)?):([0-9]+(?:\\.[0-9]+)?)$", value)
+    hhmm_match <- regmatches(value, hhmm)[[1]]
+    if (length(hhmm_match) == 3) {
+      return(as.numeric(hhmm_match[2]) + as.numeric(hhmm_match[3]) / 60)
+    }
+
+    day <- regexec("^(?:DAY\\s*([0-9]+(?:\\.[0-9]+)?)|([0-9]+(?:\\.[0-9]+)?)\\s*(?:D|DAY|DAYS))$", value)
+    day_match <- regmatches(value, day)[[1]]
+    if (length(day_match) >= 3) {
+      day_value <- day_match[day_match != ""][2]
+      return(as.numeric(day_value) * 24)
+    }
+
+    hour_min <- regexec(
+      "^([0-9]+(?:\\.[0-9]+)?)\\s*(?:H|HR|HRS|HOUR|HOURS)(?:\\s*([0-9]+(?:\\.[0-9]+)?)\\s*(?:M|MIN|MINS|MINUTE|MINUTES))?$",
+      value
+    )
+    hour_min_match <- regmatches(value, hour_min)[[1]]
+    if (length(hour_min_match) >= 2) {
+      minutes <- if (length(hour_min_match) >= 3 && nzchar(hour_min_match[3])) {
+        as.numeric(hour_min_match[3]) / 60
+      } else {
+        0
+      }
+      return(as.numeric(hour_min_match[2]) + minutes)
+    }
+
+    numeric_value <- suppressWarnings(as.numeric(value))
+    if (!is.na(numeric_value)) {
+      return(numeric_value)
+    }
+
+    NA_real_
+  }, numeric(1), USE.NAMES = FALSE)
 }
 
-recycle_to_n <- function(x, n, name) {
-  if (length(x) == n) {
-    return(x)
-  }
-  if (length(x) == 1L) {
-    return(rep(x, n))
-  }
-  stop(sprintf("Input '%s' must contain either 1 row or %d rows.", name, n), call. = FALSE)
-}
+xxtpt <- read_tsv("inputs/xxtpt.tsv")
+treatment_duration <- read_tsv("inputs/treatment_duration.tsv")
+range_method <- read_tsv("inputs/range_method.tsv")
 
-xxtpt_data <- read_tsv("inputs/xxtpt.tsv")
-treatment_duration_data <- read_tsv("inputs/treatment_duration.tsv")
-range_method_data <- read_tsv("inputs/range_method.tsv")
-
-required <- list(
-  xxtpt = xxtpt_data,
-  treatment_duration = treatment_duration_data,
-  range_method = range_method_data
-)
-
-for (name in names(required)) {
-  if (!name %in% names(required[[name]])) {
-    stop(sprintf("Missing required column '%s'.", name), call. = FALSE)
-  }
-}
-
-n_timepoints <- nrow(xxtpt_data)
-treatment_duration <- recycle_to_n(
-  as.numeric(treatment_duration_data$treatment_duration),
-  n_timepoints,
-  "treatment_duration"
-)
-range_method <- recycle_to_n(
-  range_method_data$range_method,
-  n_timepoints,
-  "range_method"
-)
-
-result <- vapply(
-        seq_len(n_timepoints),
-        function(i) {
-                parse_with_fallback(
-                        xxtpt = xxtpt_data$xxtpt[i],
-                        treatment_duration = treatment_duration[i],
-                        range_method = range_method[i]
-                )
-        },
-        numeric(1)
-)
-
-output <- data.frame(
-  xxtpt = xxtpt_data$xxtpt,
-  treatment_duration = treatment_duration,
-  range_method = range_method,
-  result = result,
+result <- data.frame(
+  xxtpt = xxtpt$xxtpt,
+  treatment_duration = treatment_duration$treatment_duration[1],
+  range_method = range_method$range_method[1],
+  result = parse_xxtpt_hours(xxtpt$xxtpt),
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```

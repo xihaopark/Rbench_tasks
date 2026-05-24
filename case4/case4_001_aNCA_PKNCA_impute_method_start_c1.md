@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -143,89 +147,43 @@ write_result(result)
 ```r
 #!/usr/bin/env Rscript
 
-read_numeric_column <- function(path, column) {
-  dat <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!column %in% names(dat)) {
-    stop(sprintf("Expected column '%s' in %s", column, path), call. = FALSE)
-  }
-  value <- suppressWarnings(as.numeric(dat[[column]]))
-  if (anyNA(value)) {
-    stop(sprintf("Column '%s' in %s must be numeric", column, path), call. = FALSE)
-  }
-  value
+conc <- read.delim("inputs/conc.tsv", stringsAsFactors = FALSE)
+time <- read.delim("inputs/time.tsv", stringsAsFactors = FALSE)
+start <- read.delim("inputs/start.tsv", stringsAsFactors = FALSE)
+
+if (!all(c("conc") %in% names(conc))) {
+  stop("inputs/conc.tsv must contain a conc column")
+}
+if (!all(c("time") %in% names(time))) {
+  stop("inputs/time.tsv must contain a time column")
+}
+if (!all(c("start") %in% names(start))) {
+  stop("inputs/start.tsv must contain a start column")
+}
+if (nrow(conc) != nrow(time)) {
+  stop("conc.tsv and time.tsv must contain the same number of rows")
 }
 
-parse_options <- function(path) {
-  dat <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!"options" %in% names(dat)) {
-    stop(sprintf("Expected column 'options' in %s", path), call. = FALSE)
-  }
+data <- data.frame(
+  conc = as.numeric(conc$conc),
+  time = as.numeric(time$time)
+)
+start_time <- as.numeric(start$start[1])
 
-  entries <- strsplit(dat$options, "=", fixed = TRUE)
-  opts <- list()
-  for (entry in entries) {
-    if (length(entry) != 2L || !nzchar(entry[[1]])) {
-      stop("Options must be supplied as key=value rows", call. = FALSE)
-    }
-    key <- entry[[1]]
-    raw_value <- entry[[2]]
-    value <- type.convert(raw_value, as.is = TRUE)
-    opts[[key]] <- value
-  }
-  opts
+after_start <- data[!is.na(data$time) & data$time >= start_time, , drop = FALSE]
+if (nrow(after_start) == 0) {
+  stop("No concentration observation found at or after the requested start time")
 }
+after_start <- after_start[order(after_start$time), , drop = FALSE]
 
-impute_start_c1 <- function(conc, time, start, end, options = list()) {
-  if (requireNamespace("aNCA", quietly = TRUE)) {
-    suppressPackageStartupMessages(library(aNCA))
-    return(PKNCA_impute_method_start_c1(
-      conc = conc,
-      time = time,
-      start = start,
-      end = end,
-      options = options
-    ))
-  }
-
-  result <- data.frame(conc = conc, time = time)
-  if (!start %in% time) {
-    in_interval <- time >= start & time <= end
-    interval_conc <- conc[in_interval]
-    interval_time <- time[in_interval]
-    if (!all(is.na(interval_conc)) && length(interval_conc) > 0L) {
-      c1 <- interval_conc[which.min(interval_time)]
-      result <- rbind(result, data.frame(conc = c1, time = start))
-      result <- result[order(result$time), , drop = FALSE]
-    }
-  }
-  row.names(result) <- NULL
-  result
-}
-
-conc <- read_numeric_column("inputs/conc.tsv", "conc")
-time <- read_numeric_column("inputs/time.tsv", "time")
-start <- read_numeric_column("inputs/start.tsv", "start")
-end <- read_numeric_column("inputs/end.tsv", "end")
-options <- parse_options("inputs/options.tsv")
-
-if (length(conc) != length(time)) {
-  stop("conc and time must have the same length", call. = FALSE)
-}
-if (length(start) != 1L || length(end) != 1L) {
-  stop("start and end must each contain exactly one value", call. = FALSE)
-}
-
-result <- impute_start_c1(
-  conc = conc,
-  time = time,
-  start = start[[1]],
-  end = end[[1]],
-  options = options
+imputed <- data.frame(
+  conc = after_start$conc[1],
+  time = start_time
 )
 
-result <- result[, c("conc", "time"), drop = FALSE]
-result <- result[order(result$time), , drop = FALSE]
-row.names(result) <- NULL
+result <- rbind(data, imputed)
+result <- result[order(result$time), c("conc", "time")]
+rownames(result) <- NULL
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, "outputs/result.csv", row.names = FALSE)
@@ -280,9 +238,6 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Registered S3 method overwritten by 'tern':
-  method   from 
-  tidy.glm broom
 ```
 
 ## Evaluation Result
@@ -307,89 +262,43 @@ Registered S3 method overwritten by 'tern':
 ```text
 #!/usr/bin/env Rscript
 
-read_numeric_column <- function(path, column) {
-  dat <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!column %in% names(dat)) {
-    stop(sprintf("Expected column '%s' in %s", column, path), call. = FALSE)
-  }
-  value <- suppressWarnings(as.numeric(dat[[column]]))
-  if (anyNA(value)) {
-    stop(sprintf("Column '%s' in %s must be numeric", column, path), call. = FALSE)
-  }
-  value
+conc <- read.delim("inputs/conc.tsv", stringsAsFactors = FALSE)
+time <- read.delim("inputs/time.tsv", stringsAsFactors = FALSE)
+start <- read.delim("inputs/start.tsv", stringsAsFactors = FALSE)
+
+if (!all(c("conc") %in% names(conc))) {
+  stop("inputs/conc.tsv must contain a conc column")
+}
+if (!all(c("time") %in% names(time))) {
+  stop("inputs/time.tsv must contain a time column")
+}
+if (!all(c("start") %in% names(start))) {
+  stop("inputs/start.tsv must contain a start column")
+}
+if (nrow(conc) != nrow(time)) {
+  stop("conc.tsv and time.tsv must contain the same number of rows")
 }
 
-parse_options <- function(path) {
-  dat <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!"options" %in% names(dat)) {
-    stop(sprintf("Expected column 'options' in %s", path), call. = FALSE)
-  }
+data <- data.frame(
+  conc = as.numeric(conc$conc),
+  time = as.numeric(time$time)
+)
+start_time <- as.numeric(start$start[1])
 
-  entries <- strsplit(dat$options, "=", fixed = TRUE)
-  opts <- list()
-  for (entry in entries) {
-    if (length(entry) != 2L || !nzchar(entry[[1]])) {
-      stop("Options must be supplied as key=value rows", call. = FALSE)
-    }
-    key <- entry[[1]]
-    raw_value <- entry[[2]]
-    value <- type.convert(raw_value, as.is = TRUE)
-    opts[[key]] <- value
-  }
-  opts
+after_start <- data[!is.na(data$time) & data$time >= start_time, , drop = FALSE]
+if (nrow(after_start) == 0) {
+  stop("No concentration observation found at or after the requested start time")
 }
+after_start <- after_start[order(after_start$time), , drop = FALSE]
 
-impute_start_c1 <- function(conc, time, start, end, options = list()) {
-  if (requireNamespace("aNCA", quietly = TRUE)) {
-    suppressPackageStartupMessages(library(aNCA))
-    return(PKNCA_impute_method_start_c1(
-      conc = conc,
-      time = time,
-      start = start,
-      end = end,
-      options = options
-    ))
-  }
-
-  result <- data.frame(conc = conc, time = time)
-  if (!start %in% time) {
-    in_interval <- time >= start & time <= end
-    interval_conc <- conc[in_interval]
-    interval_time <- time[in_interval]
-    if (!all(is.na(interval_conc)) && length(interval_conc) > 0L) {
-      c1 <- interval_conc[which.min(interval_time)]
-      result <- rbind(result, data.frame(conc = c1, time = start))
-      result <- result[order(result$time), , drop = FALSE]
-    }
-  }
-  row.names(result) <- NULL
-  result
-}
-
-conc <- read_numeric_column("inputs/conc.tsv", "conc")
-time <- read_numeric_column("inputs/time.tsv", "time")
-start <- read_numeric_column("inputs/start.tsv", "start")
-end <- read_numeric_column("inputs/end.tsv", "end")
-options <- parse_options("inputs/options.tsv")
-
-if (length(conc) != length(time)) {
-  stop("conc and time must have the same length", call. = FALSE)
-}
-if (length(start) != 1L || length(end) != 1L) {
-  stop("start and end must each contain exactly one value", call. = FALSE)
-}
-
-result <- impute_start_c1(
-  conc = conc,
-  time = time,
-  start = start[[1]],
-  end = end[[1]],
-  options = options
+imputed <- data.frame(
+  conc = after_start$conc[1],
+  time = start_time
 )
 
-result <- result[, c("conc", "time"), drop = FALSE]
-result <- result[order(result$time), , drop = FALSE]
-row.names(result) <- NULL
+result <- rbind(data, imputed)
+result <- result[order(result$time), c("conc", "time")]
+rownames(result) <- NULL
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, "outputs/result.csv", row.names = FALSE)

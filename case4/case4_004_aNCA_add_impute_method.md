@@ -5,13 +5,13 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Status: `PASS`
-- Failure stage: `pass`
+- Status: `FAIL`
+- Failure stage: `value_mismatch`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-PASS
+FAIL
 ```
 
 ## Prompt
@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -103,77 +107,36 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-read_required_tsv <- function(path, required_col) {
-  data <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!required_col %in% names(data)) {
-    stop(sprintf("Missing required column '%s' in %s", required_col, path), call. = FALSE)
-  }
-  data
+after_df <- read.delim("inputs/after.tsv", stringsAsFactors = FALSE)
+impute_vals_df <- read.delim("inputs/impute_vals.tsv", stringsAsFactors = FALSE)
+target_impute_df <- read.delim("inputs/target_impute.tsv", stringsAsFactors = FALSE)
+
+after <- as.integer(after_df$after[[1]])
+target_impute <- target_impute_df$target_impute[[1]]
+
+insert_impute <- function(value, target, after) {
+  tokens <- strsplit(value, ",", fixed = TRUE)[[1]]
+  paste(append(tokens, target, after = after), collapse = ",")
 }
 
-local_add_impute_method <- function(impute_vals, target_impute, after) {
-  if (length(impute_vals) == 0) {
-    return(impute_vals)
-  }
-
-  impute_vals <- ifelse(is.na(impute_vals), "", impute_vals)
-  vapply(
-    lapply(
-      lapply(strsplit(impute_vals, split = "[ ,]+"), setdiff, target_impute),
-      append,
-      values = target_impute,
-      after = after
-    ),
-    paste,
-    collapse = ",",
-    FUN.VALUE = ""
-  )
-}
-
-impute_data <- read_required_tsv("inputs/impute_vals.tsv", "impute_vals")
-target_data <- read_required_tsv("inputs/target_impute.tsv", "target_impute")
-after_data <- read_required_tsv("inputs/after.tsv", "after")
-
-if (nrow(target_data) != 1L) {
-  stop("target_impute.tsv must contain exactly one target_impute value.", call. = FALSE)
-}
-if (nrow(after_data) != 1L) {
-  stop("after.tsv must contain exactly one after value.", call. = FALSE)
-}
-
-impute_vals <- impute_data[["impute_vals"]]
-target_impute <- target_data[["target_impute"]][1L]
-after <- suppressWarnings(as.numeric(after_data[["after"]][1L]))
-
-if (is.na(after)) {
-  stop("after must be numeric.", call. = FALSE)
-}
-if (!is.character(target_impute) || is.na(target_impute) || identical(target_impute, "")) {
-  stop("target_impute must be a non-empty character value.", call. = FALSE)
-}
-
-add_impute <- local_add_impute_method
-if (requireNamespace("aNCA", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(aNCA))
-  add_impute <- getFromNamespace("add_impute_method", "aNCA")
-}
-
-result <- add_impute(
-  impute_vals = impute_vals,
-  target_impute = target_impute,
-  after = after
+result <- vapply(
+  impute_vals_df$impute_vals,
+  insert_impute,
+  character(1),
+  target = target_impute,
+  after = after,
+  USE.NAMES = FALSE
 )
 
-output <- data.frame(
-  impute_vals = impute_vals,
+out <- data.frame(
+  impute_vals = impute_vals_df$impute_vals,
   after = after,
   result = result,
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+  stringsAsFactors = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -196,7 +159,7 @@ write.csv(output, "outputs/result.csv", row.names = FALSE, na = "")
 "start_predose",1,"start_predose,start_conc0"
 "start_predose,end_obs",1,"start_predose,start_conc0,end_obs"
 "end_obs",1,"end_obs,start_conc0"
-"start_conc0,end_obs",1,"end_obs,start_conc0"
+"start_conc0,end_obs",1,"start_conc0,start_conc0,end_obs"
 ```
 
 #### `case_01/stderr.txt`
@@ -221,25 +184,22 @@ write.csv(output, "outputs/result.csv", row.names = FALSE, na = "")
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Registered S3 method overwritten by 'tern':
-  method   from 
-  tidy.glm broom
 ```
 
 ## Evaluation Result
 ```json
 {
-  "status": "PASS",
-  "tier": "pass",
-  "failure_stage": "pass",
-  "pass": true,
-  "score": 1.0,
-  "message": "",
+  "status": "FAIL",
+  "tier": "schema_ok",
+  "failure_stage": "value_mismatch",
+  "pass": false,
+  "score": 0.0,
+  "message": "Failed at case_embedded",
   "validation_diagnostics": {
-    "failure_stage": "pass",
-    "tier": "pass",
+    "failure_stage": "value_mismatch",
+    "tier": "schema_ok",
     "case_count": 1,
-    "failed_case": null
+    "failed_case": "case_embedded"
   }
 }
 ```
@@ -248,75 +208,34 @@ Registered S3 method overwritten by 'tern':
 ```text
 #!/usr/bin/env Rscript
 
-read_required_tsv <- function(path, required_col) {
-  data <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!required_col %in% names(data)) {
-    stop(sprintf("Missing required column '%s' in %s", required_col, path), call. = FALSE)
-  }
-  data
+after_df <- read.delim("inputs/after.tsv", stringsAsFactors = FALSE)
+impute_vals_df <- read.delim("inputs/impute_vals.tsv", stringsAsFactors = FALSE)
+target_impute_df <- read.delim("inputs/target_impute.tsv", stringsAsFactors = FALSE)
+
+after <- as.integer(after_df$after[[1]])
+target_impute <- target_impute_df$target_impute[[1]]
+
+insert_impute <- function(value, target, after) {
+  tokens <- strsplit(value, ",", fixed = TRUE)[[1]]
+  paste(append(tokens, target, after = after), collapse = ",")
 }
 
-local_add_impute_method <- function(impute_vals, target_impute, after) {
-  if (length(impute_vals) == 0) {
-    return(impute_vals)
-  }
-
-  impute_vals <- ifelse(is.na(impute_vals), "", impute_vals)
-  vapply(
-    lapply(
-      lapply(strsplit(impute_vals, split = "[ ,]+"), setdiff, target_impute),
-      append,
-      values = target_impute,
-      after = after
-    ),
-    paste,
-    collapse = ",",
-    FUN.VALUE = ""
-  )
-}
-
-impute_data <- read_required_tsv("inputs/impute_vals.tsv", "impute_vals")
-target_data <- read_required_tsv("inputs/target_impute.tsv", "target_impute")
-after_data <- read_required_tsv("inputs/after.tsv", "after")
-
-if (nrow(target_data) != 1L) {
-  stop("target_impute.tsv must contain exactly one target_impute value.", call. = FALSE)
-}
-if (nrow(after_data) != 1L) {
-  stop("after.tsv must contain exactly one after value.", call. = FALSE)
-}
-
-impute_vals <- impute_data[["impute_vals"]]
-target_impute <- target_data[["target_impute"]][1L]
-after <- suppressWarnings(as.numeric(after_data[["after"]][1L]))
-
-if (is.na(after)) {
-  stop("after must be numeric.", call. = FALSE)
-}
-if (!is.character(target_impute) || is.na(target_impute) || identical(target_impute, "")) {
-  stop("target_impute must be a non-empty character value.", call. = FALSE)
-}
-
-add_impute <- local_add_impute_method
-if (requireNamespace("aNCA", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(aNCA))
-  add_impute <- getFromNamespace("add_impute_method", "aNCA")
-}
-
-result <- add_impute(
-  impute_vals = impute_vals,
-  target_impute = target_impute,
-  after = after
+result <- vapply(
+  impute_vals_df$impute_vals,
+  insert_impute,
+  character(1),
+  target = target_impute,
+  after = after,
+  USE.NAMES = FALSE
 )
 
-output <- data.frame(
-  impute_vals = impute_vals,
+out <- data.frame(
+  impute_vals = impute_vals_df$impute_vals,
   after = after,
   result = result,
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+  stringsAsFactors = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```

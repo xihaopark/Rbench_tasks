@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -101,51 +105,52 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE, na =
 
 ### LLM Generated Code
 ```r
-library(admiral)
-library(dplyr)
-library(rlang)
-
 dataset <- read.delim(
-  file = file.path("inputs", "dataset.tsv"),
-  sep = "\t",
-  header = TRUE,
+  "inputs/dataset.tsv",
   stringsAsFactors = FALSE,
-  colClasses = c(
-    USUBJID = "character",
-    PARAMCD = "character",
-    AVISITN = "numeric",
-    AVAL = "numeric"
-  )
+  check.names = FALSE,
+  colClasses = c(USUBJID = "character", PARAMCD = "character", AVISITN = "numeric", AVAL = "numeric")
 )
-
 visits <- read.delim(
-  file = file.path("inputs", "visits.tsv"),
-  sep = "\t",
-  header = TRUE,
+  "inputs/visits.tsv",
   stringsAsFactors = FALSE,
-  colClasses = c(
-    USUBJID = "character",
-    PARAMCD = "character",
-    AVISITN = "numeric"
-  )
+  check.names = FALSE,
+  colClasses = c(USUBJID = "character", PARAMCD = "character", AVISITN = "numeric")
 )
 
-locf_all <- derive_locf_records(
-  dataset = dataset,
-  dataset_ref = visits,
-  by_vars = exprs(USUBJID, PARAMCD),
-  analysis_var = AVAL,
-  imputation = "add",
-  order = exprs(AVISITN)
+merged <- merge(
+  visits,
+  dataset,
+  by = c("USUBJID", "PARAMCD", "AVISITN"),
+  all.x = TRUE,
+  sort = FALSE
 )
 
-result <- locf_all %>%
-  filter(DTYPE == "LOCF") %>%
-  select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE) %>%
-  arrange(USUBJID, PARAMCD, AVISITN)
+merged <- merged[order(merged$USUBJID, merged$PARAMCD, merged$AVISITN), ]
+merged$observed <- !is.na(merged$AVAL)
+merged$locf_aval <- NA_real_
+
+groups <- split(seq_len(nrow(merged)), list(merged$USUBJID, merged$PARAMCD), drop = TRUE)
+
+for (idx in groups) {
+  last_value <- NA_real_
+  for (row in idx) {
+    if (!is.na(merged$AVAL[row])) {
+      last_value <- merged$AVAL[row]
+    }
+    merged$locf_aval[row] <- last_value
+  }
+}
+
+result <- merged[!merged$observed & !is.na(merged$locf_aval), c("USUBJID", "PARAMCD", "AVISITN")]
+result$AVAL <- merged$locf_aval[!merged$observed & !is.na(merged$locf_aval)]
+result$DTYPE <- "LOCF"
+
+result <- result[order(result$USUBJID, result$PARAMCD, result$AVISITN), ]
+row.names(result) <- NULL
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -195,16 +200,6 @@ write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-
-Attaching package: ‘dplyr’
-
-The following objects are masked from ‘package:stats’:
-
-    filter, lag
-
-The following objects are masked from ‘package:base’:
-
-    intersect, setdiff, setequal, union
 ```
 
 ## Evaluation Result
@@ -227,49 +222,50 @@ The following objects are masked from ‘package:base’:
 
 ## Raw Agent Response
 ```text
-library(admiral)
-library(dplyr)
-library(rlang)
-
 dataset <- read.delim(
-  file = file.path("inputs", "dataset.tsv"),
-  sep = "\t",
-  header = TRUE,
+  "inputs/dataset.tsv",
   stringsAsFactors = FALSE,
-  colClasses = c(
-    USUBJID = "character",
-    PARAMCD = "character",
-    AVISITN = "numeric",
-    AVAL = "numeric"
-  )
+  check.names = FALSE,
+  colClasses = c(USUBJID = "character", PARAMCD = "character", AVISITN = "numeric", AVAL = "numeric")
 )
-
 visits <- read.delim(
-  file = file.path("inputs", "visits.tsv"),
-  sep = "\t",
-  header = TRUE,
+  "inputs/visits.tsv",
   stringsAsFactors = FALSE,
-  colClasses = c(
-    USUBJID = "character",
-    PARAMCD = "character",
-    AVISITN = "numeric"
-  )
+  check.names = FALSE,
+  colClasses = c(USUBJID = "character", PARAMCD = "character", AVISITN = "numeric")
 )
 
-locf_all <- derive_locf_records(
-  dataset = dataset,
-  dataset_ref = visits,
-  by_vars = exprs(USUBJID, PARAMCD),
-  analysis_var = AVAL,
-  imputation = "add",
-  order = exprs(AVISITN)
+merged <- merge(
+  visits,
+  dataset,
+  by = c("USUBJID", "PARAMCD", "AVISITN"),
+  all.x = TRUE,
+  sort = FALSE
 )
 
-result <- locf_all %>%
-  filter(DTYPE == "LOCF") %>%
-  select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE) %>%
-  arrange(USUBJID, PARAMCD, AVISITN)
+merged <- merged[order(merged$USUBJID, merged$PARAMCD, merged$AVISITN), ]
+merged$observed <- !is.na(merged$AVAL)
+merged$locf_aval <- NA_real_
+
+groups <- split(seq_len(nrow(merged)), list(merged$USUBJID, merged$PARAMCD), drop = TRUE)
+
+for (idx in groups) {
+  last_value <- NA_real_
+  for (row in idx) {
+    if (!is.na(merged$AVAL[row])) {
+      last_value <- merged$AVAL[row]
+    }
+    merged$locf_aval[row] <- last_value
+  }
+}
+
+result <- merged[!merged$observed & !is.na(merged$locf_aval), c("USUBJID", "PARAMCD", "AVISITN")]
+result$AVAL <- merged$locf_aval[!merged$observed & !is.na(merged$locf_aval)]
+result$DTYPE <- "LOCF"
+
+result <- result[order(result$USUBJID, result$PARAMCD, result$AVISITN), ]
+row.names(result) <- NULL
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```

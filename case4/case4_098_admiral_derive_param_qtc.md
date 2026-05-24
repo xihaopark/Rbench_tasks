@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -74,60 +78,31 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
-
-suppressPackageStartupMessages(library(admiral))
-
-input_path <- file.path("inputs", "dataset.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-dataset <- read.delim(
-  input_path,
+input <- read.delim(
+  file = file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE,
   colClasses = c(USUBJID = "character", PARAMCD = "character", AVAL = "numeric")
 )
 
-required_cols <- c("USUBJID", "PARAMCD", "AVAL")
-missing_cols <- setdiff(required_cols, names(dataset))
-if (length(missing_cols) > 0) {
-  stop("Missing required input column(s): ", paste(missing_cols, collapse = ", "))
-}
+qt <- input[input$PARAMCD == "QT", c("USUBJID", "AVAL")]
+rr <- input[input$PARAMCD == "RR", c("USUBJID", "AVAL")]
 
-id_cols <- setdiff(names(dataset), c("PARAMCD", "AVAL"))
-
-qt <- dataset[dataset$PARAMCD == "QT", c(id_cols, "AVAL"), drop = FALSE]
-rr <- dataset[dataset$PARAMCD == "RR", c(id_cols, "AVAL"), drop = FALSE]
 names(qt)[names(qt) == "AVAL"] <- "QT"
 names(rr)[names(rr) == "AVAL"] <- "RR"
 
-paired <- merge(qt, rr, by = id_cols, all = FALSE, sort = FALSE)
+paired <- merge(qt, rr, by = "USUBJID", all = FALSE, sort = FALSE)
 
-if (nrow(paired) == 0) {
-  result <- data.frame(
-    USUBJID = character(),
-    PARAMCD = character(),
-    AVAL = numeric(),
-    stringsAsFactors = FALSE
-  )
-} else {
-  if (any(is.na(paired$QT)) || any(is.na(paired$RR)) || any(paired$RR <= 0)) {
-    stop("QT and RR pairs must have non-missing QT and positive RR values.")
-  }
+result <- data.frame(
+  USUBJID = paired$USUBJID,
+  PARAMCD = "QTCBR",
+  AVAL = paired$QT / sqrt(paired$RR),
+  stringsAsFactors = FALSE
+)
 
-  result <- data.frame(
-    USUBJID = paired$USUBJID,
-    PARAMCD = "QTCBR",
-    AVAL = paired$QT / sqrt(paired$RR),
-    stringsAsFactors = FALSE
-  )
-}
-
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write.csv(result[, required_cols, drop = FALSE], output_path, row.names = FALSE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -193,58 +168,29 @@ write.csv(result[, required_cols, drop = FALSE], output_path, row.names = FALSE)
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
-
-suppressPackageStartupMessages(library(admiral))
-
-input_path <- file.path("inputs", "dataset.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-dataset <- read.delim(
-  input_path,
+input <- read.delim(
+  file = file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE,
   colClasses = c(USUBJID = "character", PARAMCD = "character", AVAL = "numeric")
 )
 
-required_cols <- c("USUBJID", "PARAMCD", "AVAL")
-missing_cols <- setdiff(required_cols, names(dataset))
-if (length(missing_cols) > 0) {
-  stop("Missing required input column(s): ", paste(missing_cols, collapse = ", "))
-}
+qt <- input[input$PARAMCD == "QT", c("USUBJID", "AVAL")]
+rr <- input[input$PARAMCD == "RR", c("USUBJID", "AVAL")]
 
-id_cols <- setdiff(names(dataset), c("PARAMCD", "AVAL"))
-
-qt <- dataset[dataset$PARAMCD == "QT", c(id_cols, "AVAL"), drop = FALSE]
-rr <- dataset[dataset$PARAMCD == "RR", c(id_cols, "AVAL"), drop = FALSE]
 names(qt)[names(qt) == "AVAL"] <- "QT"
 names(rr)[names(rr) == "AVAL"] <- "RR"
 
-paired <- merge(qt, rr, by = id_cols, all = FALSE, sort = FALSE)
+paired <- merge(qt, rr, by = "USUBJID", all = FALSE, sort = FALSE)
 
-if (nrow(paired) == 0) {
-  result <- data.frame(
-    USUBJID = character(),
-    PARAMCD = character(),
-    AVAL = numeric(),
-    stringsAsFactors = FALSE
-  )
-} else {
-  if (any(is.na(paired$QT)) || any(is.na(paired$RR)) || any(paired$RR <= 0)) {
-    stop("QT and RR pairs must have non-missing QT and positive RR values.")
-  }
+result <- data.frame(
+  USUBJID = paired$USUBJID,
+  PARAMCD = "QTCBR",
+  AVAL = paired$QT / sqrt(paired$RR),
+  stringsAsFactors = FALSE
+)
 
-  result <- data.frame(
-    USUBJID = paired$USUBJID,
-    PARAMCD = "QTCBR",
-    AVAL = paired$QT / sqrt(paired$RR),
-    stringsAsFactors = FALSE
-  )
-}
-
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write.csv(result[, required_cols, drop = FALSE], output_path, row.names = FALSE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```

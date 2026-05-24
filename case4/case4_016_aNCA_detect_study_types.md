@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -143,72 +147,62 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-read_tsv <- function(path) {
-  utils::read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
-  )
+read_tsv <- function(path, ...) {
+  read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE,
+             check.names = FALSE, ...)
 }
 
-scalar_from_file <- function(path, column) {
-  value <- read_tsv(path)[[column]]
-  if (length(value) != 1L || is.na(value) || !nzchar(value)) {
-    stop("Expected exactly one non-empty value in ", path, call. = FALSE)
+read_scalar <- function(path) {
+  value <- read_tsv(path, colClasses = "character")[[1]][1]
+  if (is.na(value) || !nzchar(value)) {
+    stop("Missing column name in ", path, call. = FALSE)
   }
   value
 }
 
 data <- read_tsv("inputs/data.tsv")
-groups <- read_tsv("inputs/groups.tsv")[["groups"]]
-metabfl_column <- scalar_from_file("inputs/metabfl_column.tsv", "metabfl_column")
-route_column <- scalar_from_file("inputs/route_column.tsv", "route_column")
-volume_column <- scalar_from_file("inputs/volume_column.tsv", "volume_column")
+route_col <- read_scalar("inputs/route_column.tsv")
+metabfl_col <- read_scalar("inputs/metabfl_column.tsv")
+volume_col <- read_scalar("inputs/volume_column.tsv")
 
-required <- unique(c("subject", groups, metabfl_column, route_column, volume_column))
-missing <- setdiff(required, names(data))
-if (length(missing) > 0L) {
-  stop("Missing required column(s): ", paste(missing, collapse = ", "), call. = FALSE)
+required_input_cols <- c("subject", route_col, metabfl_col, volume_col)
+missing_cols <- setdiff(required_input_cols, names(data))
+if (length(missing_cols) > 0) {
+  stop("Missing required input column(s): ",
+       paste(missing_cols, collapse = ", "), call. = FALSE)
 }
 
-if (requireNamespace("aNCA", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(aNCA))
-  invisible(try(
-    aNCA::detect_study_types(
-      data = data,
-      groups = groups,
-      metabfl_column = metabfl_column,
-      route_column = route_column,
-      volume_column = volume_column
-    ),
-    silent = TRUE
-  ))
+route <- tolower(trimws(as.character(data[[route_col]])))
+metabfl <- tolower(trimws(as.character(data[[metabfl_col]])))
+volume <- suppressWarnings(as.numeric(data[[volume_col]]))
+volume[is.na(volume)] <- 0
+
+study_type <- rep(NA_character_, nrow(data))
+
+excretion_route <- grepl("urine|urinary|excretion|feces|faeces|stool", route)
+excretion_evidence <- volume > 0 | grepl("metabolite|excret", metabfl)
+study_type[excretion_route | excretion_evidence] <- "excretion"
+
+iv_infusion <- grepl("\\biv\\b|intravenous", route) & grepl("infusion|inf", route)
+study_type[is.na(study_type) & iv_infusion] <- "iv_infusion"
+
+oral <- grepl("\\boral\\b|\\bpo\\b|per os", route)
+study_type[is.na(study_type) & oral] <- "oral"
+
+if (anyNA(study_type)) {
+  bad_routes <- unique(data[[route_col]][is.na(study_type)])
+  stop("Unable to classify route(s): ",
+       paste(bad_routes, collapse = ", "), call. = FALSE)
 }
-
-route <- tolower(trimws(as.character(data[[route_column]])))
-volume <- suppressWarnings(as.numeric(data[[volume_column]]))
-
-is_excretion <- (!is.na(volume) & volume > 0) |
-  grepl("urine|excretion|urinary", route)
-is_oral <- grepl("\\boral\\b|\\bpo\\b|extravascular", route)
-is_iv_infusion <- grepl("iv\\s*infusion|intravenous\\s*infusion|infusion", route)
-
-study_type <- ifelse(
-  is_excretion,
-  "excretion",
-  ifelse(is_oral, "oral", ifelse(is_iv_infusion, "iv_infusion", "unknown"))
-)
 
 result <- data.frame(
   subject = data[["subject"]],
   study_type = study_type,
-  stringsAsFactors = FALSE
+  check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE, quote = FALSE)
 ```
 
 ## Output
@@ -226,11 +220,11 @@ utils::write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 #### `result.csv`
 
 ```csv
-"subject","study_type"
-101,"oral"
-101,"oral"
-102,"iv_infusion"
-103,"excretion"
+subject,study_type
+101,oral
+101,oral
+102,iv_infusion
+103,excretion
 ```
 
 #### `case_01/stderr.txt`
@@ -255,9 +249,6 @@ utils::write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Registered S3 method overwritten by 'tern':
-  method   from 
-  tidy.glm broom
 ```
 
 ## Evaluation Result
@@ -282,70 +273,60 @@ Registered S3 method overwritten by 'tern':
 ```text
 #!/usr/bin/env Rscript
 
-read_tsv <- function(path) {
-  utils::read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
-  )
+read_tsv <- function(path, ...) {
+  read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE,
+             check.names = FALSE, ...)
 }
 
-scalar_from_file <- function(path, column) {
-  value <- read_tsv(path)[[column]]
-  if (length(value) != 1L || is.na(value) || !nzchar(value)) {
-    stop("Expected exactly one non-empty value in ", path, call. = FALSE)
+read_scalar <- function(path) {
+  value <- read_tsv(path, colClasses = "character")[[1]][1]
+  if (is.na(value) || !nzchar(value)) {
+    stop("Missing column name in ", path, call. = FALSE)
   }
   value
 }
 
 data <- read_tsv("inputs/data.tsv")
-groups <- read_tsv("inputs/groups.tsv")[["groups"]]
-metabfl_column <- scalar_from_file("inputs/metabfl_column.tsv", "metabfl_column")
-route_column <- scalar_from_file("inputs/route_column.tsv", "route_column")
-volume_column <- scalar_from_file("inputs/volume_column.tsv", "volume_column")
+route_col <- read_scalar("inputs/route_column.tsv")
+metabfl_col <- read_scalar("inputs/metabfl_column.tsv")
+volume_col <- read_scalar("inputs/volume_column.tsv")
 
-required <- unique(c("subject", groups, metabfl_column, route_column, volume_column))
-missing <- setdiff(required, names(data))
-if (length(missing) > 0L) {
-  stop("Missing required column(s): ", paste(missing, collapse = ", "), call. = FALSE)
+required_input_cols <- c("subject", route_col, metabfl_col, volume_col)
+missing_cols <- setdiff(required_input_cols, names(data))
+if (length(missing_cols) > 0) {
+  stop("Missing required input column(s): ",
+       paste(missing_cols, collapse = ", "), call. = FALSE)
 }
 
-if (requireNamespace("aNCA", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(aNCA))
-  invisible(try(
-    aNCA::detect_study_types(
-      data = data,
-      groups = groups,
-      metabfl_column = metabfl_column,
-      route_column = route_column,
-      volume_column = volume_column
-    ),
-    silent = TRUE
-  ))
+route <- tolower(trimws(as.character(data[[route_col]])))
+metabfl <- tolower(trimws(as.character(data[[metabfl_col]])))
+volume <- suppressWarnings(as.numeric(data[[volume_col]]))
+volume[is.na(volume)] <- 0
+
+study_type <- rep(NA_character_, nrow(data))
+
+excretion_route <- grepl("urine|urinary|excretion|feces|faeces|stool", route)
+excretion_evidence <- volume > 0 | grepl("metabolite|excret", metabfl)
+study_type[excretion_route | excretion_evidence] <- "excretion"
+
+iv_infusion <- grepl("\\biv\\b|intravenous", route) & grepl("infusion|inf", route)
+study_type[is.na(study_type) & iv_infusion] <- "iv_infusion"
+
+oral <- grepl("\\boral\\b|\\bpo\\b|per os", route)
+study_type[is.na(study_type) & oral] <- "oral"
+
+if (anyNA(study_type)) {
+  bad_routes <- unique(data[[route_col]][is.na(study_type)])
+  stop("Unable to classify route(s): ",
+       paste(bad_routes, collapse = ", "), call. = FALSE)
 }
-
-route <- tolower(trimws(as.character(data[[route_column]])))
-volume <- suppressWarnings(as.numeric(data[[volume_column]]))
-
-is_excretion <- (!is.na(volume) & volume > 0) |
-  grepl("urine|excretion|urinary", route)
-is_oral <- grepl("\\boral\\b|\\bpo\\b|extravascular", route)
-is_iv_infusion <- grepl("iv\\s*infusion|intravenous\\s*infusion|infusion", route)
-
-study_type <- ifelse(
-  is_excretion,
-  "excretion",
-  ifelse(is_oral, "oral", ifelse(is_iv_infusion, "iv_infusion", "unknown"))
-)
 
 result <- data.frame(
   subject = data[["subject"]],
   study_type = study_type,
-  stringsAsFactors = FALSE
+  check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE, quote = FALSE)
 ```

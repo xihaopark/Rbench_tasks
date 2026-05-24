@@ -5,13 +5,13 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
-- Pattern: `invalid_or_internal_package_api`
+- Status: `PASS`
+- Failure stage: `pass`
+- Pattern: ``
 
 ## Pass/Error
 ```text
-NO_OUTPUT
+PASS
 ```
 
 ## Prompt
@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -98,89 +102,61 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 ```r
 #!/usr/bin/env Rscript
 
-if (requireNamespace("aNCA", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(aNCA))
-}
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-read_single_column_tsv <- function(path, column_name) {
-  lines <- readLines(path, warn = FALSE)
-  if (length(lines) == 0L) {
-    stop("Input file is empty: ", path)
-  }
-
-  header <- strsplit(lines[[1L]], "\t", fixed = TRUE)[[1L]]
-  if (!identical(header[[1L]], column_name)) {
-    stop("Expected first column '", column_name, "' in ", path)
-  }
-
-  values <- lines[-1L]
-  values <- sub("\r$", "", values)
-  values <- vapply(
-    strsplit(values, "\t", fixed = TRUE),
-    function(fields) fields[[1L]],
-    character(1L)
-  )
-  values[values == "NA"] <- NA_character_
-  values
-}
-
-remove_token_fallback <- function(impute_vals, target_impute) {
-  if (length(target_impute) != 1L || is.na(target_impute) || target_impute == "") {
-    return(impute_vals)
-  }
-
-  vapply(impute_vals, function(value) {
-    if (is.na(value)) {
-      return(NA_character_)
-    }
-    if (identical(value, "")) {
-      return("")
-    }
-
-    delimiter <- if (grepl(",", value, fixed = TRUE)) "," else " "
-    tokens <- if (identical(delimiter, ",")) {
-      strsplit(value, ",", fixed = TRUE)[[1L]]
-    } else {
-      strsplit(value, "[[:space:]]+")[[1L]]
-    }
-    tokens <- trimws(tokens)
-    tokens <- tokens[nzchar(tokens) & tokens != target_impute]
-
-    paste(tokens, collapse = delimiter)
-  }, character(1L), USE.NAMES = FALSE)
-}
-
-impute_vals <- read_single_column_tsv("inputs/impute_vals.tsv", "impute_vals")
-target_values <- read_single_column_tsv("inputs/target_impute.tsv", "target_impute")
-
-if (length(target_values) < 1L) {
-  stop("inputs/target_impute.tsv must contain one target value")
-}
-target_impute <- target_values[[1L]]
-
-if (requireNamespace("aNCA", quietly = TRUE) &&
-    exists("remove_impute_method", where = asNamespace("aNCA"), inherits = FALSE)) {
-  result <- aNCA::remove_impute_method(
-    impute_vals = impute_vals,
-    target_impute = target_impute
-  )
-  result <- as.character(result)
-} else {
-  result <- remove_token_fallback(impute_vals, target_impute)
-}
-
-if (length(result) != length(impute_vals)) {
-  result <- remove_token_fallback(impute_vals, target_impute)
-}
-
-outputs <- data.frame(
-  impute_vals = impute_vals,
-  result = result,
-  stringsAsFactors = FALSE
+impute_data <- read.delim(
+  file.path("inputs", "impute_vals.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  na.strings = c("NA"),
+  check.names = FALSE
 )
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(outputs, "outputs/result.csv", row.names = FALSE, na = "")
+target_data <- read.delim(
+  file.path("inputs", "target_impute.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  na.strings = c("NA"),
+  check.names = FALSE
+)
+
+target <- target_data$target_impute[1]
+
+remove_impute_token <- function(value, target) {
+  if (is.na(value)) {
+    return(NA_character_)
+  }
+
+  if (identical(value, "")) {
+    return("")
+  }
+
+  separator <- if (grepl(",", value, fixed = TRUE)) "," else " "
+  tokens <- strsplit(value, "[,[:space:]]+", perl = TRUE)[[1]]
+  tokens <- tokens[nzchar(tokens)]
+
+  if (!is.na(target)) {
+    tokens <- tokens[tokens != target]
+  }
+
+  paste(tokens, collapse = separator)
+}
+
+result <- data.frame(
+  impute_vals = impute_data$impute_vals,
+  result = vapply(
+    impute_data$impute_vals,
+    remove_impute_token,
+    character(1),
+    target = target
+  ),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "NA")
 ```
 
 ## Output
@@ -195,7 +171,14 @@ write.csv(outputs, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"impute_vals","result"
+"start_predose,start_conc0","start_predose"
+"start_conc0,midpoint","midpoint"
+"start_conc0",""
+```
 
 #### `case_01/stderr.txt`
 
@@ -219,27 +202,22 @@ No LLM output artifact was produced.
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Registered S3 method overwritten by 'tern':
-  method   from 
-  tidy.glm broom
-Error: 'remove_impute_method' is not an exported object from 'namespace:aNCA'
-Execution halted
 ```
 
 ## Evaluation Result
 ```json
 {
-  "status": "NO_OUTPUT",
-  "tier": "exec_fail",
-  "failure_stage": "execution_failure",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "execution_failure",
-    "tier": "exec_fail",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
@@ -248,87 +226,59 @@ Execution halted
 ```text
 #!/usr/bin/env Rscript
 
-if (requireNamespace("aNCA", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(aNCA))
-}
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-read_single_column_tsv <- function(path, column_name) {
-  lines <- readLines(path, warn = FALSE)
-  if (length(lines) == 0L) {
-    stop("Input file is empty: ", path)
-  }
-
-  header <- strsplit(lines[[1L]], "\t", fixed = TRUE)[[1L]]
-  if (!identical(header[[1L]], column_name)) {
-    stop("Expected first column '", column_name, "' in ", path)
-  }
-
-  values <- lines[-1L]
-  values <- sub("\r$", "", values)
-  values <- vapply(
-    strsplit(values, "\t", fixed = TRUE),
-    function(fields) fields[[1L]],
-    character(1L)
-  )
-  values[values == "NA"] <- NA_character_
-  values
-}
-
-remove_token_fallback <- function(impute_vals, target_impute) {
-  if (length(target_impute) != 1L || is.na(target_impute) || target_impute == "") {
-    return(impute_vals)
-  }
-
-  vapply(impute_vals, function(value) {
-    if (is.na(value)) {
-      return(NA_character_)
-    }
-    if (identical(value, "")) {
-      return("")
-    }
-
-    delimiter <- if (grepl(",", value, fixed = TRUE)) "," else " "
-    tokens <- if (identical(delimiter, ",")) {
-      strsplit(value, ",", fixed = TRUE)[[1L]]
-    } else {
-      strsplit(value, "[[:space:]]+")[[1L]]
-    }
-    tokens <- trimws(tokens)
-    tokens <- tokens[nzchar(tokens) & tokens != target_impute]
-
-    paste(tokens, collapse = delimiter)
-  }, character(1L), USE.NAMES = FALSE)
-}
-
-impute_vals <- read_single_column_tsv("inputs/impute_vals.tsv", "impute_vals")
-target_values <- read_single_column_tsv("inputs/target_impute.tsv", "target_impute")
-
-if (length(target_values) < 1L) {
-  stop("inputs/target_impute.tsv must contain one target value")
-}
-target_impute <- target_values[[1L]]
-
-if (requireNamespace("aNCA", quietly = TRUE) &&
-    exists("remove_impute_method", where = asNamespace("aNCA"), inherits = FALSE)) {
-  result <- aNCA::remove_impute_method(
-    impute_vals = impute_vals,
-    target_impute = target_impute
-  )
-  result <- as.character(result)
-} else {
-  result <- remove_token_fallback(impute_vals, target_impute)
-}
-
-if (length(result) != length(impute_vals)) {
-  result <- remove_token_fallback(impute_vals, target_impute)
-}
-
-outputs <- data.frame(
-  impute_vals = impute_vals,
-  result = result,
-  stringsAsFactors = FALSE
+impute_data <- read.delim(
+  file.path("inputs", "impute_vals.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  na.strings = c("NA"),
+  check.names = FALSE
 )
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(outputs, "outputs/result.csv", row.names = FALSE, na = "")
+target_data <- read.delim(
+  file.path("inputs", "target_impute.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  na.strings = c("NA"),
+  check.names = FALSE
+)
+
+target <- target_data$target_impute[1]
+
+remove_impute_token <- function(value, target) {
+  if (is.na(value)) {
+    return(NA_character_)
+  }
+
+  if (identical(value, "")) {
+    return("")
+  }
+
+  separator <- if (grepl(",", value, fixed = TRUE)) "," else " "
+  tokens <- strsplit(value, "[,[:space:]]+", perl = TRUE)[[1]]
+  tokens <- tokens[nzchar(tokens)]
+
+  if (!is.na(target)) {
+    tokens <- tokens[tokens != target]
+  }
+
+  paste(tokens, collapse = separator)
+}
+
+result <- data.frame(
+  impute_vals = impute_data$impute_vals,
+  result = vapply(
+    impute_data$impute_vals,
+    remove_impute_token,
+    character(1),
+    target = target
+  ),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "NA")
 ```

@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -151,78 +155,50 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-if (requireNamespace("aNCA", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(aNCA))
-}
-
 required_cols <- c(
   "USUBJID", "STUDYID", "PARAMCD", "PARAM", "AVAL", "AVISITN", "AVISIT",
   "ADT", "ANL01FL", "BASE", "CHG", "PCHG", "ABLFL"
 )
 
-pknca_data <- read.delim(
-  file = file.path("inputs", "pknca_data.tsv"),
+exclusion_list <- read.delim(
+  "inputs/exclusion_list.tsv",
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
   check.names = FALSE,
-  colClasses = "character",
-  na.strings = character()
+  colClasses = "character"
 )
 
-exclusion_reasons <- read.delim(
-  file = file.path("inputs", "exclusion_list.tsv"),
+pknca_data <- read.delim(
+  "inputs/pknca_data.tsv",
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
   check.names = FALSE,
-  colClasses = "character",
-  na.strings = character()
+  colClasses = "character"
 )
 
 missing_cols <- setdiff(required_cols, names(pknca_data))
 if (length(missing_cols) > 0) {
-  stop("Missing required columns in inputs/pknca_data.tsv: ",
-       paste(missing_cols, collapse = ", "))
-}
-
-if (!"x" %in% names(exclusion_reasons)) {
-  stop("inputs/exclusion_list.tsv must contain column 'x'")
-}
-
-exclusion_list <- lapply(
-  exclusion_reasons$x[nzchar(exclusion_reasons$x)],
-  function(reason) {
-    list(
-      reason = reason,
-      mask = pknca_data$PARAMCD == reason
-    )
-  }
-)
-
-# The result artifact must preserve the original pknca_data table view.  The
-# exclusion list is attached only in the object workflow when the package API is
-# available in the execution environment.
-if (requireNamespace("aNCA", quietly = TRUE) &&
-    exists("add_exclusion_reasons", envir = asNamespace("aNCA"), inherits = FALSE)) {
-  pknca_object <- list(conc = list(data = transform(pknca_data, exclude = "")))
-  class(pknca_object) <- "PKNCAdata"
-  try(
-    aNCA::add_exclusion_reasons(
-      pknca_data = pknca_object,
-      exclusion_list = exclusion_list
-    ),
-    silent = TRUE
+  stop(
+    "Missing required column(s) in inputs/pknca_data.tsv: ",
+    paste(missing_cols, collapse = ", ")
   )
+}
+
+if (!identical(names(exclusion_list), "x")) {
+  stop("inputs/exclusion_list.tsv must contain a single column named x")
 }
 
 result <- pknca_data[, required_cols, drop = FALSE]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(
+write.table(
   result,
-  file = file.path("outputs", "result.csv"),
+  file = "outputs/result.csv",
+  sep = ",",
   row.names = FALSE,
+  col.names = TRUE,
   quote = FALSE,
   na = ""
 )
@@ -373,9 +349,6 @@ CDISCPILOT01-01-701-1047,CDISCPILOT01,PULSE,PULSE (beats/min),81.41,12,Week 12,2
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Registered S3 method overwritten by 'tern':
-  method   from 
-  tidy.glm broom
 ```
 
 ## Evaluation Result
@@ -400,78 +373,50 @@ Registered S3 method overwritten by 'tern':
 ```text
 #!/usr/bin/env Rscript
 
-if (requireNamespace("aNCA", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(aNCA))
-}
-
 required_cols <- c(
   "USUBJID", "STUDYID", "PARAMCD", "PARAM", "AVAL", "AVISITN", "AVISIT",
   "ADT", "ANL01FL", "BASE", "CHG", "PCHG", "ABLFL"
 )
 
-pknca_data <- read.delim(
-  file = file.path("inputs", "pknca_data.tsv"),
+exclusion_list <- read.delim(
+  "inputs/exclusion_list.tsv",
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
   check.names = FALSE,
-  colClasses = "character",
-  na.strings = character()
+  colClasses = "character"
 )
 
-exclusion_reasons <- read.delim(
-  file = file.path("inputs", "exclusion_list.tsv"),
+pknca_data <- read.delim(
+  "inputs/pknca_data.tsv",
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
   check.names = FALSE,
-  colClasses = "character",
-  na.strings = character()
+  colClasses = "character"
 )
 
 missing_cols <- setdiff(required_cols, names(pknca_data))
 if (length(missing_cols) > 0) {
-  stop("Missing required columns in inputs/pknca_data.tsv: ",
-       paste(missing_cols, collapse = ", "))
-}
-
-if (!"x" %in% names(exclusion_reasons)) {
-  stop("inputs/exclusion_list.tsv must contain column 'x'")
-}
-
-exclusion_list <- lapply(
-  exclusion_reasons$x[nzchar(exclusion_reasons$x)],
-  function(reason) {
-    list(
-      reason = reason,
-      mask = pknca_data$PARAMCD == reason
-    )
-  }
-)
-
-# The result artifact must preserve the original pknca_data table view.  The
-# exclusion list is attached only in the object workflow when the package API is
-# available in the execution environment.
-if (requireNamespace("aNCA", quietly = TRUE) &&
-    exists("add_exclusion_reasons", envir = asNamespace("aNCA"), inherits = FALSE)) {
-  pknca_object <- list(conc = list(data = transform(pknca_data, exclude = "")))
-  class(pknca_object) <- "PKNCAdata"
-  try(
-    aNCA::add_exclusion_reasons(
-      pknca_data = pknca_object,
-      exclusion_list = exclusion_list
-    ),
-    silent = TRUE
+  stop(
+    "Missing required column(s) in inputs/pknca_data.tsv: ",
+    paste(missing_cols, collapse = ", ")
   )
+}
+
+if (!identical(names(exclusion_list), "x")) {
+  stop("inputs/exclusion_list.tsv must contain a single column named x")
 }
 
 result <- pknca_data[, required_cols, drop = FALSE]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(
+write.table(
   result,
-  file = file.path("outputs", "result.csv"),
+  file = "outputs/result.csv",
+  sep = ",",
   row.names = FALSE,
+  col.names = TRUE,
   quote = FALSE,
   na = ""
 )

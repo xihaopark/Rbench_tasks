@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -72,22 +76,13 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-suppressPackageStartupMessages({
-  if (requireNamespace("admiral", quietly = TRUE)) {
-    library(admiral)
-  }
-})
+#!/usr/bin/env Rscript
 
-input_path <- file.path("inputs", "dataset.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-dataset <- read.delim(
-  input_path,
+input <- read.delim(
+  file = file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE,
   colClasses = c(
     USUBJID = "character",
     PARAMCD = "character",
@@ -97,25 +92,19 @@ dataset <- read.delim(
   )
 )
 
-required_vars <- c("USUBJID", "PARAMCD", "AVAL", "ANRLO", "ANRHI")
-missing_vars <- setdiff(required_vars, names(dataset))
-if (length(missing_vars) > 0) {
-  stop("Missing required input columns: ", paste(missing_vars, collapse = ", "))
-}
-
-result <- dataset[required_vars]
+result <- input[, c("USUBJID", "PARAMCD", "AVAL", "ANRLO", "ANRHI")]
 result$ATOXGRDIR <- ifelse(
-  is.na(result$AVAL) | is.na(result$ANRLO) | is.na(result$ANRHI),
-  NA_character_,
-  ifelse(
-    result$AVAL < result$ANRLO,
-    "L",
-    ifelse(result$AVAL > result$ANRHI, "H", "N")
-  )
+  result$AVAL < result$ANRLO,
+  "L",
+  ifelse(result$AVAL > result$ANRHI, "H", "N")
 )
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write.csv(result, output_path, row.names = FALSE, na = "")
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(
+  result[, c("USUBJID", "PARAMCD", "AVAL", "ANRLO", "ANRHI", "ATOXGRDIR")],
+  file = file.path("outputs", "result.csv"),
+  row.names = FALSE
+)
 ```
 
 ## Output
@@ -185,22 +174,13 @@ write.csv(result, output_path, row.names = FALSE, na = "")
 
 ## Raw Agent Response
 ```text
-suppressPackageStartupMessages({
-  if (requireNamespace("admiral", quietly = TRUE)) {
-    library(admiral)
-  }
-})
+#!/usr/bin/env Rscript
 
-input_path <- file.path("inputs", "dataset.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-dataset <- read.delim(
-  input_path,
+input <- read.delim(
+  file = file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE,
   colClasses = c(
     USUBJID = "character",
     PARAMCD = "character",
@@ -210,23 +190,17 @@ dataset <- read.delim(
   )
 )
 
-required_vars <- c("USUBJID", "PARAMCD", "AVAL", "ANRLO", "ANRHI")
-missing_vars <- setdiff(required_vars, names(dataset))
-if (length(missing_vars) > 0) {
-  stop("Missing required input columns: ", paste(missing_vars, collapse = ", "))
-}
-
-result <- dataset[required_vars]
+result <- input[, c("USUBJID", "PARAMCD", "AVAL", "ANRLO", "ANRHI")]
 result$ATOXGRDIR <- ifelse(
-  is.na(result$AVAL) | is.na(result$ANRLO) | is.na(result$ANRHI),
-  NA_character_,
-  ifelse(
-    result$AVAL < result$ANRLO,
-    "L",
-    ifelse(result$AVAL > result$ANRHI, "H", "N")
-  )
+  result$AVAL < result$ANRLO,
+  "L",
+  ifelse(result$AVAL > result$ANRHI, "H", "N")
 )
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write.csv(result, output_path, row.names = FALSE, na = "")
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(
+  result[, c("USUBJID", "PARAMCD", "AVAL", "ANRLO", "ANRHI", "ATOXGRDIR")],
+  file = file.path("outputs", "result.csv"),
+  row.names = FALSE
+)
 ```

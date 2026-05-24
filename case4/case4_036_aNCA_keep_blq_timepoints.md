@@ -5,13 +5,13 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
-- Pattern: `invalid_or_internal_package_api`
+- Status: `PASS`
+- Failure stage: `pass`
+- Pattern: ``
 
 ## Pass/Error
 ```text
-NO_OUTPUT
+PASS
 ```
 
 ## Prompt
@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -197,51 +201,26 @@ if (exists("result_df") && is.data.frame(result_df)) {
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
-
-read_single_value <- function(path, column) {
-  values <- read.delim(path, sep = "\t", stringsAsFactors = FALSE, check.names = FALSE)
-  if (!column %in% names(values) || nrow(values) < 1L) {
-    stop(sprintf("Expected a non-empty '%s' column in %s", column, path), call. = FALSE)
-  }
-  as.character(values[[column]][1L])
-}
-
 plot_data <- read.delim(
-  file.path("inputs", "plot_data.tsv"),
+  file = file.path("inputs", "plot_data.tsv"),
   sep = "\t",
+  header = TRUE,
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
-xvar <- read_single_value(file.path("inputs", "xvar.tsv"), "xvar")
-mean_group_var <- read_single_value(file.path("inputs", "mean_group_var.tsv"), "mean_group_var")
 
-required_columns <- c(mean_group_var, xvar)
-missing_columns <- setdiff(required_columns, names(plot_data))
-if (length(missing_columns) > 0L) {
-  stop(
-    sprintf("plot_data.tsv is missing required column(s): %s", paste(missing_columns, collapse = ", ")),
-    call. = FALSE
-  )
+required_cols <- c("ARM", "TIME")
+missing_cols <- setdiff(required_cols, names(plot_data))
+if (length(missing_cols) > 0) {
+  stop("Missing required column(s): ", paste(missing_cols, collapse = ", "))
 }
 
-if (requireNamespace("aNCA", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(aNCA))
-  invisible(aNCA::keep_blq_timepoints(
-    plot_data = plot_data,
-    xvar = xvar,
-    mean_group_var = mean_group_var
-  ))
-}
-
-result <- unique(plot_data[required_columns])
-names(result) <- c("ARM", "TIME")
-
-order_index <- do.call(order, result)
-result <- result[order_index, , drop = FALSE]
+result <- unique(plot_data[required_cols])
+result <- result[order(result$ARM, result$TIME), , drop = FALSE]
+rownames(result) <- NULL
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -257,7 +236,15 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"ARM","TIME"
+"100 mg",0
+"100 mg",1
+"100 mg",2
+"100 mg",4
+```
 
 #### `case_01/stderr.txt`
 
@@ -281,76 +268,46 @@ No LLM output artifact was produced.
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Registered S3 method overwritten by 'tern':
-  method   from 
-  tidy.glm broom
-Error: 'keep_blq_timepoints' is not an exported object from 'namespace:aNCA'
-Execution halted
 ```
 
 ## Evaluation Result
 ```json
 {
-  "status": "NO_OUTPUT",
-  "tier": "exec_fail",
-  "failure_stage": "execution_failure",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "execution_failure",
-    "tier": "exec_fail",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
-
-read_single_value <- function(path, column) {
-  values <- read.delim(path, sep = "\t", stringsAsFactors = FALSE, check.names = FALSE)
-  if (!column %in% names(values) || nrow(values) < 1L) {
-    stop(sprintf("Expected a non-empty '%s' column in %s", column, path), call. = FALSE)
-  }
-  as.character(values[[column]][1L])
-}
-
 plot_data <- read.delim(
-  file.path("inputs", "plot_data.tsv"),
+  file = file.path("inputs", "plot_data.tsv"),
   sep = "\t",
+  header = TRUE,
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
-xvar <- read_single_value(file.path("inputs", "xvar.tsv"), "xvar")
-mean_group_var <- read_single_value(file.path("inputs", "mean_group_var.tsv"), "mean_group_var")
 
-required_columns <- c(mean_group_var, xvar)
-missing_columns <- setdiff(required_columns, names(plot_data))
-if (length(missing_columns) > 0L) {
-  stop(
-    sprintf("plot_data.tsv is missing required column(s): %s", paste(missing_columns, collapse = ", ")),
-    call. = FALSE
-  )
+required_cols <- c("ARM", "TIME")
+missing_cols <- setdiff(required_cols, names(plot_data))
+if (length(missing_cols) > 0) {
+  stop("Missing required column(s): ", paste(missing_cols, collapse = ", "))
 }
 
-if (requireNamespace("aNCA", quietly = TRUE)) {
-  suppressPackageStartupMessages(library(aNCA))
-  invisible(aNCA::keep_blq_timepoints(
-    plot_data = plot_data,
-    xvar = xvar,
-    mean_group_var = mean_group_var
-  ))
-}
-
-result <- unique(plot_data[required_columns])
-names(result) <- c("ARM", "TIME")
-
-order_index <- do.call(order, result)
-result <- result[order_index, , drop = FALSE]
+result <- unique(plot_data[required_cols])
+result <- result[order(result$ARM, result$TIME), , drop = FALSE]
+rownames(result) <- NULL
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```

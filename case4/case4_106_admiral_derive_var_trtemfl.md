@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -83,71 +87,53 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 
 ### LLM Generated Code
 ```r
-library(admiral)
-library(dplyr)
-library(lubridate)
-library(readr)
-library(rlang)
+#!/usr/bin/env Rscript
 
-input_path <- file.path("inputs", "dataset.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-required_cols <- c(
-  "USUBJID", "TRTSDTM", "TRTEDTM", "ASTDTM", "AENDTM",
-  "AEITOXGR", "AETOXGR"
-)
-
-if (!file.exists(input_path)) {
-  stop("Input file not found: ", input_path)
+if (!requireNamespace("admiral", quietly = TRUE)) {
+  stop("The admiral package is required for this task.")
 }
 
-dataset <- read_tsv(
-  input_path,
-  col_types = cols(.default = col_character()),
-  show_col_types = FALSE
-)
-
-missing_cols <- setdiff(required_cols, names(dataset))
-if (length(missing_cols) > 0) {
-  stop("Input is missing required columns: ", paste(missing_cols, collapse = ", "))
-}
-
-adae <- dataset %>%
-  mutate(
-    TRTSDTM = ymd(TRTSDTM),
-    TRTEDTM = ymd(TRTEDTM),
-    ASTDTM = ymd(ASTDTM),
-    AENDTM = ymd(AENDTM)
+input <- read.delim(
+  file = "inputs/dataset.tsv",
+  stringsAsFactors = FALSE,
+  colClasses = c(
+    USUBJID = "character",
+    TRTSDTM = "character",
+    TRTEDTM = "character",
+    ASTDTM = "character",
+    AENDTM = "character",
+    AEITOXGR = "integer",
+    AETOXGR = "integer"
   )
+)
 
-bad_dates <- required_cols[required_cols %in% c("TRTSDTM", "TRTEDTM", "ASTDTM", "AENDTM")] |>
-  (\(cols) cols[vapply(adae[cols], function(x) any(is.na(x)), logical(1))])()
+date_vars <- c("TRTSDTM", "TRTEDTM", "ASTDTM", "AENDTM")
+input[date_vars] <- lapply(input[date_vars], as.Date)
 
-if (length(bad_dates) > 0) {
-  stop("Date parsing produced missing values in: ", paste(bad_dates, collapse = ", "))
-}
-
-result <- derive_var_trtemfl(
-  adae,
-  new_var = TRTEMFL,
+result <- admiral::derive_var_trtemfl(
+  input,
+  start_date = ASTDTM,
+  end_date = AENDTM,
+  trt_start_date = TRTSDTM,
   trt_end_date = TRTEDTM,
   end_window = 0,
   initial_intensity = AEITOXGR,
-  intensity = AETOXGR,
-  subject_keys = exprs(USUBJID)
-) %>%
-  select(
-    USUBJID, TRTSDTM, TRTEDTM, ASTDTM, AENDTM,
-    AEITOXGR, AETOXGR, TRTEMFL
-  )
+  intensity = AETOXGR
+)
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write_csv(result, output_path, na = "")
+required_cols <- c(
+  "USUBJID", "TRTSDTM", "TRTEDTM", "ASTDTM",
+  "AENDTM", "AEITOXGR", "AETOXGR", "TRTEMFL"
+)
 
-if (!file.exists(output_path)) {
-  stop("Output file was not written: ", output_path)
-}
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(
+  result[required_cols],
+  file = "outputs/result.csv",
+  row.names = FALSE,
+  na = "",
+  quote = FALSE
+)
 ```
 
 ## Output
@@ -195,23 +181,6 @@ USUBJID,TRTSDTM,TRTEDTM,ASTDTM,AENDTM,AEITOXGR,AETOXGR,TRTEMFL
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-
-Attaching package: ‘dplyr’
-
-The following objects are masked from ‘package:stats’:
-
-    filter, lag
-
-The following objects are masked from ‘package:base’:
-
-    intersect, setdiff, setequal, union
-
-
-Attaching package: ‘lubridate’
-
-The following objects are masked from ‘package:base’:
-
-    date, intersect, setdiff, union
 ```
 
 ## Evaluation Result
@@ -234,69 +203,51 @@ The following objects are masked from ‘package:base’:
 
 ## Raw Agent Response
 ```text
-library(admiral)
-library(dplyr)
-library(lubridate)
-library(readr)
-library(rlang)
+#!/usr/bin/env Rscript
 
-input_path <- file.path("inputs", "dataset.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-required_cols <- c(
-  "USUBJID", "TRTSDTM", "TRTEDTM", "ASTDTM", "AENDTM",
-  "AEITOXGR", "AETOXGR"
-)
-
-if (!file.exists(input_path)) {
-  stop("Input file not found: ", input_path)
+if (!requireNamespace("admiral", quietly = TRUE)) {
+  stop("The admiral package is required for this task.")
 }
 
-dataset <- read_tsv(
-  input_path,
-  col_types = cols(.default = col_character()),
-  show_col_types = FALSE
-)
-
-missing_cols <- setdiff(required_cols, names(dataset))
-if (length(missing_cols) > 0) {
-  stop("Input is missing required columns: ", paste(missing_cols, collapse = ", "))
-}
-
-adae <- dataset %>%
-  mutate(
-    TRTSDTM = ymd(TRTSDTM),
-    TRTEDTM = ymd(TRTEDTM),
-    ASTDTM = ymd(ASTDTM),
-    AENDTM = ymd(AENDTM)
+input <- read.delim(
+  file = "inputs/dataset.tsv",
+  stringsAsFactors = FALSE,
+  colClasses = c(
+    USUBJID = "character",
+    TRTSDTM = "character",
+    TRTEDTM = "character",
+    ASTDTM = "character",
+    AENDTM = "character",
+    AEITOXGR = "integer",
+    AETOXGR = "integer"
   )
+)
 
-bad_dates <- required_cols[required_cols %in% c("TRTSDTM", "TRTEDTM", "ASTDTM", "AENDTM")] |>
-  (\(cols) cols[vapply(adae[cols], function(x) any(is.na(x)), logical(1))])()
+date_vars <- c("TRTSDTM", "TRTEDTM", "ASTDTM", "AENDTM")
+input[date_vars] <- lapply(input[date_vars], as.Date)
 
-if (length(bad_dates) > 0) {
-  stop("Date parsing produced missing values in: ", paste(bad_dates, collapse = ", "))
-}
-
-result <- derive_var_trtemfl(
-  adae,
-  new_var = TRTEMFL,
+result <- admiral::derive_var_trtemfl(
+  input,
+  start_date = ASTDTM,
+  end_date = AENDTM,
+  trt_start_date = TRTSDTM,
   trt_end_date = TRTEDTM,
   end_window = 0,
   initial_intensity = AEITOXGR,
-  intensity = AETOXGR,
-  subject_keys = exprs(USUBJID)
-) %>%
-  select(
-    USUBJID, TRTSDTM, TRTEDTM, ASTDTM, AENDTM,
-    AEITOXGR, AETOXGR, TRTEMFL
-  )
+  intensity = AETOXGR
+)
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write_csv(result, output_path, na = "")
+required_cols <- c(
+  "USUBJID", "TRTSDTM", "TRTEDTM", "ASTDTM",
+  "AENDTM", "AEITOXGR", "AETOXGR", "TRTEMFL"
+)
 
-if (!file.exists(output_path)) {
-  stop("Output file was not written: ", output_path)
-}
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(
+  result[required_cols],
+  file = "outputs/result.csv",
+  row.names = FALSE,
+  na = "",
+  quote = FALSE
+)
 ```

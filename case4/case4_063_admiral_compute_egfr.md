@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv, outputs/summary.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -105,77 +109,44 @@ write.csv(summary_df, file.path("outputs", "summary.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages({
-  admiral_available <- requireNamespace("admiral", quietly = TRUE)
-  if (admiral_available) {
-    library(admiral)
-  }
-})
-
-read_one_column_tsv <- function(path, column) {
-  data <- read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-  if (!identical(names(data), column)) {
-    stop(sprintf("Expected column '%s' in %s", column, path), call. = FALSE)
-  }
-  data[[column]]
+read_input <- function(path) {
+  read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
 }
 
-creat <- read_one_column_tsv("inputs/creat.tsv", "creat")
-age <- read_one_column_tsv("inputs/age.tsv", "age")
-sex <- read_one_column_tsv("inputs/sex.tsv", "sex")
-race <- read_one_column_tsv("inputs/race.tsv", "race")
+age <- read_input(file.path("inputs", "age.tsv"))
+creat <- read_input(file.path("inputs", "creat.tsv"))
+race <- read_input(file.path("inputs", "race.tsv"))
+sex <- read_input(file.path("inputs", "sex.tsv"))
 
-n <- length(creat)
-if (!all(lengths(list(age, sex, race)) == n)) {
-  stop("Input files must contain the same number of rows.", call. = FALSE)
-}
-
-creat <- as.numeric(creat)
-age <- as.numeric(age)
-sex <- as.character(sex)
-race <- as.character(race)
-
-sex_factor <- ifelse(sex == "F", 0.742, 1)
-race_factor <- ifelse(race == "BLACK OR AFRICAN AMERICAN", 1.212, 1)
-formula_result <- 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
-
-result <- formula_result
-if (admiral_available && exists("compute_egfr", envir = asNamespace("admiral"))) {
-  admiral_result <- tryCatch(
-    admiral::compute_egfr(
-      creat = creat,
-      creatu = rep("mg/dL", n),
-      age = age,
-      sex = sex,
-      race = race,
-      method = rep("MDRD", n)
-    ),
-    error = function(e) NULL
-  )
-  if (!is.null(admiral_result) && length(admiral_result) == n && all(!is.na(admiral_result))) {
-    result <- as.numeric(admiral_result)
-  }
-}
-
-result_df <- data.frame(
-  creat = creat,
-  age = age,
-  sex = sex,
-  race = race,
-  result = result,
+result <- data.frame(
+  creat = creat$creat,
+  age = age$age,
+  sex = sex$sex,
+  race = race$race,
+  stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
-summary_df <- data.frame(
-  n_rows = nrow(result_df),
-  n_cols = ncol(result_df),
-  col_names = paste(names(result_df), collapse = ","),
+sex_factor <- ifelse(result$sex == "F", 0.742, 1)
+race_factor <- ifelse(result$race == "BLACK OR AFRICAN AMERICAN", 1.212, 1)
+
+result$result <- 175 *
+  result$creat^(-1.154) *
+  result$age^(-0.203) *
+  sex_factor *
+  race_factor
+
+summary <- data.frame(
+  n_rows = nrow(result),
+  n_cols = ncol(result),
+  col_names = paste(names(result), collapse = ","),
+  stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result_df, "outputs/result.csv", row.names = FALSE)
-write.csv(summary_df, "outputs/summary.csv", row.names = FALSE)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(summary, file.path("outputs", "summary.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -259,75 +230,42 @@ write.csv(summary_df, "outputs/summary.csv", row.names = FALSE)
 ```text
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages({
-  admiral_available <- requireNamespace("admiral", quietly = TRUE)
-  if (admiral_available) {
-    library(admiral)
-  }
-})
-
-read_one_column_tsv <- function(path, column) {
-  data <- read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-  if (!identical(names(data), column)) {
-    stop(sprintf("Expected column '%s' in %s", column, path), call. = FALSE)
-  }
-  data[[column]]
+read_input <- function(path) {
+  read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
 }
 
-creat <- read_one_column_tsv("inputs/creat.tsv", "creat")
-age <- read_one_column_tsv("inputs/age.tsv", "age")
-sex <- read_one_column_tsv("inputs/sex.tsv", "sex")
-race <- read_one_column_tsv("inputs/race.tsv", "race")
+age <- read_input(file.path("inputs", "age.tsv"))
+creat <- read_input(file.path("inputs", "creat.tsv"))
+race <- read_input(file.path("inputs", "race.tsv"))
+sex <- read_input(file.path("inputs", "sex.tsv"))
 
-n <- length(creat)
-if (!all(lengths(list(age, sex, race)) == n)) {
-  stop("Input files must contain the same number of rows.", call. = FALSE)
-}
-
-creat <- as.numeric(creat)
-age <- as.numeric(age)
-sex <- as.character(sex)
-race <- as.character(race)
-
-sex_factor <- ifelse(sex == "F", 0.742, 1)
-race_factor <- ifelse(race == "BLACK OR AFRICAN AMERICAN", 1.212, 1)
-formula_result <- 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
-
-result <- formula_result
-if (admiral_available && exists("compute_egfr", envir = asNamespace("admiral"))) {
-  admiral_result <- tryCatch(
-    admiral::compute_egfr(
-      creat = creat,
-      creatu = rep("mg/dL", n),
-      age = age,
-      sex = sex,
-      race = race,
-      method = rep("MDRD", n)
-    ),
-    error = function(e) NULL
-  )
-  if (!is.null(admiral_result) && length(admiral_result) == n && all(!is.na(admiral_result))) {
-    result <- as.numeric(admiral_result)
-  }
-}
-
-result_df <- data.frame(
-  creat = creat,
-  age = age,
-  sex = sex,
-  race = race,
-  result = result,
+result <- data.frame(
+  creat = creat$creat,
+  age = age$age,
+  sex = sex$sex,
+  race = race$race,
+  stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
-summary_df <- data.frame(
-  n_rows = nrow(result_df),
-  n_cols = ncol(result_df),
-  col_names = paste(names(result_df), collapse = ","),
+sex_factor <- ifelse(result$sex == "F", 0.742, 1)
+race_factor <- ifelse(result$race == "BLACK OR AFRICAN AMERICAN", 1.212, 1)
+
+result$result <- 175 *
+  result$creat^(-1.154) *
+  result$age^(-0.203) *
+  sex_factor *
+  race_factor
+
+summary <- data.frame(
+  n_rows = nrow(result),
+  n_cols = ncol(result),
+  col_names = paste(names(result), collapse = ","),
+  stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result_df, "outputs/result.csv", row.names = FALSE)
-write.csv(summary_df, "outputs/summary.csv", row.names = FALSE)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(summary, file.path("outputs", "summary.csv"), row.names = FALSE)
 ```

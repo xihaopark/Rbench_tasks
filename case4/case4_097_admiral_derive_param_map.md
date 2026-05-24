@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -76,41 +80,30 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(rlang)
+suppressPackageStartupMessages({
+  library(admiral)
+  library(rlang)
+})
 
-input_path <- file.path("inputs", "dataset.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-dataset <- read.delim(
-  input_path,
+input <- read.delim(
+  file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
   colClasses = c(USUBJID = "character", PARAMCD = "character", AVAL = "numeric")
 )
 
-required_cols <- c("USUBJID", "PARAMCD", "AVAL")
-missing_cols <- setdiff(required_cols, names(dataset))
-if (length(missing_cols) > 0) {
-  stop("Missing required input columns: ", paste(missing_cols, collapse = ", "))
-}
-
-result <- derive_param_map(
-  dataset = dataset,
+with_map <- derive_param_map(
+  dataset = input,
   by_vars = exprs(USUBJID),
   set_values_to = exprs(PARAMCD = "MAP"),
-  sysbp_code = "SYSBP",
-  diabp_code = "DIABP",
   get_unit_expr = "mmHg"
 )
 
-result <- result[result$PARAMCD == "MAP", required_cols]
-result <- result[order(result$USUBJID), ]
+result <- with_map[with_map$PARAMCD == "MAP", c("USUBJID", "PARAMCD", "AVAL")]
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write.csv(result, output_path, row.names = FALSE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -176,39 +169,28 @@ Execution halted
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(rlang)
+suppressPackageStartupMessages({
+  library(admiral)
+  library(rlang)
+})
 
-input_path <- file.path("inputs", "dataset.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-dataset <- read.delim(
-  input_path,
+input <- read.delim(
+  file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
   colClasses = c(USUBJID = "character", PARAMCD = "character", AVAL = "numeric")
 )
 
-required_cols <- c("USUBJID", "PARAMCD", "AVAL")
-missing_cols <- setdiff(required_cols, names(dataset))
-if (length(missing_cols) > 0) {
-  stop("Missing required input columns: ", paste(missing_cols, collapse = ", "))
-}
-
-result <- derive_param_map(
-  dataset = dataset,
+with_map <- derive_param_map(
+  dataset = input,
   by_vars = exprs(USUBJID),
   set_values_to = exprs(PARAMCD = "MAP"),
-  sysbp_code = "SYSBP",
-  diabp_code = "DIABP",
   get_unit_expr = "mmHg"
 )
 
-result <- result[result$PARAMCD == "MAP", required_cols]
-result <- result[order(result$USUBJID), ]
+result <- with_map[with_map$PARAMCD == "MAP", c("USUBJID", "PARAMCD", "AVAL")]
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write.csv(result, output_path, row.names = FALSE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```

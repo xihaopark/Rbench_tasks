@@ -5,13 +5,13 @@
 - Package: `aNCA`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Status: `NO_OUTPUT`
-- Failure stage: `missing_artifact`
+- Status: `PASS`
+- Failure stage: `pass`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-NO_OUTPUT
+PASS
 ```
 
 ## Prompt
@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -185,7 +189,47 @@ if (exists("result_df") && is.data.frame(result_df)) {
 ```r
 #!/usr/bin/env Rscript
 
-dir.create('outputs', showWarnings = FALSE, recursive = TRUE)
+read_tsv <- function(path) {
+  read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+}
+
+input_terms <- read_tsv("inputs/input_terms.tsv")
+mapping_col <- read_tsv("inputs/mapping_col.tsv")
+metadata <- read_tsv("inputs/metadata.tsv")
+target_col <- read_tsv("inputs/target_col.tsv")
+
+if (!"input_terms" %in% names(input_terms)) {
+  stop("inputs/input_terms.tsv must contain an input_terms column")
+}
+if (!"mapping_col" %in% names(mapping_col)) {
+  stop("inputs/mapping_col.tsv must contain a mapping_col column")
+}
+if (!"target_col" %in% names(target_col)) {
+  stop("inputs/target_col.tsv must contain a target_col column")
+}
+
+map_name <- mapping_col$mapping_col[[1]]
+target_name <- target_col$target_col[[1]]
+
+if (!map_name %in% names(metadata)) {
+  stop(sprintf("Mapping column '%s' was not found in inputs/metadata.tsv", map_name))
+}
+if (!target_name %in% names(metadata)) {
+  stop(sprintf("Target column '%s' was not found in inputs/metadata.tsv", target_name))
+}
+
+matched_rows <- match(input_terms$input_terms, metadata[[map_name]])
+
+result <- data.frame(
+  input_terms = input_terms$input_terms,
+  mapping_col = rep(map_name, nrow(input_terms)),
+  result = metadata[[target_name]][matched_rows],
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -234,17 +278,17 @@ dir.create('outputs', showWarnings = FALSE, recursive = TRUE)
 ## Evaluation Result
 ```json
 {
-  "status": "NO_OUTPUT",
-  "tier": "no_output",
-  "failure_stage": "missing_artifact",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "missing_artifact",
-    "tier": "no_output",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
@@ -253,5 +297,45 @@ dir.create('outputs', showWarnings = FALSE, recursive = TRUE)
 ```text
 #!/usr/bin/env Rscript
 
-dir.create('outputs', showWarnings = FALSE, recursive = TRUE)
+read_tsv <- function(path) {
+  read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+}
+
+input_terms <- read_tsv("inputs/input_terms.tsv")
+mapping_col <- read_tsv("inputs/mapping_col.tsv")
+metadata <- read_tsv("inputs/metadata.tsv")
+target_col <- read_tsv("inputs/target_col.tsv")
+
+if (!"input_terms" %in% names(input_terms)) {
+  stop("inputs/input_terms.tsv must contain an input_terms column")
+}
+if (!"mapping_col" %in% names(mapping_col)) {
+  stop("inputs/mapping_col.tsv must contain a mapping_col column")
+}
+if (!"target_col" %in% names(target_col)) {
+  stop("inputs/target_col.tsv must contain a target_col column")
+}
+
+map_name <- mapping_col$mapping_col[[1]]
+target_name <- target_col$target_col[[1]]
+
+if (!map_name %in% names(metadata)) {
+  stop(sprintf("Mapping column '%s' was not found in inputs/metadata.tsv", map_name))
+}
+if (!target_name %in% names(metadata)) {
+  stop(sprintf("Target column '%s' was not found in inputs/metadata.tsv", target_name))
+}
+
+matched_rows <- match(input_terms$input_terms, metadata[[map_name]])
+
+result <- data.frame(
+  input_terms = input_terms$input_terms,
+  mapping_col = rep(map_name, nrow(input_terms)),
+  result = metadata[[target_name]][matched_rows],
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```

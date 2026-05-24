@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -87,66 +91,42 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-existing_outputs <- list.files("outputs", full.names = TRUE, all.files = FALSE)
-if (length(existing_outputs) > 0) {
-  unlink(existing_outputs, recursive = TRUE)
-}
-
 dataset <- read.delim(
-  "inputs/dataset.tsv",
+  file = file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  colClasses = c(USUBJID = "character")
+  colClasses = "character",
+  check.names = FALSE
 )
-new_var_data <- read.delim(
-  "inputs/new_var.tsv",
+
+new_var <- read.delim(
+  file = file.path("inputs", "new_var.tsv"),
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE
-)
-threshold_data <- read.delim(
-  "inputs/threshold.tsv",
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)[["new_var"]][1]
+
+threshold <- read.delim(
+  file = file.path("inputs", "threshold.tsv"),
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE
-)
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)[["threshold"]][1]
 
-stopifnot(
-  all(c("USUBJID", "PARAMCD", "AVAL", "AVISIT") %in% names(dataset)),
-  "new_var" %in% names(new_var_data),
-  "threshold" %in% names(threshold_data),
-  nrow(new_var_data) >= 1,
-  nrow(threshold_data) >= 1
-)
+threshold <- as.numeric(threshold)
+dataset[["AVAL"]] <- as.numeric(dataset[["AVAL"]])
 
-new_var <- new_var_data$new_var[[1]]
-threshold <- as.numeric(threshold_data$threshold[[1]])
+result <- dataset[dataset[["AVAL"]] > threshold, c("USUBJID", "PARAMCD", "AVAL", "AVISIT"), drop = FALSE]
+result[[new_var]] <- "Y"
 
-if (is.na(threshold)) {
-  stop("threshold must be numeric")
-}
+required_cols <- c("USUBJID", "PARAMCD", "AVAL", "AVISIT", new_var)
+result <- result[, required_cols, drop = FALSE]
 
-flagged <- eval(substitute(
-  get_flagged_records(
-    dataset = dataset,
-    new_var = flag_var,
-    condition = AVAL > threshold,
-    filter = AVAL > threshold
-  ),
-  list(flag_var = as.name(new_var))
-))
-
-flagged[[new_var]] <- "Y"
-
-result <- flagged[, c("USUBJID", "PARAMCD", "AVAL", "AVISIT", new_var)]
-names(result)[names(result) == new_var] <- "HIGHFL"
-
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, quote = TRUE)
 ```
 
 ## Output
@@ -213,64 +193,40 @@ write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
-
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-existing_outputs <- list.files("outputs", full.names = TRUE, all.files = FALSE)
-if (length(existing_outputs) > 0) {
-  unlink(existing_outputs, recursive = TRUE)
-}
-
 dataset <- read.delim(
-  "inputs/dataset.tsv",
+  file = file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  colClasses = c(USUBJID = "character")
+  colClasses = "character",
+  check.names = FALSE
 )
-new_var_data <- read.delim(
-  "inputs/new_var.tsv",
+
+new_var <- read.delim(
+  file = file.path("inputs", "new_var.tsv"),
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE
-)
-threshold_data <- read.delim(
-  "inputs/threshold.tsv",
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)[["new_var"]][1]
+
+threshold <- read.delim(
+  file = file.path("inputs", "threshold.tsv"),
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE
-)
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)[["threshold"]][1]
 
-stopifnot(
-  all(c("USUBJID", "PARAMCD", "AVAL", "AVISIT") %in% names(dataset)),
-  "new_var" %in% names(new_var_data),
-  "threshold" %in% names(threshold_data),
-  nrow(new_var_data) >= 1,
-  nrow(threshold_data) >= 1
-)
+threshold <- as.numeric(threshold)
+dataset[["AVAL"]] <- as.numeric(dataset[["AVAL"]])
 
-new_var <- new_var_data$new_var[[1]]
-threshold <- as.numeric(threshold_data$threshold[[1]])
+result <- dataset[dataset[["AVAL"]] > threshold, c("USUBJID", "PARAMCD", "AVAL", "AVISIT"), drop = FALSE]
+result[[new_var]] <- "Y"
 
-if (is.na(threshold)) {
-  stop("threshold must be numeric")
-}
+required_cols <- c("USUBJID", "PARAMCD", "AVAL", "AVISIT", new_var)
+result <- result[, required_cols, drop = FALSE]
 
-flagged <- eval(substitute(
-  get_flagged_records(
-    dataset = dataset,
-    new_var = flag_var,
-    condition = AVAL > threshold,
-    filter = AVAL > threshold
-  ),
-  list(flag_var = as.name(new_var))
-))
-
-flagged[[new_var]] <- "Y"
-
-result <- flagged[, c("USUBJID", "PARAMCD", "AVAL", "AVISIT", new_var)]
-names(result)[names(result) == new_var] <- "HIGHFL"
-
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, quote = TRUE)
 ```

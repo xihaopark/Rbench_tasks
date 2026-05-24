@@ -5,13 +5,13 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Status: `FAIL`
-- Failure stage: `value_mismatch`
-- Pattern: `invalid_or_internal_package_api`
+- Status: `PASS`
+- Failure stage: `pass`
+- Pattern: ``
 
 ## Pass/Error
 ```text
-FAIL
+PASS
 ```
 
 ## Prompt
@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -76,42 +80,33 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE, na =
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
-
-library(admiral)
-
-input_path <- file.path("inputs", "partial.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-components <- c("year", "month", "day", "hour", "minute", "second")
-
-partial <- read.delim(
-  input_path,
+input <- read.delim(
+  file = file.path("inputs", "partial.tsv"),
   sep = "\t",
   header = TRUE,
   colClasses = "character",
-  na.strings = "NA",
-  check.names = FALSE
+  na.strings = c("NA", "")
 )
 
-missing_cols <- setdiff(components, names(partial))
-if (length(missing_cols) > 0) {
-  stop("Missing required column(s): ", paste(missing_cols, collapse = ", "))
+components <- c("year", "month", "day", "hour", "minute", "second")
+result <- input[components]
+
+for (row_idx in seq_len(nrow(result))) {
+  missing_idx <- which(is.na(result[row_idx, components]))
+
+  if (length(missing_idx) > 0) {
+    first_missing <- missing_idx[1]
+    result[row_idx, components[first_missing:length(components)]] <- NA_character_
+  }
 }
 
-partial <- partial[components]
-
-propagate_na_values <- getFromNamespace("propagate_na_values", "admiral")
-
-result <- as.data.frame(
-  propagate_na_values(as.list(partial)),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(
+  result,
+  file = file.path("outputs", "result.csv"),
+  row.names = FALSE,
+  na = ""
 )
-
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write.csv(result[components], output_path, row.names = FALSE, na = "", quote = FALSE)
 ```
 
 ## Output
@@ -129,10 +124,10 @@ write.csv(result[components], output_path, row.names = FALSE, na = "", quote = F
 #### `result.csv`
 
 ```csv
-year,month,day,hour,minute,second
-2020,05,,10,30,45
-2021,,12,09,15,00
-2022,07,04,,20,30
+"year","month","day","hour","minute","second"
+"2020","05",,,,
+"2021",,,,,
+"2022","07","04",,,
 ```
 
 #### `case_01/stderr.txt`
@@ -162,57 +157,48 @@ year,month,day,hour,minute,second
 ## Evaluation Result
 ```json
 {
-  "status": "FAIL",
-  "tier": "schema_ok",
-  "failure_stage": "value_mismatch",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "value_mismatch",
-    "tier": "schema_ok",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
-
-library(admiral)
-
-input_path <- file.path("inputs", "partial.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-components <- c("year", "month", "day", "hour", "minute", "second")
-
-partial <- read.delim(
-  input_path,
+input <- read.delim(
+  file = file.path("inputs", "partial.tsv"),
   sep = "\t",
   header = TRUE,
   colClasses = "character",
-  na.strings = "NA",
-  check.names = FALSE
+  na.strings = c("NA", "")
 )
 
-missing_cols <- setdiff(components, names(partial))
-if (length(missing_cols) > 0) {
-  stop("Missing required column(s): ", paste(missing_cols, collapse = ", "))
+components <- c("year", "month", "day", "hour", "minute", "second")
+result <- input[components]
+
+for (row_idx in seq_len(nrow(result))) {
+  missing_idx <- which(is.na(result[row_idx, components]))
+
+  if (length(missing_idx) > 0) {
+    first_missing <- missing_idx[1]
+    result[row_idx, components[first_missing:length(components)]] <- NA_character_
+  }
 }
 
-partial <- partial[components]
-
-propagate_na_values <- getFromNamespace("propagate_na_values", "admiral")
-
-result <- as.data.frame(
-  propagate_na_values(as.list(partial)),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(
+  result,
+  file = file.path("outputs", "result.csv"),
+  row.names = FALSE,
+  na = ""
 )
-
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write.csv(result[components], output_path, row.names = FALSE, na = "", quote = FALSE)
 ```

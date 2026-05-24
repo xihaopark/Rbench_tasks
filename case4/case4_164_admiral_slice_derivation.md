@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -82,86 +86,38 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
 dataset <- read.delim(
-  file = file.path("inputs", "dataset.tsv"),
+  "inputs/dataset.tsv",
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
   colClasses = c(USUBJID = "character")
 )
 
-filter_data <- read.delim(
-  file = file.path("inputs", "filter.tsv"),
+filter_spec <- read.delim(
+  "inputs/filter.tsv",
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+  stringsAsFactors = FALSE
 )
 
-required_columns <- c("USUBJID", "AVISITN", "AVAL")
-missing_columns <- setdiff(required_columns, names(dataset))
-if (length(missing_columns) > 0) {
-  stop("dataset.tsv is missing required columns: ", paste(missing_columns, collapse = ", "))
-}
+filter_condition <- filter_spec$filter[1]
+selected <- eval(parse(text = filter_condition), envir = dataset, enclos = parent.frame())
+selected[is.na(selected)] <- FALSE
 
-if (!"filter" %in% names(filter_data) || nrow(filter_data) < 1 || is.na(filter_data$filter[1])) {
-  stop("filter.tsv must contain a non-missing filter column.")
-}
-
-filter_text <- trimws(filter_data$filter[1])
-if (!nzchar(filter_text)) {
-  stop("The filter expression is empty.")
-}
-filter_expr <- parse(text = filter_text)[[1]]
-
-keep_through_first_selected_visit <- function(dataset, filter_expr) {
-  if (nrow(dataset) == 0) {
-    return(dataset)
-  }
-
-  selected <- eval(filter_expr, envir = dataset, enclos = parent.frame())
-  selected[is.na(selected)] <- FALSE
-  if (!is.logical(selected) || length(selected) != nrow(dataset)) {
-    stop("The filter condition must evaluate to one logical value per input row.")
-  }
-
-  dataset$..selected_filter <- selected
-  dataset$..input_order <- seq_len(nrow(dataset))
-  dataset <- dataset[order(dataset$USUBJID, dataset$AVISITN, dataset$..input_order), , drop = FALSE]
-
-  pieces <- split(dataset, dataset$USUBJID, drop = TRUE)
-  kept <- lapply(pieces, function(subject_data) {
-    selected_rows <- which(subject_data$..selected_filter)
-    if (length(selected_rows) == 0) {
-      return(subject_data[0, , drop = FALSE])
-    }
-
-    first_selected_visit <- subject_data$AVISITN[selected_rows[1]]
-    subject_data[subject_data$AVISITN <= first_selected_visit, , drop = FALSE]
-  })
-
-  result <- do.call(rbind, kept)
-  result <- result[order(result$..input_order), , drop = FALSE]
-  result$..selected_filter <- NULL
-  result$..input_order <- NULL
-  row.names(result) <- NULL
-  result
-}
-
-result <- slice_derivation(
-  dataset = dataset,
-  derivation = keep_through_first_selected_visit,
-  derivation_slice(filter = TRUE),
-  args = params(filter_expr = filter_expr)
+first_selected_visit <- tapply(
+  dataset$AVISITN[selected],
+  dataset$USUBJID[selected],
+  min
 )
 
-result <- result[, required_columns, drop = FALSE]
+cutoff_visit <- first_selected_visit[dataset$USUBJID]
+keep <- !is.na(cutoff_visit) & dataset$AVISITN <= cutoff_visit
 
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+result <- dataset[keep, c("USUBJID", "AVISITN", "AVAL"), drop = FALSE]
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, quote = FALSE)
 ```
 
 ## Output
@@ -180,9 +136,9 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 #### `result.csv`
 
 ```csv
-"USUBJID","AVISITN","AVAL"
-"01",1,10
-"02",1,9
+USUBJID,AVISITN,AVAL
+01,1,10
+02,1,9
 ```
 
 #### `case_01/stderr.txt`
@@ -231,84 +187,36 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
-
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
 dataset <- read.delim(
-  file = file.path("inputs", "dataset.tsv"),
+  "inputs/dataset.tsv",
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
   colClasses = c(USUBJID = "character")
 )
 
-filter_data <- read.delim(
-  file = file.path("inputs", "filter.tsv"),
+filter_spec <- read.delim(
+  "inputs/filter.tsv",
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+  stringsAsFactors = FALSE
 )
 
-required_columns <- c("USUBJID", "AVISITN", "AVAL")
-missing_columns <- setdiff(required_columns, names(dataset))
-if (length(missing_columns) > 0) {
-  stop("dataset.tsv is missing required columns: ", paste(missing_columns, collapse = ", "))
-}
+filter_condition <- filter_spec$filter[1]
+selected <- eval(parse(text = filter_condition), envir = dataset, enclos = parent.frame())
+selected[is.na(selected)] <- FALSE
 
-if (!"filter" %in% names(filter_data) || nrow(filter_data) < 1 || is.na(filter_data$filter[1])) {
-  stop("filter.tsv must contain a non-missing filter column.")
-}
-
-filter_text <- trimws(filter_data$filter[1])
-if (!nzchar(filter_text)) {
-  stop("The filter expression is empty.")
-}
-filter_expr <- parse(text = filter_text)[[1]]
-
-keep_through_first_selected_visit <- function(dataset, filter_expr) {
-  if (nrow(dataset) == 0) {
-    return(dataset)
-  }
-
-  selected <- eval(filter_expr, envir = dataset, enclos = parent.frame())
-  selected[is.na(selected)] <- FALSE
-  if (!is.logical(selected) || length(selected) != nrow(dataset)) {
-    stop("The filter condition must evaluate to one logical value per input row.")
-  }
-
-  dataset$..selected_filter <- selected
-  dataset$..input_order <- seq_len(nrow(dataset))
-  dataset <- dataset[order(dataset$USUBJID, dataset$AVISITN, dataset$..input_order), , drop = FALSE]
-
-  pieces <- split(dataset, dataset$USUBJID, drop = TRUE)
-  kept <- lapply(pieces, function(subject_data) {
-    selected_rows <- which(subject_data$..selected_filter)
-    if (length(selected_rows) == 0) {
-      return(subject_data[0, , drop = FALSE])
-    }
-
-    first_selected_visit <- subject_data$AVISITN[selected_rows[1]]
-    subject_data[subject_data$AVISITN <= first_selected_visit, , drop = FALSE]
-  })
-
-  result <- do.call(rbind, kept)
-  result <- result[order(result$..input_order), , drop = FALSE]
-  result$..selected_filter <- NULL
-  result$..input_order <- NULL
-  row.names(result) <- NULL
-  result
-}
-
-result <- slice_derivation(
-  dataset = dataset,
-  derivation = keep_through_first_selected_visit,
-  derivation_slice(filter = TRUE),
-  args = params(filter_expr = filter_expr)
+first_selected_visit <- tapply(
+  dataset$AVISITN[selected],
+  dataset$USUBJID[selected],
+  min
 )
 
-result <- result[, required_columns, drop = FALSE]
+cutoff_visit <- first_selected_visit[dataset$USUBJID]
+keep <- !is.na(cutoff_visit) & dataset$AVISITN <= cutoff_visit
 
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+result <- dataset[keep, c("USUBJID", "AVISITN", "AVAL"), drop = FALSE]
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, quote = FALSE)
 ```

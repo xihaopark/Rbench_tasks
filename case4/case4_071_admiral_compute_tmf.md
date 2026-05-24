@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -93,61 +97,26 @@ write.csv(data.frame(dtc = dtc, dtm = dtm_chr, result = result), file.path("outp
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
+dtc_data <- read.delim("inputs/dtc.tsv", stringsAsFactors = FALSE)
+dtm_data <- read.delim("inputs/dtm.tsv", stringsAsFactors = FALSE)
+flag_data <- read.delim("inputs/ignore_seconds_flag.tsv", stringsAsFactors = FALSE)
 
-read_tsv <- function(path) {
-  read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
-  )
-}
-
-dtc_data <- read_tsv("inputs/dtc.tsv")
-dtm_data <- read_tsv("inputs/dtm.tsv")
-flag_data <- read_tsv("inputs/ignore_seconds_flag.tsv")
-
-if (!identical(names(dtc_data), "dtc")) {
-  stop("inputs/dtc.tsv must contain exactly one column named 'dtc'")
-}
-if (!identical(names(dtm_data), "dtm")) {
-  stop("inputs/dtm.tsv must contain exactly one column named 'dtm'")
-}
-if (!identical(names(flag_data), "ignore_seconds_flag")) {
-  stop("inputs/ignore_seconds_flag.tsv must contain exactly one column named 'ignore_seconds_flag'")
-}
-if (nrow(dtc_data) != nrow(dtm_data)) {
-  stop("dtc.tsv and dtm.tsv must contain the same number of rows")
-}
-if (nrow(flag_data) != 1L) {
-  stop("ignore_seconds_flag.tsv must contain exactly one data row")
-}
-
-ignore_seconds_flag <- as.logical(flag_data$ignore_seconds_flag)
-if (is.na(ignore_seconds_flag)) {
-  stop("ignore_seconds_flag must be TRUE or FALSE")
-}
-
-dtm_parsed <- as.POSIXct(dtm_data$dtm, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
-if (any(is.na(dtm_parsed) & !is.na(dtm_data$dtm) & nzchar(dtm_data$dtm))) {
-  stop("One or more dtm values could not be parsed as datetimes")
-}
+ignore_seconds_flag <- as.logical(flag_data$ignore_seconds_flag[1])
+dtm_for_tmf <- as.POSIXct(dtm_data$dtm, tz = "UTC")
 
 result <- data.frame(
   dtc = dtc_data$dtc,
   dtm = dtm_data$dtm,
-  result = compute_tmf(
+  result = admiral::compute_tmf(
     dtc = dtc_data$dtc,
-    dtm = dtm_parsed,
+    dtm = dtm_for_tmf,
     ignore_seconds_flag = ignore_seconds_flag
   ),
   stringsAsFactors = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE, quote = FALSE, na = "")
 ```
 
 ## Output
@@ -188,7 +157,7 @@ No LLM output artifact was produced.
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
 Error in get_partialdatetime(dtc, create_datetime = TRUE) : 
   unused argument (create_datetime = TRUE)
-Calls: data.frame -> compute_tmf
+Calls: data.frame -> <Anonymous>
 Execution halted
 ```
 
@@ -214,59 +183,24 @@ Execution halted
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
+dtc_data <- read.delim("inputs/dtc.tsv", stringsAsFactors = FALSE)
+dtm_data <- read.delim("inputs/dtm.tsv", stringsAsFactors = FALSE)
+flag_data <- read.delim("inputs/ignore_seconds_flag.tsv", stringsAsFactors = FALSE)
 
-read_tsv <- function(path) {
-  read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
-  )
-}
-
-dtc_data <- read_tsv("inputs/dtc.tsv")
-dtm_data <- read_tsv("inputs/dtm.tsv")
-flag_data <- read_tsv("inputs/ignore_seconds_flag.tsv")
-
-if (!identical(names(dtc_data), "dtc")) {
-  stop("inputs/dtc.tsv must contain exactly one column named 'dtc'")
-}
-if (!identical(names(dtm_data), "dtm")) {
-  stop("inputs/dtm.tsv must contain exactly one column named 'dtm'")
-}
-if (!identical(names(flag_data), "ignore_seconds_flag")) {
-  stop("inputs/ignore_seconds_flag.tsv must contain exactly one column named 'ignore_seconds_flag'")
-}
-if (nrow(dtc_data) != nrow(dtm_data)) {
-  stop("dtc.tsv and dtm.tsv must contain the same number of rows")
-}
-if (nrow(flag_data) != 1L) {
-  stop("ignore_seconds_flag.tsv must contain exactly one data row")
-}
-
-ignore_seconds_flag <- as.logical(flag_data$ignore_seconds_flag)
-if (is.na(ignore_seconds_flag)) {
-  stop("ignore_seconds_flag must be TRUE or FALSE")
-}
-
-dtm_parsed <- as.POSIXct(dtm_data$dtm, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
-if (any(is.na(dtm_parsed) & !is.na(dtm_data$dtm) & nzchar(dtm_data$dtm))) {
-  stop("One or more dtm values could not be parsed as datetimes")
-}
+ignore_seconds_flag <- as.logical(flag_data$ignore_seconds_flag[1])
+dtm_for_tmf <- as.POSIXct(dtm_data$dtm, tz = "UTC")
 
 result <- data.frame(
   dtc = dtc_data$dtc,
   dtm = dtm_data$dtm,
-  result = compute_tmf(
+  result = admiral::compute_tmf(
     dtc = dtc_data$dtc,
-    dtm = dtm_parsed,
+    dtm = dtm_for_tmf,
     ignore_seconds_flag = ignore_seconds_flag
   ),
   stringsAsFactors = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE, quote = FALSE, na = "")
 ```

@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -140,66 +144,36 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-library(admiral)
+#!/usr/bin/env Rscript
 
-read_one_column <- function(path, column) {
-  data <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!identical(names(data), column)) {
-    stop(sprintf("Expected column '%s' in %s", column, path), call. = FALSE)
-  }
-  data[[column]]
+read_input <- function(filename) {
+  read.delim(file.path("inputs", filename), stringsAsFactors = FALSE)
 }
 
-age <- read_one_column("inputs/age.tsv", "age")
-chol <- read_one_column("inputs/chol.tsv", "chol")
-cholhdl <- read_one_column("inputs/cholhdl.tsv", "cholhdl")
-diabetfl <- read_one_column("inputs/diabetfl.tsv", "diabetfl")
-sex <- read_one_column("inputs/sex.tsv", "sex")
-smokefl <- read_one_column("inputs/smokefl.tsv", "smokefl")
-sysbp <- read_one_column("inputs/sysbp.tsv", "sysbp")
-trthypfl <- read_one_column("inputs/trthypfl.tsv", "trthypfl")
-
-lengths <- vapply(
-  list(age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl),
-  length,
-  integer(1)
+data <- data.frame(
+  age = read_input("age.tsv")$age,
+  sex = read_input("sex.tsv")$sex,
+  sysbp = read_input("sysbp.tsv")$sysbp,
+  chol = read_input("chol.tsv")$chol,
+  cholhdl = read_input("cholhdl.tsv")$cholhdl,
+  smokefl = read_input("smokefl.tsv")$smokefl,
+  diabetfl = read_input("diabetfl.tsv")$diabetfl,
+  trthypfl = read_input("trthypfl.tsv")$trthypfl
 )
-if (length(unique(lengths)) != 1L) {
-  stop("Input files do not have the same number of rows", call. = FALSE)
-}
 
-age <- as.numeric(age)
-sysbp <- as.numeric(sysbp)
-chol <- as.numeric(chol)
-cholhdl <- as.numeric(cholhdl)
-
-if (anyNA(age) || anyNA(sysbp) || anyNA(chol) || anyNA(cholhdl)) {
-  stop("Numeric inputs contain missing or non-numeric values", call. = FALSE)
-}
-
-result <- 0.1 * age +
-  0.02 * sysbp +
-  0.01 * chol +
-  0.5 * cholhdl +
-  2 * (smokefl == "Y") +
-  2 * (diabetfl == "Y") +
-  (trthypfl == "Y")
-
-output <- data.frame(
-  age = age,
-  sex = sex,
-  sysbp = sysbp,
-  chol = chol,
-  cholhdl = cholhdl,
-  smokefl = smokefl,
-  diabetfl = diabetfl,
-  trthypfl = trthypfl,
-  result = result,
-  check.names = FALSE
+data$result <- with(
+  data,
+  0.1 * age +
+    0.02 * sysbp +
+    0.01 * chol +
+    0.5 * cholhdl +
+    2 * (smokefl == "Y") +
+    2 * (diabetfl == "Y") +
+    (trthypfl == "Y")
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, "outputs/result.csv", row.names = FALSE)
+write.csv(data, file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -267,64 +241,34 @@ write.csv(output, "outputs/result.csv", row.names = FALSE)
 
 ## Raw Agent Response
 ```text
-library(admiral)
+#!/usr/bin/env Rscript
 
-read_one_column <- function(path, column) {
-  data <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!identical(names(data), column)) {
-    stop(sprintf("Expected column '%s' in %s", column, path), call. = FALSE)
-  }
-  data[[column]]
+read_input <- function(filename) {
+  read.delim(file.path("inputs", filename), stringsAsFactors = FALSE)
 }
 
-age <- read_one_column("inputs/age.tsv", "age")
-chol <- read_one_column("inputs/chol.tsv", "chol")
-cholhdl <- read_one_column("inputs/cholhdl.tsv", "cholhdl")
-diabetfl <- read_one_column("inputs/diabetfl.tsv", "diabetfl")
-sex <- read_one_column("inputs/sex.tsv", "sex")
-smokefl <- read_one_column("inputs/smokefl.tsv", "smokefl")
-sysbp <- read_one_column("inputs/sysbp.tsv", "sysbp")
-trthypfl <- read_one_column("inputs/trthypfl.tsv", "trthypfl")
-
-lengths <- vapply(
-  list(age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl),
-  length,
-  integer(1)
+data <- data.frame(
+  age = read_input("age.tsv")$age,
+  sex = read_input("sex.tsv")$sex,
+  sysbp = read_input("sysbp.tsv")$sysbp,
+  chol = read_input("chol.tsv")$chol,
+  cholhdl = read_input("cholhdl.tsv")$cholhdl,
+  smokefl = read_input("smokefl.tsv")$smokefl,
+  diabetfl = read_input("diabetfl.tsv")$diabetfl,
+  trthypfl = read_input("trthypfl.tsv")$trthypfl
 )
-if (length(unique(lengths)) != 1L) {
-  stop("Input files do not have the same number of rows", call. = FALSE)
-}
 
-age <- as.numeric(age)
-sysbp <- as.numeric(sysbp)
-chol <- as.numeric(chol)
-cholhdl <- as.numeric(cholhdl)
-
-if (anyNA(age) || anyNA(sysbp) || anyNA(chol) || anyNA(cholhdl)) {
-  stop("Numeric inputs contain missing or non-numeric values", call. = FALSE)
-}
-
-result <- 0.1 * age +
-  0.02 * sysbp +
-  0.01 * chol +
-  0.5 * cholhdl +
-  2 * (smokefl == "Y") +
-  2 * (diabetfl == "Y") +
-  (trthypfl == "Y")
-
-output <- data.frame(
-  age = age,
-  sex = sex,
-  sysbp = sysbp,
-  chol = chol,
-  cholhdl = cholhdl,
-  smokefl = smokefl,
-  diabetfl = diabetfl,
-  trthypfl = trthypfl,
-  result = result,
-  check.names = FALSE
+data$result <- with(
+  data,
+  0.1 * age +
+    0.02 * sysbp +
+    0.01 * chol +
+    0.5 * cholhdl +
+    2 * (smokefl == "Y") +
+    2 * (diabetfl == "Y") +
+    (trthypfl == "Y")
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, "outputs/result.csv", row.names = FALSE)
+write.csv(data, file.path("outputs", "result.csv"), row.names = FALSE)
 ```

@@ -5,13 +5,13 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
-- Pattern: `invalid_or_internal_package_api`
+- Status: `PASS`
+- Failure stage: `pass`
+- Pattern: ``
 
 ## Pass/Error
 ```text
-NO_OUTPUT
+PASS
 ```
 
 ## Prompt
@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -73,95 +77,49 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-library(admiral)
+#!/usr/bin/env Rscript
 
-input_path <- file.path("inputs", "partial.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-if (!file.exists(input_path)) {
-  stop("Input file not found: ", input_path)
-}
-
-partial_data <- read.delim(
-  input_path,
+input <- read.delim(
+  file.path("inputs", "partial.tsv"),
   stringsAsFactors = FALSE,
-  colClasses = c(partial = "character"),
-  check.names = FALSE
+  colClasses = "character"
 )
 
-if (!identical(names(partial_data), "partial")) {
-  stop("Input file must contain exactly one column named 'partial'.")
-}
-
-get_targets <- getFromNamespace("get_imputation_targets", "admiral")
-
 parse_partial <- function(value) {
-  pattern <- paste0(
-    "^([0-9]{4})",
-    "(?:-([0-9]{2})",
-    "(?:-([0-9]{2})",
-    "(?:T([0-9]{2})",
-    "(?::([0-9]{2})",
-    "(?::([0-9]{2}))?)?)?)?)?$"
+  match <- regexec(
+    "^(\\d{4})(?:-(\\d{2})(?:-(\\d{2})(?:T(\\d{2})(?::(\\d{2})(?::(\\d{2}(?:\\.\\d+)?))?)?)?)?)?$",
+    value
   )
-  pieces <- regexec(pattern, value)
-  matches <- regmatches(value, pieces)[[1]]
+  pieces <- regmatches(value, match)[[1]]
 
-  if (length(matches) == 0) {
-    stop("Invalid partial date/time value: ", value)
+  if (length(pieces) == 0) {
+    stop(sprintf("Unsupported partial date/time value: %s", value), call. = FALSE)
   }
 
-  components <- matches[-1]
-  components[components == ""] <- NA_character_
-  names(components) <- c("year", "month", "day", "hour", "minute", "second")
-  as.list(components)
-}
-
-impute_components <- function(value) {
-  partial <- parse_partial(value)
-  targets <- get_targets(
-    partial = partial,
-    date_imputation = "06-15",
-    time_imputation = "first"
-  )
-
-  resolved <- partial
-  for (component in names(resolved)) {
-    if (is.na(resolved[[component]]) || resolved[[component]] == "") {
-      resolved[[component]] <- targets[[component]]
+  component <- function(index, default) {
+    if (length(pieces) >= index && nzchar(pieces[[index]])) {
+      pieces[[index]]
+    } else {
+      default
     }
   }
 
   data.frame(
-    partial = value,
-    year = resolved$year,
-    month = resolved$month,
-    day = resolved$day,
-    hour = resolved$hour,
-    minute = resolved$minute,
-    second = resolved$second,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
+    year = component(2, NA_character_),
+    month = component(3, "06"),
+    day = component(4, "15"),
+    hour = component(5, "00"),
+    minute = component(6, "00"),
+    second = component(7, "00"),
+    stringsAsFactors = FALSE
   )
 }
 
-result <- do.call(rbind, lapply(partial_data$partial, impute_components))
+components <- do.call(rbind, lapply(input$partial, parse_partial))
+result <- cbind(partial = input$partial, components)
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write.table(
-  result,
-  file = output_path,
-  sep = ",",
-  row.names = FALSE,
-  col.names = TRUE,
-  quote = FALSE,
-  na = ""
-)
-
-if (!file.exists(output_path)) {
-  stop("Failed to write output file: ", output_path)
-}
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
 ```
 
 ## Output
@@ -176,7 +134,14 @@ if (!file.exists(output_path)) {
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+partial,year,month,day,hour,minute,second
+2020,2020,06,15,00,00,00
+2020-02,2020,02,15,00,00,00
+2020-02-20T14,2020,02,20,14,00,00
+```
 
 #### `case_01/stderr.txt`
 
@@ -200,119 +165,69 @@ No LLM output artifact was produced.
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Error in get_targets(partial = partial, date_imputation = "06-15", time_imputation = "first") : 
-  unused arguments (partial = partial, date_imputation = "06-15", time_imputation = "first")
-Calls: do.call -> lapply -> FUN
-Execution halted
 ```
 
 ## Evaluation Result
 ```json
 {
-  "status": "NO_OUTPUT",
-  "tier": "exec_fail",
-  "failure_stage": "execution_failure",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "execution_failure",
-    "tier": "exec_fail",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
-library(admiral)
+#!/usr/bin/env Rscript
 
-input_path <- file.path("inputs", "partial.tsv")
-output_dir <- "outputs"
-output_path <- file.path(output_dir, "result.csv")
-
-if (!file.exists(input_path)) {
-  stop("Input file not found: ", input_path)
-}
-
-partial_data <- read.delim(
-  input_path,
+input <- read.delim(
+  file.path("inputs", "partial.tsv"),
   stringsAsFactors = FALSE,
-  colClasses = c(partial = "character"),
-  check.names = FALSE
+  colClasses = "character"
 )
 
-if (!identical(names(partial_data), "partial")) {
-  stop("Input file must contain exactly one column named 'partial'.")
-}
-
-get_targets <- getFromNamespace("get_imputation_targets", "admiral")
-
 parse_partial <- function(value) {
-  pattern <- paste0(
-    "^([0-9]{4})",
-    "(?:-([0-9]{2})",
-    "(?:-([0-9]{2})",
-    "(?:T([0-9]{2})",
-    "(?::([0-9]{2})",
-    "(?::([0-9]{2}))?)?)?)?)?$"
+  match <- regexec(
+    "^(\\d{4})(?:-(\\d{2})(?:-(\\d{2})(?:T(\\d{2})(?::(\\d{2})(?::(\\d{2}(?:\\.\\d+)?))?)?)?)?)?$",
+    value
   )
-  pieces <- regexec(pattern, value)
-  matches <- regmatches(value, pieces)[[1]]
+  pieces <- regmatches(value, match)[[1]]
 
-  if (length(matches) == 0) {
-    stop("Invalid partial date/time value: ", value)
+  if (length(pieces) == 0) {
+    stop(sprintf("Unsupported partial date/time value: %s", value), call. = FALSE)
   }
 
-  components <- matches[-1]
-  components[components == ""] <- NA_character_
-  names(components) <- c("year", "month", "day", "hour", "minute", "second")
-  as.list(components)
-}
-
-impute_components <- function(value) {
-  partial <- parse_partial(value)
-  targets <- get_targets(
-    partial = partial,
-    date_imputation = "06-15",
-    time_imputation = "first"
-  )
-
-  resolved <- partial
-  for (component in names(resolved)) {
-    if (is.na(resolved[[component]]) || resolved[[component]] == "") {
-      resolved[[component]] <- targets[[component]]
+  component <- function(index, default) {
+    if (length(pieces) >= index && nzchar(pieces[[index]])) {
+      pieces[[index]]
+    } else {
+      default
     }
   }
 
   data.frame(
-    partial = value,
-    year = resolved$year,
-    month = resolved$month,
-    day = resolved$day,
-    hour = resolved$hour,
-    minute = resolved$minute,
-    second = resolved$second,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
+    year = component(2, NA_character_),
+    month = component(3, "06"),
+    day = component(4, "15"),
+    hour = component(5, "00"),
+    minute = component(6, "00"),
+    second = component(7, "00"),
+    stringsAsFactors = FALSE
   )
 }
 
-result <- do.call(rbind, lapply(partial_data$partial, impute_components))
+components <- do.call(rbind, lapply(input$partial, parse_partial))
+result <- cbind(partial = input$partial, components)
 
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-write.table(
-  result,
-  file = output_path,
-  sep = ",",
-  row.names = FALSE,
-  col.names = TRUE,
-  quote = FALSE,
-  na = ""
-)
-
-if (!file.exists(output_path)) {
-  stop("Failed to write output file: ", output_path)
-}
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
 ```

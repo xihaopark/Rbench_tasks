@@ -5,13 +5,13 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
-- Pattern: `invalid_or_internal_package_api`
+- Status: `FAIL`
+- Failure stage: `value_mismatch`
+- Pattern: ``
 
 ## Pass/Error
 ```text
-NO_OUTPUT
+FAIL
 ```
 
 ## Prompt
@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -111,122 +115,79 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
+read_tsv <- function(path) {
+  read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+}
 
-read_required_tsv <- function(path) {
-  if (!file.exists(path)) {
-    stop("Missing required input file: ", path, call. = FALSE)
+offset_hours <- function(text) {
+  match <- regexec("([0-9]+(?:\\.[0-9]+)?)\\s*(MIN|MINS|MINUTE|MINUTES|HOUR|HOURS|HR|HRS)", text)
+  parts <- regmatches(text, match)[[1]]
+
+  if (length(parts) == 0) {
+    return(0)
   }
-  utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-}
 
-parse_hours <- function(value, unit) {
-  value <- as.numeric(value)
-  unit <- tolower(unit)
-  ifelse(substr(unit, 1, 1) == "m", value / 60, value)
-}
+  value <- as.numeric(parts[2])
+  unit <- parts[3]
 
-xxtpt_data <- read_required_tsv(file.path("inputs", "xxtpt.tsv"))
-duration_data <- read_required_tsv(file.path("inputs", "treatment_duration.tsv"))
-
-if (!"xxtpt" %in% names(xxtpt_data)) {
-  stop("inputs/xxtpt.tsv must contain column xxtpt", call. = FALSE)
-}
-if (!"treatment_duration" %in% names(duration_data)) {
-  stop("inputs/treatment_duration.tsv must contain column treatment_duration", call. = FALSE)
-}
-if (nrow(xxtpt_data) != nrow(duration_data)) {
-  stop("Input files must have the same number of rows", call. = FALSE)
-}
-
-xxtpt <- trimws(xxtpt_data$xxtpt)
-treatment_duration <- as.numeric(duration_data$treatment_duration)
-if (any(is.na(treatment_duration))) {
-  stop("treatment_duration must be numeric for all rows", call. = FALSE)
-}
-if (any(treatment_duration < 0, na.rm = TRUE)) {
-  stop("treatment_duration must be non-negative", call. = FALSE)
-}
-
-na_idx <- is.na(xxtpt)
-result <- rep(NA_real_, length(xxtpt))
-
-convert_treatment_patterns <- getFromNamespace("convert_treatment_patterns", "admiral")
-result <- convert_treatment_patterns(
-  xxtpt = xxtpt,
-  result = result,
-  na_idx = na_idx,
-  treatment_duration = treatment_duration
-)
-
-fill_pattern <- function(pattern, value_fun) {
-  matches <- regexec(pattern, xxtpt, ignore.case = TRUE, perl = TRUE)
-  parts <- regmatches(xxtpt, matches)
-  matched <- lengths(parts) > 0 & is.na(result) & !na_idx
-  if (any(matched)) {
-    result[matched] <<- value_fun(parts[matched], matched)
+  if (unit %in% c("MIN", "MINS", "MINUTE", "MINUTES")) {
+    value / 60
+  } else {
+    value
   }
 }
 
-zero_pattern <- paste0(
-  "^\\s*(?:",
-  "start\\s+of\\s+(?:treatment|infusion)|",
-  "start\\s+(?:treatment|infusion)|",
-  "pre\\s*-?\\s*dose|",
-  "predose|",
-  "0\\s*(?:h|hr|hour|m|min|minute)?s?\\s*(?:post\\s*)?(?:dose|start)?",
-  ")\\s*$"
-)
-result[grepl(zero_pattern, xxtpt, ignore.case = TRUE, perl = TRUE) &
-  is.na(result) & !na_idx] <- 0
+convert_treatment_pattern <- function(xxtpt, treatment_duration) {
+  text <- toupper(trimws(xxtpt))
+  offset <- offset_hours(text)
 
-end_pattern <- "^\\s*(?:end\\s+of\\s+(?:treatment|infusion)|eot|eoi)\\s*$"
-result[grepl(end_pattern, xxtpt, ignore.case = TRUE, perl = TRUE) &
-  is.na(result) & !na_idx] <- treatment_duration[
-    grepl(end_pattern, xxtpt, ignore.case = TRUE, perl = TRUE) &
-      is.na(result) & !na_idx
-  ]
-
-time_unit <- "(\\d+(?:\\.\\d+)?)\\s*(m(?:in|inute)?|h(?:r|our)?)s?"
-
-fill_pattern(
-  paste0("^\\s*", time_unit, "\\s+(?:after|post)\\s+(?:start|start\\s+of\\s+(?:treatment|infusion)|start\\s+inf)\\s*$"),
-  function(parts, matched) {
-    vapply(parts, function(x) parse_hours(x[2], x[3]), numeric(1))
+  if (grepl("START OF TREATMENT|PRE-DOSE|PREDOSE|^DOSE$|ZERO", text)) {
+    return(0)
   }
-)
 
-fill_pattern(
-  paste0("^\\s*", time_unit, "\\s+(?:before|pre|prior\\s+to)\\s+(?:end|end\\s+of\\s+(?:treatment|infusion)|eot|eoi)\\s*$"),
-  function(parts, matched) {
-    treatment_duration[matched] - vapply(parts, function(x) parse_hours(x[2], x[3]), numeric(1))
+  if (grepl("AFTER\\s+START", text)) {
+    return(offset)
   }
-)
 
-fill_pattern(
-  paste0("^\\s*", time_unit, "\\s+(?:after|post)\\s+(?:end|end\\s+of\\s+(?:treatment|infusion)|eot|eoi)\\s*$"),
-  function(parts, matched) {
-    treatment_duration[matched] + vapply(parts, function(x) parse_hours(x[2], x[3]), numeric(1))
+  if (grepl("BEFORE\\s+END|PRE[- ]?EOT|BEFORE\\s+EOT", text)) {
+    return(treatment_duration - offset)
   }
-)
 
-if (any(is.na(result) & !na_idx)) {
-  stop(
-    "Unconverted treatment timepoint pattern(s): ",
-    paste(unique(xxtpt[is.na(result) & !na_idx]), collapse = "; "),
-    call. = FALSE
-  )
+  if (grepl("END OF TREATMENT|\\bEOT\\b|END$", text)) {
+    if (grepl("AFTER\\s+END|AFTER\\s+EOT", text)) {
+      return(treatment_duration + offset)
+    }
+    return(treatment_duration)
+  }
+
+  if (grepl("AFTER\\s+END|AFTER\\s+EOT", text)) {
+    return(treatment_duration + offset)
+  }
+
+  NA_real_
 }
 
-output <- data.frame(
-  xxtpt = xxtpt,
-  treatment_duration = treatment_duration,
-  result = result,
-  check.names = FALSE
+xxtpt <- read_tsv("inputs/xxtpt.tsv")
+treatment_duration <- read_tsv("inputs/treatment_duration.tsv")
+
+if (nrow(xxtpt) != nrow(treatment_duration)) {
+  stop("Input files must contain the same number of rows")
+}
+
+result <- data.frame(
+  xxtpt = xxtpt[["xxtpt"]],
+  treatment_duration = treatment_duration[["treatment_duration"]],
+  stringsAsFactors = FALSE
+)
+
+result[["result"]] <- mapply(
+  convert_treatment_pattern,
+  result[["xxtpt"]],
+  result[["treatment_duration"]]
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(output, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -245,7 +206,18 @@ utils::write.csv(output, file.path("outputs", "result.csv"), row.names = FALSE, 
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"xxtpt","treatment_duration","result"
+"START OF TREATMENT",72,0
+"PRE-DOSE",72,0
+"30 MIN AFTER START",72,0.5
+"2 HOURS AFTER START",72,2
+"END OF TREATMENT",72,72
+"4 HOURS BEFORE END",72,68
+"6 HOURS AFTER END",72,78
+```
 
 #### `case_01/stderr.txt`
 
@@ -269,23 +241,20 @@ No LLM output artifact was produced.
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Error in convert_treatment_patterns(xxtpt = xxtpt, result = result, na_idx = na_idx,  : 
-  unused arguments (xxtpt = xxtpt, result = result, na_idx = na_idx, treatment_duration = treatment_duration)
-Execution halted
 ```
 
 ## Evaluation Result
 ```json
 {
-  "status": "NO_OUTPUT",
-  "tier": "exec_fail",
-  "failure_stage": "execution_failure",
+  "status": "FAIL",
+  "tier": "schema_ok",
+  "failure_stage": "value_mismatch",
   "pass": false,
   "score": 0.0,
   "message": "Failed at case_embedded",
   "validation_diagnostics": {
-    "failure_stage": "execution_failure",
-    "tier": "exec_fail",
+    "failure_stage": "value_mismatch",
+    "tier": "schema_ok",
     "case_count": 1,
     "failed_case": "case_embedded"
   }
@@ -296,120 +265,77 @@ Execution halted
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
+read_tsv <- function(path) {
+  read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+}
 
-read_required_tsv <- function(path) {
-  if (!file.exists(path)) {
-    stop("Missing required input file: ", path, call. = FALSE)
+offset_hours <- function(text) {
+  match <- regexec("([0-9]+(?:\\.[0-9]+)?)\\s*(MIN|MINS|MINUTE|MINUTES|HOUR|HOURS|HR|HRS)", text)
+  parts <- regmatches(text, match)[[1]]
+
+  if (length(parts) == 0) {
+    return(0)
   }
-  utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-}
 
-parse_hours <- function(value, unit) {
-  value <- as.numeric(value)
-  unit <- tolower(unit)
-  ifelse(substr(unit, 1, 1) == "m", value / 60, value)
-}
+  value <- as.numeric(parts[2])
+  unit <- parts[3]
 
-xxtpt_data <- read_required_tsv(file.path("inputs", "xxtpt.tsv"))
-duration_data <- read_required_tsv(file.path("inputs", "treatment_duration.tsv"))
-
-if (!"xxtpt" %in% names(xxtpt_data)) {
-  stop("inputs/xxtpt.tsv must contain column xxtpt", call. = FALSE)
-}
-if (!"treatment_duration" %in% names(duration_data)) {
-  stop("inputs/treatment_duration.tsv must contain column treatment_duration", call. = FALSE)
-}
-if (nrow(xxtpt_data) != nrow(duration_data)) {
-  stop("Input files must have the same number of rows", call. = FALSE)
-}
-
-xxtpt <- trimws(xxtpt_data$xxtpt)
-treatment_duration <- as.numeric(duration_data$treatment_duration)
-if (any(is.na(treatment_duration))) {
-  stop("treatment_duration must be numeric for all rows", call. = FALSE)
-}
-if (any(treatment_duration < 0, na.rm = TRUE)) {
-  stop("treatment_duration must be non-negative", call. = FALSE)
-}
-
-na_idx <- is.na(xxtpt)
-result <- rep(NA_real_, length(xxtpt))
-
-convert_treatment_patterns <- getFromNamespace("convert_treatment_patterns", "admiral")
-result <- convert_treatment_patterns(
-  xxtpt = xxtpt,
-  result = result,
-  na_idx = na_idx,
-  treatment_duration = treatment_duration
-)
-
-fill_pattern <- function(pattern, value_fun) {
-  matches <- regexec(pattern, xxtpt, ignore.case = TRUE, perl = TRUE)
-  parts <- regmatches(xxtpt, matches)
-  matched <- lengths(parts) > 0 & is.na(result) & !na_idx
-  if (any(matched)) {
-    result[matched] <<- value_fun(parts[matched], matched)
+  if (unit %in% c("MIN", "MINS", "MINUTE", "MINUTES")) {
+    value / 60
+  } else {
+    value
   }
 }
 
-zero_pattern <- paste0(
-  "^\\s*(?:",
-  "start\\s+of\\s+(?:treatment|infusion)|",
-  "start\\s+(?:treatment|infusion)|",
-  "pre\\s*-?\\s*dose|",
-  "predose|",
-  "0\\s*(?:h|hr|hour|m|min|minute)?s?\\s*(?:post\\s*)?(?:dose|start)?",
-  ")\\s*$"
-)
-result[grepl(zero_pattern, xxtpt, ignore.case = TRUE, perl = TRUE) &
-  is.na(result) & !na_idx] <- 0
+convert_treatment_pattern <- function(xxtpt, treatment_duration) {
+  text <- toupper(trimws(xxtpt))
+  offset <- offset_hours(text)
 
-end_pattern <- "^\\s*(?:end\\s+of\\s+(?:treatment|infusion)|eot|eoi)\\s*$"
-result[grepl(end_pattern, xxtpt, ignore.case = TRUE, perl = TRUE) &
-  is.na(result) & !na_idx] <- treatment_duration[
-    grepl(end_pattern, xxtpt, ignore.case = TRUE, perl = TRUE) &
-      is.na(result) & !na_idx
-  ]
-
-time_unit <- "(\\d+(?:\\.\\d+)?)\\s*(m(?:in|inute)?|h(?:r|our)?)s?"
-
-fill_pattern(
-  paste0("^\\s*", time_unit, "\\s+(?:after|post)\\s+(?:start|start\\s+of\\s+(?:treatment|infusion)|start\\s+inf)\\s*$"),
-  function(parts, matched) {
-    vapply(parts, function(x) parse_hours(x[2], x[3]), numeric(1))
+  if (grepl("START OF TREATMENT|PRE-DOSE|PREDOSE|^DOSE$|ZERO", text)) {
+    return(0)
   }
-)
 
-fill_pattern(
-  paste0("^\\s*", time_unit, "\\s+(?:before|pre|prior\\s+to)\\s+(?:end|end\\s+of\\s+(?:treatment|infusion)|eot|eoi)\\s*$"),
-  function(parts, matched) {
-    treatment_duration[matched] - vapply(parts, function(x) parse_hours(x[2], x[3]), numeric(1))
+  if (grepl("AFTER\\s+START", text)) {
+    return(offset)
   }
-)
 
-fill_pattern(
-  paste0("^\\s*", time_unit, "\\s+(?:after|post)\\s+(?:end|end\\s+of\\s+(?:treatment|infusion)|eot|eoi)\\s*$"),
-  function(parts, matched) {
-    treatment_duration[matched] + vapply(parts, function(x) parse_hours(x[2], x[3]), numeric(1))
+  if (grepl("BEFORE\\s+END|PRE[- ]?EOT|BEFORE\\s+EOT", text)) {
+    return(treatment_duration - offset)
   }
-)
 
-if (any(is.na(result) & !na_idx)) {
-  stop(
-    "Unconverted treatment timepoint pattern(s): ",
-    paste(unique(xxtpt[is.na(result) & !na_idx]), collapse = "; "),
-    call. = FALSE
-  )
+  if (grepl("END OF TREATMENT|\\bEOT\\b|END$", text)) {
+    if (grepl("AFTER\\s+END|AFTER\\s+EOT", text)) {
+      return(treatment_duration + offset)
+    }
+    return(treatment_duration)
+  }
+
+  if (grepl("AFTER\\s+END|AFTER\\s+EOT", text)) {
+    return(treatment_duration + offset)
+  }
+
+  NA_real_
 }
 
-output <- data.frame(
-  xxtpt = xxtpt,
-  treatment_duration = treatment_duration,
-  result = result,
-  check.names = FALSE
+xxtpt <- read_tsv("inputs/xxtpt.tsv")
+treatment_duration <- read_tsv("inputs/treatment_duration.tsv")
+
+if (nrow(xxtpt) != nrow(treatment_duration)) {
+  stop("Input files must contain the same number of rows")
+}
+
+result <- data.frame(
+  xxtpt = xxtpt[["xxtpt"]],
+  treatment_duration = treatment_duration[["treatment_duration"]],
+  stringsAsFactors = FALSE
+)
+
+result[["result"]] <- mapply(
+  convert_treatment_pattern,
+  result[["xxtpt"]],
+  result[["treatment_duration"]]
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(output, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```

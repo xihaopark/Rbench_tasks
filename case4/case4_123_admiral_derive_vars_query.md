@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -82,62 +86,68 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
+dataset <- read.delim(
+  file = file.path("inputs", "dataset.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = "character",
+  check.names = FALSE
+)
 
-read_tsv_chars <- function(path) {
-  read.delim(
-    file = path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    colClasses = "character",
-    check.names = FALSE,
-    na.strings = c("", "NA")
+dataset_queries <- read.delim(
+  file = file.path("inputs", "dataset_queries.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = "character",
+  check.names = FALSE
+)
+
+required_query_cols <- c("SRCVAR", "TERMCHAR", "NEWVAR")
+missing_query_cols <- setdiff(required_query_cols, names(dataset_queries))
+if (length(missing_query_cols) > 0) {
+  stop(
+    "dataset_queries.tsv is missing required columns: ",
+    paste(missing_query_cols, collapse = ", ")
   )
 }
 
-dataset <- read_tsv_chars(file.path("inputs", "dataset.tsv"))
-dataset_queries <- read_tsv_chars(file.path("inputs", "dataset_queries.tsv"))
-
-required_dataset_cols <- c("USUBJID", "AETERM", "AEREL", "AESEV")
-required_query_cols <- c("SRCVAR", "TERMCHAR", "NEWVAR")
-
-missing_dataset_cols <- setdiff(required_dataset_cols, names(dataset))
-if (length(missing_dataset_cols) > 0) {
-  stop("Missing required dataset columns: ", paste(missing_dataset_cols, collapse = ", "))
-}
-
-missing_query_cols <- setdiff(required_query_cols, names(dataset_queries))
-if (length(missing_query_cols) > 0) {
-  stop("Missing required query columns: ", paste(missing_query_cols, collapse = ", "))
-}
-
-for (i in seq_len(nrow(dataset_queries))) {
-  srcvar <- dataset_queries$SRCVAR[i]
-  term <- dataset_queries$TERMCHAR[i]
-  newvar <- dataset_queries$NEWVAR[i]
-
-  if (is.na(srcvar) || is.na(term) || is.na(newvar)) {
-    stop("Query row ", i, " has missing SRCVAR, TERMCHAR, or NEWVAR.")
-  }
+for (srcvar in unique(dataset_queries$SRCVAR)) {
   if (!srcvar %in% names(dataset)) {
-    stop("Query row ", i, " references missing source variable: ", srcvar)
-  }
-
-  matches <- !is.na(dataset[[srcvar]]) & toupper(dataset[[srcvar]]) == toupper(term)
-
-  if (newvar %in% names(dataset)) {
-    dataset[[newvar]] <- ifelse(dataset[[newvar]] == "Y" | matches, "Y", "N")
-  } else {
-    dataset[[newvar]] <- ifelse(matches, "Y", "N")
+    stop("Source variable from dataset_queries.tsv not found in dataset.tsv: ", srcvar)
   }
 }
 
-result_cols <- c(required_dataset_cols, unique(dataset_queries$NEWVAR))
-result <- dataset[, result_cols, drop = FALSE]
+for (newvar in unique(dataset_queries$NEWVAR)) {
+  query_rows <- dataset_queries[dataset_queries$NEWVAR == newvar, , drop = FALSE]
+  flag <- rep(FALSE, nrow(dataset))
+
+  for (row_index in seq_len(nrow(query_rows))) {
+    srcvar <- query_rows$SRCVAR[row_index]
+    term <- query_rows$TERMCHAR[row_index]
+
+    flag <- flag | (!is.na(dataset[[srcvar]]) &
+      !is.na(term) &
+      toupper(dataset[[srcvar]]) == toupper(term))
+  }
+
+  dataset[[newvar]] <- ifelse(flag, "Y", "N")
+}
+
+result_columns <- c("USUBJID", "AETERM", "AEREL", "AESEV", unique(dataset_queries$NEWVAR))
+missing_result_cols <- setdiff(result_columns, names(dataset))
+if (length(missing_result_cols) > 0) {
+  stop("Result is missing required columns: ", paste(missing_result_cols, collapse = ", "))
+}
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE, na = "")
+write.csv(
+  dataset[, result_columns, drop = FALSE],
+  file = file.path("outputs", "result.csv"),
+  row.names = FALSE,
+  na = ""
+)
 ```
 
 ## Output
@@ -155,10 +165,10 @@ write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, 
 #### `result.csv`
 
 ```csv
-USUBJID,AETERM,AEREL,AESEV,CQ01FL,CQ02FL
-01,HEADACHE,RELATED,MILD,Y,Y
-02,NAUSEA,NOT RELATED,MODERATE,N,N
-03,HEADACHE,RELATED,SEVERE,Y,Y
+"USUBJID","AETERM","AEREL","AESEV","CQ01FL","CQ02FL"
+"01","HEADACHE","RELATED","MILD","Y","Y"
+"02","NAUSEA","NOT RELATED","MODERATE","N","N"
+"03","HEADACHE","RELATED","SEVERE","Y","Y"
 ```
 
 #### `case_01/stderr.txt`
@@ -207,60 +217,66 @@ USUBJID,AETERM,AEREL,AESEV,CQ01FL,CQ02FL
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
+dataset <- read.delim(
+  file = file.path("inputs", "dataset.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = "character",
+  check.names = FALSE
+)
 
-read_tsv_chars <- function(path) {
-  read.delim(
-    file = path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    colClasses = "character",
-    check.names = FALSE,
-    na.strings = c("", "NA")
+dataset_queries <- read.delim(
+  file = file.path("inputs", "dataset_queries.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = "character",
+  check.names = FALSE
+)
+
+required_query_cols <- c("SRCVAR", "TERMCHAR", "NEWVAR")
+missing_query_cols <- setdiff(required_query_cols, names(dataset_queries))
+if (length(missing_query_cols) > 0) {
+  stop(
+    "dataset_queries.tsv is missing required columns: ",
+    paste(missing_query_cols, collapse = ", ")
   )
 }
 
-dataset <- read_tsv_chars(file.path("inputs", "dataset.tsv"))
-dataset_queries <- read_tsv_chars(file.path("inputs", "dataset_queries.tsv"))
-
-required_dataset_cols <- c("USUBJID", "AETERM", "AEREL", "AESEV")
-required_query_cols <- c("SRCVAR", "TERMCHAR", "NEWVAR")
-
-missing_dataset_cols <- setdiff(required_dataset_cols, names(dataset))
-if (length(missing_dataset_cols) > 0) {
-  stop("Missing required dataset columns: ", paste(missing_dataset_cols, collapse = ", "))
-}
-
-missing_query_cols <- setdiff(required_query_cols, names(dataset_queries))
-if (length(missing_query_cols) > 0) {
-  stop("Missing required query columns: ", paste(missing_query_cols, collapse = ", "))
-}
-
-for (i in seq_len(nrow(dataset_queries))) {
-  srcvar <- dataset_queries$SRCVAR[i]
-  term <- dataset_queries$TERMCHAR[i]
-  newvar <- dataset_queries$NEWVAR[i]
-
-  if (is.na(srcvar) || is.na(term) || is.na(newvar)) {
-    stop("Query row ", i, " has missing SRCVAR, TERMCHAR, or NEWVAR.")
-  }
+for (srcvar in unique(dataset_queries$SRCVAR)) {
   if (!srcvar %in% names(dataset)) {
-    stop("Query row ", i, " references missing source variable: ", srcvar)
-  }
-
-  matches <- !is.na(dataset[[srcvar]]) & toupper(dataset[[srcvar]]) == toupper(term)
-
-  if (newvar %in% names(dataset)) {
-    dataset[[newvar]] <- ifelse(dataset[[newvar]] == "Y" | matches, "Y", "N")
-  } else {
-    dataset[[newvar]] <- ifelse(matches, "Y", "N")
+    stop("Source variable from dataset_queries.tsv not found in dataset.tsv: ", srcvar)
   }
 }
 
-result_cols <- c(required_dataset_cols, unique(dataset_queries$NEWVAR))
-result <- dataset[, result_cols, drop = FALSE]
+for (newvar in unique(dataset_queries$NEWVAR)) {
+  query_rows <- dataset_queries[dataset_queries$NEWVAR == newvar, , drop = FALSE]
+  flag <- rep(FALSE, nrow(dataset))
+
+  for (row_index in seq_len(nrow(query_rows))) {
+    srcvar <- query_rows$SRCVAR[row_index]
+    term <- query_rows$TERMCHAR[row_index]
+
+    flag <- flag | (!is.na(dataset[[srcvar]]) &
+      !is.na(term) &
+      toupper(dataset[[srcvar]]) == toupper(term))
+  }
+
+  dataset[[newvar]] <- ifelse(flag, "Y", "N")
+}
+
+result_columns <- c("USUBJID", "AETERM", "AEREL", "AESEV", unique(dataset_queries$NEWVAR))
+missing_result_cols <- setdiff(result_columns, names(dataset))
+if (length(missing_result_cols) > 0) {
+  stop("Result is missing required columns: ", paste(missing_result_cols, collapse = ", "))
+}
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE, na = "")
+write.csv(
+  dataset[, result_columns, drop = FALSE],
+  file = file.path("outputs", "result.csv"),
+  row.names = FALSE,
+  na = ""
+)
 ```

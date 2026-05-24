@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -76,10 +80,10 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-library(admiral)
+#!/usr/bin/env Rscript
 
 dataset <- read.delim(
-  file = file.path("inputs", "dataset.tsv"),
+  file = "inputs/dataset.tsv",
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
@@ -91,26 +95,28 @@ dataset <- read.delim(
   )
 )
 
-description_data <- read.delim(
-  file = file.path("inputs", "description.tsv"),
+description <- read.delim(
+  file = "inputs/description.tsv",
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE
+  stringsAsFactors = FALSE,
+  colClasses = c(description = "character")
 )
 
-crit1_description <- description_data$description[1]
+crit1_text <- description$description[[1]]
 
-result <- derive_vars_crit_flag(
-  dataset,
-  condition = !is.na(AVAL) & !is.na(ULN) & AVAL > 3 * ULN,
-  description = crit1_description,
+result <- admiral::derive_vars_crit_flag(
+  dataset = dataset,
+  crit_nr = 1,
+  condition = ifelse(!is.na(AVAL) & !is.na(ULN) & AVAL > 3 * ULN, TRUE, FALSE),
+  description = crit1_text,
   values_yn = TRUE
 )
 
 result <- result[, c("USUBJID", "PARAMCD", "AVAL", "ULN", "CRIT1", "CRIT1FL")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -178,10 +184,10 @@ write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, 
 
 ## Raw Agent Response
 ```text
-library(admiral)
+#!/usr/bin/env Rscript
 
 dataset <- read.delim(
-  file = file.path("inputs", "dataset.tsv"),
+  file = "inputs/dataset.tsv",
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
@@ -193,24 +199,26 @@ dataset <- read.delim(
   )
 )
 
-description_data <- read.delim(
-  file = file.path("inputs", "description.tsv"),
+description <- read.delim(
+  file = "inputs/description.tsv",
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE
+  stringsAsFactors = FALSE,
+  colClasses = c(description = "character")
 )
 
-crit1_description <- description_data$description[1]
+crit1_text <- description$description[[1]]
 
-result <- derive_vars_crit_flag(
-  dataset,
-  condition = !is.na(AVAL) & !is.na(ULN) & AVAL > 3 * ULN,
-  description = crit1_description,
+result <- admiral::derive_vars_crit_flag(
+  dataset = dataset,
+  crit_nr = 1,
+  condition = ifelse(!is.na(AVAL) & !is.na(ULN) & AVAL > 3 * ULN, TRUE, FALSE),
+  description = crit1_text,
   values_yn = TRUE
 )
 
 result <- result[, c("USUBJID", "PARAMCD", "AVAL", "ULN", "CRIT1", "CRIT1FL")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
 ```

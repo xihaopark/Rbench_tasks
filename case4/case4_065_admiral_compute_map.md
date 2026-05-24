@@ -21,10 +21,14 @@ You are running one RBioBench clinical R task in an isolated worktree.
 Your goal is to write a complete, reproducible R script at `solution.R`.
 
 Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
 - Read input files only from `inputs/` using relative paths.
 - Write exactly the required output artifact(s): outputs/result.csv.
 - Create `outputs/` if needed.
 - You may inspect `task.json`, `TASK.md`, and input files.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
 - Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
 - Do not use files outside this worktree.
 - Do not commit changes.
@@ -94,38 +98,16 @@ write.csv(data.frame(diabp = diabp, sysbp = sysbp, hr = hr, result = result), fi
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
+diabp_data <- read.delim("inputs/diabp.tsv", stringsAsFactors = FALSE)
+sysbp_data <- read.delim("inputs/sysbp.tsv", stringsAsFactors = FALSE)
+hr_data <- read.delim("inputs/hr.tsv", stringsAsFactors = FALSE)
 
-read_single_numeric_column <- function(path, column) {
-  data <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+diabp <- diabp_data$diabp
+sysbp <- sysbp_data$sysbp
+hr <- hr_data$hr
 
-  if (!column %in% names(data)) {
-    stop(sprintf("Expected column '%s' in %s", column, path), call. = FALSE)
-  }
-
-  values <- suppressWarnings(as.numeric(data[[column]]))
-  if (anyNA(values) && !anyNA(data[[column]])) {
-    stop(sprintf("Column '%s' in %s contains non-numeric values", column, path), call. = FALSE)
-  }
-
-  values
-}
-
-diabp <- read_single_numeric_column("inputs/diabp.tsv", "diabp")
-sysbp <- read_single_numeric_column("inputs/sysbp.tsv", "sysbp")
-hr <- read_single_numeric_column("inputs/hr.tsv", "hr")
-
-vector_lengths <- c(diabp = length(diabp), sysbp = length(sysbp), hr = length(hr))
-if (length(unique(vector_lengths)) != 1L) {
-  stop(
-    sprintf(
-      "Input vectors must have equal lengths: diabp=%d, sysbp=%d, hr=%d",
-      vector_lengths[["diabp"]],
-      vector_lengths[["sysbp"]],
-      vector_lengths[["hr"]]
-    ),
-    call. = FALSE
-  )
+if (!identical(length(diabp), length(sysbp)) || !identical(length(diabp), length(hr))) {
+  stop("Input vectors must have the same length.", call. = FALSE)
 }
 
 result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
@@ -210,38 +192,16 @@ write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
+diabp_data <- read.delim("inputs/diabp.tsv", stringsAsFactors = FALSE)
+sysbp_data <- read.delim("inputs/sysbp.tsv", stringsAsFactors = FALSE)
+hr_data <- read.delim("inputs/hr.tsv", stringsAsFactors = FALSE)
 
-read_single_numeric_column <- function(path, column) {
-  data <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+diabp <- diabp_data$diabp
+sysbp <- sysbp_data$sysbp
+hr <- hr_data$hr
 
-  if (!column %in% names(data)) {
-    stop(sprintf("Expected column '%s' in %s", column, path), call. = FALSE)
-  }
-
-  values <- suppressWarnings(as.numeric(data[[column]]))
-  if (anyNA(values) && !anyNA(data[[column]])) {
-    stop(sprintf("Column '%s' in %s contains non-numeric values", column, path), call. = FALSE)
-  }
-
-  values
-}
-
-diabp <- read_single_numeric_column("inputs/diabp.tsv", "diabp")
-sysbp <- read_single_numeric_column("inputs/sysbp.tsv", "sysbp")
-hr <- read_single_numeric_column("inputs/hr.tsv", "hr")
-
-vector_lengths <- c(diabp = length(diabp), sysbp = length(sysbp), hr = length(hr))
-if (length(unique(vector_lengths)) != 1L) {
-  stop(
-    sprintf(
-      "Input vectors must have equal lengths: diabp=%d, sysbp=%d, hr=%d",
-      vector_lengths[["diabp"]],
-      vector_lengths[["sysbp"]],
-      vector_lengths[["hr"]]
-    ),
-    call. = FALSE
-  )
+if (!identical(length(diabp), length(sysbp)) || !identical(length(diabp), length(hr))) {
+  stop("Input vectors must have the same length.", call. = FALSE)
 }
 
 result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
