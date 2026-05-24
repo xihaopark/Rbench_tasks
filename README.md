@@ -22,6 +22,7 @@ Case folders:
 - `cases/`: all 197 clean clinical cases, GPT-5.1 results.
 - `case2/`: selected 31 harder cases, GPT-5.1 rerun.
 - `case3/`: the same 31 selected cases, GPT-5.5 rerun.
+- `case4/`: the same 31 selected cases, Codex CLI with GPT-5.5.
 
 Summary:
 

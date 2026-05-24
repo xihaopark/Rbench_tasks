@@ -1,0 +1,252 @@
+# Case 148: pharmaverse/admiral/get_joined_sub_data
+
+## Metadata
+- Task ID: `pharmaverse/admiral/get_joined_sub_data`
+- Package: `admiral`
+- Model: `codex/gpt-5.5`
+- Agent: `Codex CLI`
+- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
+- Status: `PASS`
+- Failure stage: `pass`
+- Pattern: ``
+
+## Pass/Error
+```text
+PASS
+```
+
+## Prompt
+```text
+You are running one RBioBench clinical R task in an isolated worktree.
+
+Your goal is to write a complete, reproducible R script at `solution.R`.
+
+Rules:
+- Read input files only from `inputs/` using relative paths.
+- Write exactly the required output artifact(s): outputs/result.csv.
+- Create `outputs/` if needed.
+- You may inspect `task.json`, `TASK.md`, and input files.
+- Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
+- Do not use files outside this worktree.
+- Do not commit changes.
+- Before finishing, run `Rscript solution.R` if R is available and fix any concrete error.
+
+Task prompt:
+
+Write an R script for an R package task: perform get joined sub data using the admiral package. Use functions from the admiral package when suitable.
+
+Input: left.tsv, right.tsv
+Output: result.csv
+
+Computation: Use left.tsv as the primary dataset and left-join right.tsv by USUBJID, preserving unmatched left rows.
+
+
+Required columns for result.csv: USUBJID, AVAL, TRT01A
+Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### left.tsv
+USUBJID	AVAL
+01	10
+02	20
+03	30
+
+### right.tsv
+USUBJID	TRT01A
+01	Drug A
+02	Placebo
+```
+
+## Input
+#### `left.tsv`
+
+```text
+USUBJID	AVAL
+01	10
+02	20
+03	30
+```
+
+#### `right.tsv`
+
+```text
+USUBJID	TRT01A
+01	Drug A
+02	Placebo
+```
+
+## Code
+### Ground Truth Code
+
+```r
+left <- read.delim(file.path("inputs", "left.tsv"), check.names = FALSE, stringsAsFactors = FALSE)
+right <- read.delim(file.path("inputs", "right.tsv"), check.names = FALSE, stringsAsFactors = FALSE)
+result_df <- merge(left, right, by = "USUBJID", all.x = TRUE, sort = FALSE)
+
+dir.create("outputs", showWarnings = FALSE)
+write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
+```
+
+### LLM Generated Code
+```r
+#!/usr/bin/env Rscript
+
+suppressPackageStartupMessages(library(admiral))
+
+left <- read.delim(
+  file = file.path("inputs", "left.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = c(USUBJID = "character")
+)
+
+right <- read.delim(
+  file = file.path("inputs", "right.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = c(USUBJID = "character", TRT01A = "character")
+)
+
+required_left <- c("USUBJID", "AVAL")
+required_right <- c("USUBJID", "TRT01A")
+
+if (!all(required_left %in% names(left))) {
+  stop("left.tsv is missing required columns: ", paste(setdiff(required_left, names(left)), collapse = ", "))
+}
+
+if (!all(required_right %in% names(right))) {
+  stop("right.tsv is missing required columns: ", paste(setdiff(required_right, names(right)), collapse = ", "))
+}
+
+left_join_input <- left[required_left]
+left_join_input$.left_order <- seq_len(nrow(left_join_input))
+
+result <- merge(
+  x = left_join_input,
+  y = right[required_right],
+  by = "USUBJID",
+  all.x = TRUE,
+  sort = FALSE
+)
+
+result <- result[order(result$.left_order), c("USUBJID", "AVAL", "TRT01A")]
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+```
+
+## Output
+### Ground Truth Output
+#### `result.csv`
+
+```csv
+"USUBJID","AVAL","TRT01A"
+1,10,"Drug A"
+2,20,"Placebo"
+3,30,NA
+```
+
+### LLM Output
+#### `result.csv`
+
+```csv
+"USUBJID","AVAL","TRT01A"
+"01",10,"Drug A"
+"02",20,"Placebo"
+"03",30,
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+```
+
+## Evaluation Result
+```json
+{
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
+  "validation_diagnostics": {
+    "failure_stage": "pass",
+    "tier": "pass",
+    "case_count": 1,
+    "failed_case": null
+  }
+}
+```
+
+## Raw Agent Response
+```text
+#!/usr/bin/env Rscript
+
+suppressPackageStartupMessages(library(admiral))
+
+left <- read.delim(
+  file = file.path("inputs", "left.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = c(USUBJID = "character")
+)
+
+right <- read.delim(
+  file = file.path("inputs", "right.tsv"),
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = c(USUBJID = "character", TRT01A = "character")
+)
+
+required_left <- c("USUBJID", "AVAL")
+required_right <- c("USUBJID", "TRT01A")
+
+if (!all(required_left %in% names(left))) {
+  stop("left.tsv is missing required columns: ", paste(setdiff(required_left, names(left)), collapse = ", "))
+}
+
+if (!all(required_right %in% names(right))) {
+  stop("right.tsv is missing required columns: ", paste(setdiff(required_right, names(right)), collapse = ", "))
+}
+
+left_join_input <- left[required_left]
+left_join_input$.left_order <- seq_len(nrow(left_join_input))
+
+result <- merge(
+  x = left_join_input,
+  y = right[required_right],
+  by = "USUBJID",
+  all.x = TRUE,
+  sort = FALSE
+)
+
+result <- result[order(result$.left_order), c("USUBJID", "AVAL", "TRT01A")]
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+```

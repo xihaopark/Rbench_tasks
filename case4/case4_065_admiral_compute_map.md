@@ -1,0 +1,282 @@
+# Case 065: pharmaverse/admiral/compute_map
+
+## Metadata
+- Task ID: `pharmaverse/admiral/compute_map`
+- Package: `admiral`
+- Model: `codex/gpt-5.5`
+- Agent: `Codex CLI`
+- Agent command: `codex exec -C <worktree> --dangerously-bypass-approvals-and-sandbox <prompt> -m gpt-5.5`
+- Status: `PASS`
+- Failure stage: `pass`
+- Pattern: ``
+
+## Pass/Error
+```text
+PASS
+```
+
+## Prompt
+```text
+You are running one RBioBench clinical R task in an isolated worktree.
+
+Your goal is to write a complete, reproducible R script at `solution.R`.
+
+Rules:
+- Read input files only from `inputs/` using relative paths.
+- Write exactly the required output artifact(s): outputs/result.csv.
+- Create `outputs/` if needed.
+- You may inspect `task.json`, `TASK.md`, and input files.
+- Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
+- Do not use files outside this worktree.
+- Do not commit changes.
+- Before finishing, run `Rscript solution.R` if R is available and fix any concrete error.
+
+Task prompt:
+
+Write an R script for an R package task: perform compute map using the admiral package. Use functions from the admiral package when suitable.
+
+Input: diabp.tsv, hr.tsv, sysbp.tsv
+Output: result.csv
+
+Computation: Call admiral::compute_map with diabp, sysbp, and hr from the aligned input vectors; include diabp, sysbp, hr, and result in result.csv.
+
+
+Required columns for result.csv: diabp, sysbp, hr, result
+Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### diabp.tsv
+diabp
+80
+85
+70
+95
+
+### hr.tsv
+hr
+60
+75
+90
+110
+
+### sysbp.tsv
+sysbp
+120
+135
+110
+160
+```
+
+## Input
+#### `diabp.tsv`
+
+```text
+diabp
+80
+85
+70
+95
+```
+
+#### `hr.tsv`
+
+```text
+hr
+60
+75
+90
+110
+```
+
+#### `sysbp.tsv`
+
+```text
+sysbp
+120
+135
+110
+160
+```
+
+## Code
+### Ground Truth Code
+
+```r
+suppressPackageStartupMessages(library(admiral))
+
+diabp <- as.numeric(read.delim(file.path("inputs", "diabp.tsv"), check.names = FALSE, stringsAsFactors = FALSE)$diabp)
+sysbp <- as.numeric(read.delim(file.path("inputs", "sysbp.tsv"), check.names = FALSE, stringsAsFactors = FALSE)$sysbp)
+hr <- as.numeric(read.delim(file.path("inputs", "hr.tsv"), check.names = FALSE, stringsAsFactors = FALSE)$hr)
+result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
+
+dir.create("outputs", showWarnings = FALSE)
+write.csv(data.frame(diabp = diabp, sysbp = sysbp, hr = hr, result = result), file.path("outputs", "result.csv"), row.names = FALSE)
+```
+
+### LLM Generated Code
+```r
+#!/usr/bin/env Rscript
+
+library(admiral)
+
+read_single_numeric_column <- function(path, column) {
+  data <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+
+  if (!column %in% names(data)) {
+    stop(sprintf("Expected column '%s' in %s", column, path), call. = FALSE)
+  }
+
+  values <- suppressWarnings(as.numeric(data[[column]]))
+  if (anyNA(values) && !anyNA(data[[column]])) {
+    stop(sprintf("Column '%s' in %s contains non-numeric values", column, path), call. = FALSE)
+  }
+
+  values
+}
+
+diabp <- read_single_numeric_column("inputs/diabp.tsv", "diabp")
+sysbp <- read_single_numeric_column("inputs/sysbp.tsv", "sysbp")
+hr <- read_single_numeric_column("inputs/hr.tsv", "hr")
+
+vector_lengths <- c(diabp = length(diabp), sysbp = length(sysbp), hr = length(hr))
+if (length(unique(vector_lengths)) != 1L) {
+  stop(
+    sprintf(
+      "Input vectors must have equal lengths: diabp=%d, sysbp=%d, hr=%d",
+      vector_lengths[["diabp"]],
+      vector_lengths[["sysbp"]],
+      vector_lengths[["hr"]]
+    ),
+    call. = FALSE
+  )
+}
+
+result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
+
+output <- data.frame(
+  diabp = diabp,
+  sysbp = sysbp,
+  hr = hr,
+  result = result
+)
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(output, "outputs/result.csv", row.names = FALSE)
+```
+
+## Output
+### Ground Truth Output
+#### `result.csv`
+
+```csv
+"diabp","sysbp","hr","result"
+80,120,60,92.7395237619899
+85,135,75,103.240653638352
+70,110,90,85.9752811815739
+95,160,110,123.186790537475
+```
+
+### LLM Output
+#### `result.csv`
+
+```csv
+"diabp","sysbp","hr","result"
+80,120,60,92.7395237619899
+85,135,75,103.240653638352
+70,110,90,85.9752811815739
+95,160,110,123.186790537475
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+```
+
+## Evaluation Result
+```json
+{
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
+  "validation_diagnostics": {
+    "failure_stage": "pass",
+    "tier": "pass",
+    "case_count": 1,
+    "failed_case": null
+  }
+}
+```
+
+## Raw Agent Response
+```text
+#!/usr/bin/env Rscript
+
+library(admiral)
+
+read_single_numeric_column <- function(path, column) {
+  data <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+
+  if (!column %in% names(data)) {
+    stop(sprintf("Expected column '%s' in %s", column, path), call. = FALSE)
+  }
+
+  values <- suppressWarnings(as.numeric(data[[column]]))
+  if (anyNA(values) && !anyNA(data[[column]])) {
+    stop(sprintf("Column '%s' in %s contains non-numeric values", column, path), call. = FALSE)
+  }
+
+  values
+}
+
+diabp <- read_single_numeric_column("inputs/diabp.tsv", "diabp")
+sysbp <- read_single_numeric_column("inputs/sysbp.tsv", "sysbp")
+hr <- read_single_numeric_column("inputs/hr.tsv", "hr")
+
+vector_lengths <- c(diabp = length(diabp), sysbp = length(sysbp), hr = length(hr))
+if (length(unique(vector_lengths)) != 1L) {
+  stop(
+    sprintf(
+      "Input vectors must have equal lengths: diabp=%d, sysbp=%d, hr=%d",
+      vector_lengths[["diabp"]],
+      vector_lengths[["sysbp"]],
+      vector_lengths[["hr"]]
+    ),
+    call. = FALSE
+  )
+}
+
+result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
+
+output <- data.frame(
+  diabp = diabp,
+  sysbp = sysbp,
+  hr = hr,
+  result = result
+)
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(output, "outputs/result.csv", row.names = FALSE)
+```
