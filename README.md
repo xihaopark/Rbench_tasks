@@ -13,15 +13,31 @@ same agent.
 
 The three Codex runs differ only in how much help the prompt gives the agent:
 
-| Folder | What the agent was given | Result |
-| --- | --- | ---: |
-| [`case4`](./case4/) | Task description and input files only. | 19 / 31 = 61.29% |
-| [`case6`](./case6/) | Same as case4, but the agent was explicitly allowed to look up public R package documentation such as CRAN, r-universe, and GitHub docs. | 19 / 31 = 61.29% |
-| [`case7`](./case7/) | Same as case4, plus a short list of R package functions used by the reference solution. | 22 / 31 = 70.97% |
+| Folder | Agent | What the agent was given | Result |
+| --- | --- | --- | ---: |
+| [`case4`](./case4/) | Codex CLI / GPT-5.5 | Task description and input files only. | 19 / 31 = 61.29% |
+| [`case6`](./case6/) | Codex CLI / GPT-5.5 | Same as case4, but the agent was explicitly allowed to look up public R package documentation such as CRAN, r-universe, and GitHub docs. | 19 / 31 = 61.29% |
+| [`case7`](./case7/) | Codex CLI / GPT-5.5 | Same as case4, plus a short list of R package functions used by the reference solution. | 22 / 31 = 70.97% |
 
 In short, simply allowing documentation lookup did not improve the overall
 score, while giving the agent a concise package-function hint improved the
 result on this 31-task subset.
+
+## Claude Code Agent Experiments
+
+We also tested Claude Code (claude-sonnet-4-6) on the same 31 tasks with equivalent
+prompt settings, to enable a direct cross-agent comparison.
+
+| Folder | Agent | What the agent was given | Result |
+| --- | --- | --- | ---: |
+| [`case8`](./case8/) | Claude Code / claude-sonnet-4-6 | Base prompt, no web access (equivalent to case4). | 15 / 31 = 48.39% |
+| [`case9`](./case9/) | Claude Code / claude-sonnet-4-6 | Same as case8, but WebFetch and WebSearch tools enabled (equivalent to case6). | 13 / 31 = 41.94% |
+
+Observation: unlike Codex, enabling web search in Claude Code did not maintain
+or improve the score on this 31-task subset. The reference-function hint variant
+(equivalent to case7) is pending.
+
+---
 
 This repository contains one Markdown document per clinical benchmark case.
 
@@ -48,6 +64,8 @@ Case folders:
 - `case4/`: the same 31 selected cases, Codex CLI with GPT-5.5.
 - `case6/`: the same 31 selected cases, Codex CLI with GPT-5.5 and public package docs allowed.
 - `case7/`: the same 31 selected cases, Codex CLI with GPT-5.5 and reference package-function list included.
+- `case8/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, base prompt (no web).
+- `case9/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, web access enabled.
 
 Summary:
 

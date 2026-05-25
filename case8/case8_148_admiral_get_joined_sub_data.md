@@ -1,0 +1,192 @@
+# Case 148: pharmaverse/admiral/get_joined_sub_data
+
+## Metadata
+- Task ID: `pharmaverse/admiral/get_joined_sub_data`
+- Package: `admiral`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
+- Status: `PASS`
+- Failure stage: `pass`
+- Pattern: ``
+
+## Pass/Error
+```text
+PASS
+```
+
+## Prompt
+```text
+You are running one RBioBench clinical R task in an isolated worktree.
+
+Your goal is to write a complete, reproducible R script at `solution.R`.
+
+Rules:
+- `TASK.md` is the authoritative task contract. `task.json` is sanitized metadata only.
+- Read input files only from `inputs/` using relative paths.
+- Write exactly the required output artifact(s): outputs/result.csv.
+- Create `outputs/` if needed.
+- You may inspect `task.json`, `TASK.md`, and input files.
+- You may consult public R package documentation, including CRAN, r-universe,
+  and GitHub repository documentation, to verify normal exported package APIs.
+- Do not infer package function names from task metadata. Use a package API only when
+  it is a normal exported function you can verify; otherwise implement the required
+  transformation directly from the inputs.
+- Do not modify `inputs/`, `task.json`, `AGENTS.md`, or hidden evaluator metadata.
+- Do not use files outside this worktree.
+- Do not commit changes.
+- Do NOT attempt to install R packages. All required packages are pre-installed in the
+  evaluation Docker environment. Public documentation is useful for API lookup, but
+  the final solution must run with the packages already installed in that environment.
+  If a package is not available in the current shell, write the solution assuming it
+  is available and move on.
+- You may run `Rscript solution.R` to do a quick syntax check, but do not spend time
+  debugging runtime errors caused by missing packages or system libraries.
+
+Task prompt:
+
+Write an R script for an R package task: perform get joined sub data using the admiral package. Use functions from the admiral package when suitable.
+
+Input: left.tsv, right.tsv
+Output: result.csv
+
+Computation: Use left.tsv as the primary dataset and left-join right.tsv by USUBJID, preserving unmatched left rows.
+
+
+Required columns for result.csv: USUBJID, AVAL, TRT01A
+Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### left.tsv
+USUBJID	AVAL
+01	10
+02	20
+03	30
+
+### right.tsv
+USUBJID	TRT01A
+01	Drug A
+02	Placebo
+```
+
+## Input
+#### `left.tsv`
+
+```text
+USUBJID	AVAL
+01	10
+02	20
+03	30
+```
+
+#### `right.tsv`
+
+```text
+USUBJID	TRT01A
+01	Drug A
+02	Placebo
+```
+
+## Code
+### Ground Truth Code
+
+```r
+left <- read.delim(file.path("inputs", "left.tsv"), check.names = FALSE, stringsAsFactors = FALSE)
+right <- read.delim(file.path("inputs", "right.tsv"), check.names = FALSE, stringsAsFactors = FALSE)
+result_df <- merge(left, right, by = "USUBJID", all.x = TRUE, sort = FALSE)
+
+dir.create("outputs", showWarnings = FALSE)
+write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
+```
+
+### LLM Generated Code
+```r
+#!/usr/bin/env Rscript
+
+library(admiral)
+library(dplyr)
+
+# Read input files
+left  <- read.table("inputs/left.tsv",  sep = "\t", header = TRUE,
+                    stringsAsFactors = FALSE)
+right <- read.table("inputs/right.tsv", sep = "\t", header = TRUE,
+                    stringsAsFactors = FALSE)
+
+# Left-join right.tsv into left.tsv by USUBJID using admiral::derive_vars_merged
+# derive_vars_merged performs a left join, preserving all rows from the primary dataset
+result <- derive_vars_merged(
+  dataset     = left,
+  dataset_add = right,
+  by_vars     = exprs(USUBJID),
+  new_vars    = exprs(TRT01A)
+)
+
+# Keep only required columns in required order
+result <- result[, c("USUBJID", "AVAL", "TRT01A")]
+
+# Write output
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
+```
+
+## Output
+### Ground Truth Output
+#### `result.csv`
+
+```csv
+"USUBJID","AVAL","TRT01A"
+1,10,"Drug A"
+2,20,"Placebo"
+3,30,NA
+```
+
+### LLM Output
+No LLM output artifact was produced.
+
+## Evaluation Result
+```json
+{
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
+  "validation_diagnostics": {
+    "failure_stage": "pass",
+    "tier": "pass",
+    "case_count": 1,
+    "failed_case": null
+  }
+}
+```
+
+## Raw Agent Response
+```text
+#!/usr/bin/env Rscript
+
+library(admiral)
+library(dplyr)
+
+# Read input files
+left  <- read.table("inputs/left.tsv",  sep = "\t", header = TRUE,
+                    stringsAsFactors = FALSE)
+right <- read.table("inputs/right.tsv", sep = "\t", header = TRUE,
+                    stringsAsFactors = FALSE)
+
+# Left-join right.tsv into left.tsv by USUBJID using admiral::derive_vars_merged
+# derive_vars_merged performs a left join, preserving all rows from the primary dataset
+result <- derive_vars_merged(
+  dataset     = left,
+  dataset_add = right,
+  by_vars     = exprs(USUBJID),
+  new_vars    = exprs(TRT01A)
+)
+
+# Keep only required columns in required order
+result <- result[, c("USUBJID", "AVAL", "TRT01A")]
+
+# Write output
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
+```
