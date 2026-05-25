@@ -86,7 +86,9 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-data <- read.delim(
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+
+adlb <- read.delim(
   file = file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
@@ -97,23 +99,19 @@ data <- read.delim(
     AVAL = "numeric",
     ANRLO = "numeric",
     ANRHI = "numeric"
-  )
+  ),
+  check.names = FALSE
 )
 
-data$ATOXGRDIR <- ifelse(
-  !is.na(data$AVAL) & !is.na(data$ANRLO) & data$AVAL < data$ANRLO,
+adlb$ATOXGRDIR <- ifelse(
+  adlb$AVAL < adlb$ANRLO,
   "L",
-  ifelse(
-    !is.na(data$AVAL) & !is.na(data$ANRHI) & data$AVAL > data$ANRHI,
-    "H",
-    "N"
-  )
+  ifelse(adlb$AVAL > adlb$ANRHI, "H", "N")
 )
 
-result <- data[, c("USUBJID", "PARAMCD", "AVAL", "ANRLO", "ANRHI", "ATOXGRDIR")]
+result <- adlb[, c("USUBJID", "PARAMCD", "AVAL", "ANRLO", "ANRHI", "ATOXGRDIR")]
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -132,11 +130,11 @@ write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, 
 #### `result.csv`
 
 ```csv
-USUBJID,PARAMCD,AVAL,ANRLO,ANRHI,ATOXGRDIR
-01,ALT,15,20,40,L
-01,AST,55,10,35,H
-02,BILI,0.8,0.2,1.2,N
-03,CREAT,1.5,0.5,1.1,H
+"USUBJID","PARAMCD","AVAL","ANRLO","ANRHI","ATOXGRDIR"
+"01","ALT",15,20,40,"L"
+"01","AST",55,10,35,"H"
+"02","BILI",0.8,0.2,1.2,"N"
+"03","CREAT",1.5,0.5,1.1,"H"
 ```
 
 #### `case_01/stderr.txt`
@@ -185,7 +183,9 @@ USUBJID,PARAMCD,AVAL,ANRLO,ANRHI,ATOXGRDIR
 ```text
 #!/usr/bin/env Rscript
 
-data <- read.delim(
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+
+adlb <- read.delim(
   file = file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
@@ -196,21 +196,17 @@ data <- read.delim(
     AVAL = "numeric",
     ANRLO = "numeric",
     ANRHI = "numeric"
-  )
+  ),
+  check.names = FALSE
 )
 
-data$ATOXGRDIR <- ifelse(
-  !is.na(data$AVAL) & !is.na(data$ANRLO) & data$AVAL < data$ANRLO,
+adlb$ATOXGRDIR <- ifelse(
+  adlb$AVAL < adlb$ANRLO,
   "L",
-  ifelse(
-    !is.na(data$AVAL) & !is.na(data$ANRHI) & data$AVAL > data$ANRHI,
-    "H",
-    "N"
-  )
+  ifelse(adlb$AVAL > adlb$ANRHI, "H", "N")
 )
 
-result <- data[, c("USUBJID", "PARAMCD", "AVAL", "ANRLO", "ANRHI", "ATOXGRDIR")]
+result <- adlb[, c("USUBJID", "PARAMCD", "AVAL", "ANRLO", "ANRHI", "ATOXGRDIR")]
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```

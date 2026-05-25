@@ -7,7 +7,7 @@
 - Agent: `Claude Code`
 - Status: `NO_OUTPUT`
 - Failure stage: `execution_failure`
-- Pattern: ``
+- Pattern: `invalid_or_internal_package_api`
 
 ## Pass/Error
 ```text
@@ -96,75 +96,83 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 library(admiral)
 
 # Read input
-partial_data <- read.delim("inputs/partial.tsv", stringsAsFactors = FALSE)
+input <- read.table("inputs/partial.tsv", header = TRUE, sep = "\t",
+                    stringsAsFactors = FALSE, colClasses = "character")
 
-# Determine whether the partial string contains a time component
-has_time <- function(partial_str) {
-  grepl("T", partial_str)
+# Function to parse a partial date/time string into named list of components
+parse_partial <- function(partial) {
+  # Split on 'T' to separate date and time parts
+  parts <- strsplit(partial, "T")[[1]]
+  date_part <- parts[1]
+  time_part  <- if (length(parts) > 1) parts[2] else NA_character_
+
+  # Split date into year, month, day
+  date_components <- strsplit(date_part, "-")[[1]]
+  year  <- if (length(date_components) >= 1) date_components[1] else NA_character_
+  month <- if (length(date_components) >= 2) date_components[2] else NA_character_
+  day   <- if (length(date_components) >= 3) date_components[3] else NA_character_
+
+  # Split time into hour, minute, second
+  if (!is.na(time_part)) {
+    time_components <- strsplit(time_part, ":")[[1]]
+    hour   <- if (length(time_components) >= 1) time_components[1] else NA_character_
+    minute <- if (length(time_components) >= 2) time_components[2] else NA_character_
+    second <- if (length(time_components) >= 3) time_components[3] else NA_character_
+  } else {
+    hour   <- NA_character_
+    minute <- NA_character_
+    second <- NA_character_
+  }
+
+  list(year = year, month = month, day = day,
+       hour = hour, minute = minute, second = second)
 }
 
-# For each partial date/time string, parse components and apply imputation targets
-process_partial <- function(partial_str) {
-  create_dt <- has_time(partial_str)
+# For each row, get imputation targets and combine with actual partial values
+results <- lapply(input$partial, function(p) {
+  components <- parse_partial(p)
 
-  # Parse into partial components list
-  partial_list <- admiral:::get_partialdatetime(partial_str, create_datetime = create_dt)
-
-  # Get imputation targets:
-  # - date_imputation = "06-15": year-only -> month=06, day=15 (per task rules)
-  # - time_imputation = "first": missing time components -> "00"
-  time_imp <- if (create_dt) "first" else NULL
+  # Call get_imputation_targets (internal admiral function)
+  # date_imputation = "06-15": year-only -> month=06, day=15
+  # time_imputation = "00:00:00": missing time -> 00:00:00
   targets <- admiral:::get_imputation_targets(
-    partial_list,
-    date_imputation = "06-15",
-    time_imputation = time_imp
+    partial          = components,
+    date_imputation  = "06-15",
+    time_imputation  = "00:00:00"
   )
 
-  # Apply targets: use actual value if present, otherwise use the imputation target
-  # The "xxxx" sentinel means "keep original year value"
+  # Resolve each component: use partial value if present, else use target
+  # (target year is "xxxx" = undefined; year always comes from partial)
   resolve <- function(actual, target) {
-    if (!is.null(actual) && !is.na(actual)) {
-      as.integer(actual)
-    } else if (!is.null(target) && !is.na(target) && target != "xxxx") {
-      as.integer(target)
-    } else {
-      NA_integer_
-    }
+    if (!is.na(actual)) actual else target
   }
 
-  year_val  <- resolve(partial_list$year,  targets$year)
-  month_val <- resolve(partial_list$month, targets$month)
-  day_val   <- resolve(partial_list$day,   targets$day)
-
-  if (create_dt) {
-    hour_val   <- resolve(partial_list$hour,   targets$hour)
-    minute_val <- resolve(partial_list$minute, targets$minute)
-    second_val <- resolve(partial_list$second, targets$second)
-  } else {
-    # No time part in partial string -> impute all time components to 00
-    hour_val   <- 0L
-    minute_val <- 0L
-    second_val <- 0L
-  }
+  year   <- resolve(components$year,   NA_character_)  # year always present in partial
+  month  <- resolve(components$month,  targets$month)
+  day    <- resolve(components$day,    targets$day)
+  hour   <- resolve(components$hour,   targets$hour)
+  minute <- resolve(components$minute, targets$minute)
+  second <- resolve(components$second, targets$second)
 
   data.frame(
-    partial = partial_str,
-    year    = year_val,
-    month   = month_val,
-    day     = day_val,
-    hour    = hour_val,
-    minute  = minute_val,
-    second  = second_val,
+    partial = p,
+    year    = year,
+    month   = month,
+    day     = day,
+    hour    = hour,
+    minute  = minute,
+    second  = second,
     stringsAsFactors = FALSE
   )
-}
+})
 
-result <- do.call(rbind, lapply(partial_data$partial, process_partial))
+result <- do.call(rbind, results)
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+# Create output directory and write CSV
+dir.create("outputs", showWarnings = FALSE)
 write.csv(result, "outputs/result.csv", row.names = FALSE)
 
-cat("Done. Output written to outputs/result.csv\n")
+cat("Done. Output:\n")
 print(result)
 ```
 
@@ -181,6 +189,34 @@ print(result)
 
 ### LLM Output
 No LLM output artifact was produced.
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+Error in admiral:::get_imputation_targets(partial = components, date_imputation = "06-15",  : 
+  unused arguments (partial = components, date_imputation = "06-15", time_imputation = "00:00:00")
+Calls: lapply -> FUN
+Execution halted
+```
 
 ## Evaluation Result
 ```json
@@ -205,74 +241,82 @@ No LLM output artifact was produced.
 library(admiral)
 
 # Read input
-partial_data <- read.delim("inputs/partial.tsv", stringsAsFactors = FALSE)
+input <- read.table("inputs/partial.tsv", header = TRUE, sep = "\t",
+                    stringsAsFactors = FALSE, colClasses = "character")
 
-# Determine whether the partial string contains a time component
-has_time <- function(partial_str) {
-  grepl("T", partial_str)
+# Function to parse a partial date/time string into named list of components
+parse_partial <- function(partial) {
+  # Split on 'T' to separate date and time parts
+  parts <- strsplit(partial, "T")[[1]]
+  date_part <- parts[1]
+  time_part  <- if (length(parts) > 1) parts[2] else NA_character_
+
+  # Split date into year, month, day
+  date_components <- strsplit(date_part, "-")[[1]]
+  year  <- if (length(date_components) >= 1) date_components[1] else NA_character_
+  month <- if (length(date_components) >= 2) date_components[2] else NA_character_
+  day   <- if (length(date_components) >= 3) date_components[3] else NA_character_
+
+  # Split time into hour, minute, second
+  if (!is.na(time_part)) {
+    time_components <- strsplit(time_part, ":")[[1]]
+    hour   <- if (length(time_components) >= 1) time_components[1] else NA_character_
+    minute <- if (length(time_components) >= 2) time_components[2] else NA_character_
+    second <- if (length(time_components) >= 3) time_components[3] else NA_character_
+  } else {
+    hour   <- NA_character_
+    minute <- NA_character_
+    second <- NA_character_
+  }
+
+  list(year = year, month = month, day = day,
+       hour = hour, minute = minute, second = second)
 }
 
-# For each partial date/time string, parse components and apply imputation targets
-process_partial <- function(partial_str) {
-  create_dt <- has_time(partial_str)
+# For each row, get imputation targets and combine with actual partial values
+results <- lapply(input$partial, function(p) {
+  components <- parse_partial(p)
 
-  # Parse into partial components list
-  partial_list <- admiral:::get_partialdatetime(partial_str, create_datetime = create_dt)
-
-  # Get imputation targets:
-  # - date_imputation = "06-15": year-only -> month=06, day=15 (per task rules)
-  # - time_imputation = "first": missing time components -> "00"
-  time_imp <- if (create_dt) "first" else NULL
+  # Call get_imputation_targets (internal admiral function)
+  # date_imputation = "06-15": year-only -> month=06, day=15
+  # time_imputation = "00:00:00": missing time -> 00:00:00
   targets <- admiral:::get_imputation_targets(
-    partial_list,
-    date_imputation = "06-15",
-    time_imputation = time_imp
+    partial          = components,
+    date_imputation  = "06-15",
+    time_imputation  = "00:00:00"
   )
 
-  # Apply targets: use actual value if present, otherwise use the imputation target
-  # The "xxxx" sentinel means "keep original year value"
+  # Resolve each component: use partial value if present, else use target
+  # (target year is "xxxx" = undefined; year always comes from partial)
   resolve <- function(actual, target) {
-    if (!is.null(actual) && !is.na(actual)) {
-      as.integer(actual)
-    } else if (!is.null(target) && !is.na(target) && target != "xxxx") {
-      as.integer(target)
-    } else {
-      NA_integer_
-    }
+    if (!is.na(actual)) actual else target
   }
 
-  year_val  <- resolve(partial_list$year,  targets$year)
-  month_val <- resolve(partial_list$month, targets$month)
-  day_val   <- resolve(partial_list$day,   targets$day)
-
-  if (create_dt) {
-    hour_val   <- resolve(partial_list$hour,   targets$hour)
-    minute_val <- resolve(partial_list$minute, targets$minute)
-    second_val <- resolve(partial_list$second, targets$second)
-  } else {
-    # No time part in partial string -> impute all time components to 00
-    hour_val   <- 0L
-    minute_val <- 0L
-    second_val <- 0L
-  }
+  year   <- resolve(components$year,   NA_character_)  # year always present in partial
+  month  <- resolve(components$month,  targets$month)
+  day    <- resolve(components$day,    targets$day)
+  hour   <- resolve(components$hour,   targets$hour)
+  minute <- resolve(components$minute, targets$minute)
+  second <- resolve(components$second, targets$second)
 
   data.frame(
-    partial = partial_str,
-    year    = year_val,
-    month   = month_val,
-    day     = day_val,
-    hour    = hour_val,
-    minute  = minute_val,
-    second  = second_val,
+    partial = p,
+    year    = year,
+    month   = month,
+    day     = day,
+    hour    = hour,
+    minute  = minute,
+    second  = second,
     stringsAsFactors = FALSE
   )
-}
+})
 
-result <- do.call(rbind, lapply(partial_data$partial, process_partial))
+result <- do.call(rbind, results)
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+# Create output directory and write CSV
+dir.create("outputs", showWarnings = FALSE)
 write.csv(result, "outputs/result.csv", row.names = FALSE)
 
-cat("Done. Output written to outputs/result.csv\n")
+cat("Done. Output:\n")
 print(result)
 ```

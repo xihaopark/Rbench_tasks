@@ -105,41 +105,39 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
-
 library(admiral)
 library(dplyr)
 library(rlang)
 
-# Read inputs — keep USUBJID as character to preserve leading zeros
-dataset <- read.table("inputs/dataset.tsv", header = TRUE, sep = "\t",
-                      stringsAsFactors = FALSE,
-                      colClasses = c(USUBJID = "character"))
-filter_df <- read.table("inputs/filter.tsv", header = TRUE, sep = "\t",
-                        stringsAsFactors = FALSE, strip.white = TRUE)
+# Read inputs (keep USUBJID as character to preserve leading zeros)
+dataset <- read.delim(
+  "inputs/dataset.tsv",
+  sep              = "\t",
+  stringsAsFactors = FALSE,
+  colClasses       = c(USUBJID = "character")
+)
+filter_df <- read.delim("inputs/filter.tsv", sep = "\t", stringsAsFactors = FALSE)
 
-# Parse filter condition string
+# Parse the filter condition string into an R expression
 filter_condition_str <- trimws(filter_df$filter[1])
 filter_condition <- parse_expr(filter_condition_str)
 
-# Use admiral::filter_relative to keep rows through the first visit
-# matching the filter condition, within each subject.
-# selection = "before" + inclusive = TRUE means: keep all rows up to and
-# including the first row where the condition is TRUE (ordered by AVISITN).
+# Within each subject, identify the first visit matching the filter condition,
+# then keep all rows up to and including that visit (selection = "before" + inclusive = TRUE)
 result <- filter_relative(
-  dataset   = dataset,
-  by_vars   = exprs(USUBJID),
-  order     = exprs(AVISITN),
-  condition = !!filter_condition,
-  mode      = "first",
-  selection = "before",
-  inclusive = TRUE
+  dataset      = dataset,
+  by_vars      = exprs(USUBJID),
+  order        = exprs(AVISITN),
+  condition    = !!filter_condition,
+  mode         = "first",
+  selection    = "before",
+  inclusive    = TRUE
 )
 
-# Select required columns
+# Keep only required columns
 result <- result %>% select(USUBJID, AVISITN, AVAL)
 
-# Write output
+# Create outputs directory and write result
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
@@ -157,7 +155,47 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"USUBJID","AVISITN","AVAL"
+"01",1,10
+"02",1,9
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -179,41 +217,39 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
-
 library(admiral)
 library(dplyr)
 library(rlang)
 
-# Read inputs — keep USUBJID as character to preserve leading zeros
-dataset <- read.table("inputs/dataset.tsv", header = TRUE, sep = "\t",
-                      stringsAsFactors = FALSE,
-                      colClasses = c(USUBJID = "character"))
-filter_df <- read.table("inputs/filter.tsv", header = TRUE, sep = "\t",
-                        stringsAsFactors = FALSE, strip.white = TRUE)
+# Read inputs (keep USUBJID as character to preserve leading zeros)
+dataset <- read.delim(
+  "inputs/dataset.tsv",
+  sep              = "\t",
+  stringsAsFactors = FALSE,
+  colClasses       = c(USUBJID = "character")
+)
+filter_df <- read.delim("inputs/filter.tsv", sep = "\t", stringsAsFactors = FALSE)
 
-# Parse filter condition string
+# Parse the filter condition string into an R expression
 filter_condition_str <- trimws(filter_df$filter[1])
 filter_condition <- parse_expr(filter_condition_str)
 
-# Use admiral::filter_relative to keep rows through the first visit
-# matching the filter condition, within each subject.
-# selection = "before" + inclusive = TRUE means: keep all rows up to and
-# including the first row where the condition is TRUE (ordered by AVISITN).
+# Within each subject, identify the first visit matching the filter condition,
+# then keep all rows up to and including that visit (selection = "before" + inclusive = TRUE)
 result <- filter_relative(
-  dataset   = dataset,
-  by_vars   = exprs(USUBJID),
-  order     = exprs(AVISITN),
-  condition = !!filter_condition,
-  mode      = "first",
-  selection = "before",
-  inclusive = TRUE
+  dataset      = dataset,
+  by_vars      = exprs(USUBJID),
+  order        = exprs(AVISITN),
+  condition    = !!filter_condition,
+  mode         = "first",
+  selection    = "before",
+  inclusive    = TRUE
 )
 
-# Select required columns
+# Keep only required columns
 result <- result %>% select(USUBJID, AVISITN, AVAL)
 
-# Write output
+# Create outputs directory and write result
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```

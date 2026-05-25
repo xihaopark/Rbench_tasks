@@ -105,33 +105,35 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-library(admiral)
+#!/usr/bin/env Rscript
+
+library(dplyr)
+library(readr)
 
 # Read inputs
-dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE,
-                      stringsAsFactors = FALSE, quote = "")
-dataset_queries <- read.table("inputs/dataset_queries.tsv", sep = "\t", header = TRUE,
-                              stringsAsFactors = FALSE, quote = "")
+dataset         <- read_tsv("inputs/dataset.tsv",         col_types = cols(.default = "c"))
+dataset_queries <- read_tsv("inputs/dataset_queries.tsv", col_types = cols(.default = "c"))
 
-# For each query, evaluate the condition and create a Y/N flag column
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+
+# Apply each query: for each row in dataset_queries,
+# add a Y/N flag column where value is "Y" if the SRCVAR matches TERMCHAR, else "N"
 result <- dataset
 
 for (i in seq_len(nrow(dataset_queries))) {
-  srcvar  <- dataset_queries$SRCVAR[i]
+  srcvar   <- dataset_queries$SRCVAR[i]
   termchar <- dataset_queries$TERMCHAR[i]
-  newvar  <- dataset_queries$NEWVAR[i]
+  newvar   <- dataset_queries$NEWVAR[i]
 
-  # Compare the source variable values to the term character (case-sensitive)
   result[[newvar]] <- ifelse(result[[srcvar]] == termchar, "Y", "N")
 }
 
-# Ensure required columns are present in correct order
-required_cols <- c("USUBJID", "AETERM", "AEREL", "AESEV", "CQ01FL", "CQ02FL")
-result <- result[, required_cols]
+# Keep only required columns in the specified order
+result <- result[, c("USUBJID", "AETERM", "AEREL", "AESEV", "CQ01FL", "CQ02FL")]
 
 # Write output
-dir.create("outputs", showWarnings = FALSE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
+write_csv(result, "outputs/result.csv")
 ```
 
 ## Output
@@ -146,7 +148,48 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+USUBJID,AETERM,AEREL,AESEV,CQ01FL,CQ02FL
+01,HEADACHE,RELATED,MILD,Y,Y
+02,NAUSEA,NOT RELATED,MODERATE,N,N
+03,HEADACHE,RELATED,SEVERE,Y,Y
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -168,31 +211,33 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
-library(admiral)
+#!/usr/bin/env Rscript
+
+library(dplyr)
+library(readr)
 
 # Read inputs
-dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE,
-                      stringsAsFactors = FALSE, quote = "")
-dataset_queries <- read.table("inputs/dataset_queries.tsv", sep = "\t", header = TRUE,
-                              stringsAsFactors = FALSE, quote = "")
+dataset         <- read_tsv("inputs/dataset.tsv",         col_types = cols(.default = "c"))
+dataset_queries <- read_tsv("inputs/dataset_queries.tsv", col_types = cols(.default = "c"))
 
-# For each query, evaluate the condition and create a Y/N flag column
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+
+# Apply each query: for each row in dataset_queries,
+# add a Y/N flag column where value is "Y" if the SRCVAR matches TERMCHAR, else "N"
 result <- dataset
 
 for (i in seq_len(nrow(dataset_queries))) {
-  srcvar  <- dataset_queries$SRCVAR[i]
+  srcvar   <- dataset_queries$SRCVAR[i]
   termchar <- dataset_queries$TERMCHAR[i]
-  newvar  <- dataset_queries$NEWVAR[i]
+  newvar   <- dataset_queries$NEWVAR[i]
 
-  # Compare the source variable values to the term character (case-sensitive)
   result[[newvar]] <- ifelse(result[[srcvar]] == termchar, "Y", "N")
 }
 
-# Ensure required columns are present in correct order
-required_cols <- c("USUBJID", "AETERM", "AEREL", "AESEV", "CQ01FL", "CQ02FL")
-result <- result[, required_cols]
+# Keep only required columns in the specified order
+result <- result[, c("USUBJID", "AETERM", "AEREL", "AESEV", "CQ01FL", "CQ02FL")]
 
 # Write output
-dir.create("outputs", showWarnings = FALSE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
+write_csv(result, "outputs/result.csv")
 ```

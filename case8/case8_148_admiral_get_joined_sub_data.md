@@ -106,14 +106,14 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 library(admiral)
 library(dplyr)
 
-# Read input files
-left  <- read.table("inputs/left.tsv",  sep = "\t", header = TRUE,
-                    stringsAsFactors = FALSE)
-right <- read.table("inputs/right.tsv", sep = "\t", header = TRUE,
-                    stringsAsFactors = FALSE)
+# Read input datasets, keeping USUBJID as character to preserve leading zeros
+left <- read.table("inputs/left.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE,
+                   colClasses = c(USUBJID = "character"))
+right <- read.table("inputs/right.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE,
+                    colClasses = c(USUBJID = "character"))
 
-# Left-join right.tsv into left.tsv by USUBJID using admiral::derive_vars_merged
-# derive_vars_merged performs a left join, preserving all rows from the primary dataset
+# Use admiral's derive_vars_merged to left-join right into left by USUBJID
+# This preserves unmatched left rows (left join semantics)
 result <- derive_vars_merged(
   dataset     = left,
   dataset_add = right,
@@ -121,7 +121,7 @@ result <- derive_vars_merged(
   new_vars    = exprs(TRT01A)
 )
 
-# Keep only required columns in required order
+# Select required columns in the required order
 result <- result[, c("USUBJID", "AVAL", "TRT01A")]
 
 # Write output
@@ -141,7 +141,48 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"USUBJID","AVAL","TRT01A"
+"01",10,"Drug A"
+"02",20,"Placebo"
+"03",30,NA
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -168,14 +209,14 @@ No LLM output artifact was produced.
 library(admiral)
 library(dplyr)
 
-# Read input files
-left  <- read.table("inputs/left.tsv",  sep = "\t", header = TRUE,
-                    stringsAsFactors = FALSE)
-right <- read.table("inputs/right.tsv", sep = "\t", header = TRUE,
-                    stringsAsFactors = FALSE)
+# Read input datasets, keeping USUBJID as character to preserve leading zeros
+left <- read.table("inputs/left.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE,
+                   colClasses = c(USUBJID = "character"))
+right <- read.table("inputs/right.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE,
+                    colClasses = c(USUBJID = "character"))
 
-# Left-join right.tsv into left.tsv by USUBJID using admiral::derive_vars_merged
-# derive_vars_merged performs a left join, preserving all rows from the primary dataset
+# Use admiral's derive_vars_merged to left-join right into left by USUBJID
+# This preserves unmatched left rows (left join semantics)
 result <- derive_vars_merged(
   dataset     = left,
   dataset_add = right,
@@ -183,7 +224,7 @@ result <- derive_vars_merged(
   new_vars    = exprs(TRT01A)
 )
 
-# Keep only required columns in required order
+# Select required columns in the required order
 result <- result[, c("USUBJID", "AVAL", "TRT01A")]
 
 # Write output

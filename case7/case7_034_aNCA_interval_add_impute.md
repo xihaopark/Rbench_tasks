@@ -3,8 +3,8 @@
 ## Metadata
 - Task ID: `pharmaverse/aNCA/interval_add_impute`
 - Package: `aNCA`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -54,6 +54,31 @@ Computation: For target group rows and target parameter columns, split interval 
 
 Required columns for result.csv: start, end, cmax, auclast, half.life, impute, analyte, period
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### after.tsv
+after
+1
+
+### data.tsv
+start	end	cmax	auclast	half.life	impute	analyte	period
+0	12	TRUE	TRUE	FALSE	start_predose	DrugA	Single
+0	Inf	TRUE	FALSE	TRUE		DrugB	Single
+12	24	TRUE	TRUE	TRUE	start_conc0	DrugA	Multiple
+
+### target_groups.tsv
+analyte	period
+DrugA	Single
+
+### target_impute.tsv
+target_impute
+start_conc0
+
+### target_params.tsv
+target_params
+cmax
+half.life
 ```
 
 ## Input
@@ -191,111 +216,124 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 ### LLM Generated Code
 ```r
 #!/usr/bin/env Rscript
+# solution.R — interval_add_impute (aNCA-compatible implementation)
+# Implements the logic from aNCA::interval_add_impute.data.frame
 
-read_tsv <- function(path) {
-  read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    check.names = FALSE,
-    na.strings = "NA"
-  )
-}
+# ── read inputs ────────────────────────────────────────────────────────────────
+data          <- read.table("inputs/data.tsv",           header = TRUE, sep = "\t",
+                            stringsAsFactors = FALSE, check.names = FALSE,
+                            na.strings = "")
+after_df      <- read.table("inputs/after.tsv",          header = TRUE, sep = "\t",
+                            stringsAsFactors = FALSE)
+target_groups <- read.table("inputs/target_groups.tsv",  header = TRUE, sep = "\t",
+                            stringsAsFactors = FALSE, check.names = FALSE)
+target_impute <- read.table("inputs/target_impute.tsv",  header = TRUE, sep = "\t",
+                            stringsAsFactors = FALSE)[[1]]
+target_params <- read.table("inputs/target_params.tsv",  header = TRUE, sep = "\t",
+                            stringsAsFactors = FALSE)[[1]]
 
+after <- after_df$after[1]   # numeric position (0 = before first, Inf = last)
+
+# ── helpers ────────────────────────────────────────────────────────────────────
+
+# Add an impute token into every value of impute_vals at position `after`.
+# Already-present copies are removed first to avoid duplicates.
 add_impute_method <- function(impute_vals, target_impute, after) {
-  vapply(impute_vals, function(value) {
-    if (is.na(value)) {
-      value <- ""
-    }
-    methods <- strsplit(value, "[ ,]+")[[1]]
-    methods <- methods[nzchar(methods)]
-    methods <- setdiff(methods, target_impute)
-    paste(append(methods, target_impute, after = after), collapse = ",")
-  }, character(1))
+  if (length(impute_vals) == 0) return(impute_vals)
+  impute_vals <- ifelse(is.na(impute_vals), "", impute_vals)
+  vapply(strsplit(impute_vals, "[ ,]+"), function(x) {
+    x <- x[nchar(x) > 0]          # drop empty strings from splitting ""
+    x <- setdiff(x, target_impute) # remove any existing copy
+    x <- append(x, target_impute, after = after)  # insert at position
+    paste(x, collapse = ",")
+  }, FUN.VALUE = "")
 }
 
-matches_target_group <- function(data, target_groups) {
-  if (ncol(target_groups) == 0 || nrow(target_groups) == 0) {
-    return(rep(TRUE, nrow(data)))
-  }
-
-  group_cols <- names(target_groups)
-  matched <- rep(FALSE, nrow(data))
-  for (i in seq_len(nrow(target_groups))) {
-    row_match <- rep(TRUE, nrow(data))
-    for (col in group_cols) {
-      row_match <- row_match & as.character(data[[col]]) == as.character(target_groups[[col]][i])
-    }
-    matched <- matched | row_match
-  }
-  matched
+# Row-wise group matching: returns logical vector of length nrow(data).
+# TRUE when a row matches any row of target_groups exactly.
+is_in_target_groups <- function(data, target_groups) {
+  group_cols  <- names(target_groups)
+  data_keys   <- do.call(paste, c(data[, group_cols, drop = FALSE],   sep = "|||"))
+  target_keys <- do.call(paste, c(target_groups,                      sep = "|||"))
+  data_keys %in% target_keys
 }
 
-target_impute_needs_change <- function(impute_vals, target_impute, after) {
-  vapply(impute_vals, function(value) {
-    if (is.na(value)) {
-      value <- ""
-    }
-    methods <- strsplit(value, "[ ,]+")[[1]]
-    methods <- methods[nzchar(methods)]
-    current_position <- which(methods == target_impute)
-    if (length(current_position) == 0) {
-      return(TRUE)
-    }
-    current_position <- current_position[1]
-    current_after <- if (current_position == length(methods)) Inf else current_position
-    is.na(current_after) || current_after != after
-  }, logical(1))
+# Returns logical vector (TRUE = row NEEDS the impute to be (re-)added).
+is_after_needed <- function(impute_col, target_impute, after) {
+  vapply(impute_col, function(raw) {
+    x   <- if (is.na(raw) || raw == "") character(0)
+            else strsplit(raw, "[ ,]+")[[1]]
+    x   <- x[nchar(x) > 0]
+    pos <- which(x == target_impute)
+    if (length(pos) == 0) return(TRUE)          # not present → needs adding
+    actual_pos <- if (pos == length(x)) Inf else pos
+    actual_pos != after
+  }, FUN.VALUE = logical(1))
 }
 
-data <- read_tsv("inputs/data.tsv")
-target_groups <- read_tsv("inputs/target_groups.tsv")
-target_params <- read_tsv("inputs/target_params.tsv")$target_params
-target_impute <- read_tsv("inputs/target_impute.tsv")$target_impute[1]
-after <- as.numeric(read_tsv("inputs/after.tsv")$after[1])
+# ── parameter columns in this data frame ──────────────────────────────────────
+# All columns that are not group/metadata columns, start, end, or impute.
+non_param_cols <- unique(c("start", "end", "impute", names(target_groups),
+                            names(data)[sapply(data, is.character)]))
+param_cols     <- setdiff(names(data), non_param_cols)
 
-required_cols <- c("start", "end", "cmax", "auclast", "half.life", "impute", "analyte", "period")
-param_cols <- names(data)[vapply(data, is.logical, logical(1))]
-target_params <- intersect(target_params, names(data))
+# ── identify target rows ───────────────────────────────────────────────────────
+is_tg  <- is_in_target_groups(data, target_groups)
 
-if (!"impute" %in% names(data)) {
-  data$impute <- NA_character_
-} else {
-  data$impute <- as.character(data$impute)
-  data$impute[is.na(data$impute)] <- ""
-}
+target_params_data <- data[, target_params, drop = FALSE]
+is_tp  <- rowSums(replace(target_params_data, is.na(target_params_data), FALSE)) > 0
 
-target_param_data <- data[target_params]
-target_param_data[is.na(target_param_data)] <- FALSE
-is_target_param <- rowSums(target_param_data) > 0
-is_target_group <- matches_target_group(data, target_groups)
-needs_change <- target_impute_needs_change(data$impute, target_impute, after)
-target_rows <- is_target_group & is_target_param & needs_change
+is_aft <- is_after_needed(data$impute, target_impute, after)
 
-index <- seq_len(nrow(data))
-data$.order_index <- index
+target_rows <- is_tg & is_tp & is_aft
+
+# ── apply transformations ─────────────────────────────────────────────────────
+# Add index to preserve ordering
+data$..index.. <- seq_len(nrow(data))
+
 new_intervals <- data[target_rows, , drop = FALSE]
 
-if (nrow(new_intervals) > 0) {
+if (nrow(new_intervals) == 0) {
+  warning("No intervals found with the specified target parameters, groups, ",
+          "and/or after-change needed. No changes made.")
+} else {
+  # In the new rows: non-target param columns set to FALSE
   non_target_params <- setdiff(param_cols, target_params)
-  new_intervals[non_target_params] <- FALSE
-  new_intervals$impute <- add_impute_method(new_intervals$impute, target_impute, after)
-  new_intervals$.order_index <- new_intervals$.order_index + 0.5
+  new_intervals[, non_target_params] <- FALSE
 
+  # Add the impute token at position `after`
+  new_intervals$impute <- add_impute_method(new_intervals$impute, target_impute, after)
+
+  # Position new rows immediately after their originals
+  new_intervals$..index.. <- new_intervals$..index.. + 0.5
+
+  # Remove target params from the original target rows (they move to new rows)
   data[target_rows, target_params] <- FALSE
+
+  # Combine
   data <- rbind(data, new_intervals)
+
+  # Drop rows where every param column is FALSE or NA
+  param_data    <- data[, param_cols, drop = FALSE]
+  rows_no_param <- rowSums(replace(param_data, is.na(param_data), FALSE)) == 0
+  data <- data[!rows_no_param, , drop = FALSE]
+
+  # Re-sort by index
+  data <- data[order(data$..index..), ]
+  rownames(data) <- NULL
 }
 
-param_data <- data[param_cols]
-param_data[is.na(param_data)] <- FALSE
-data <- data[rowSums(param_data) > 0, , drop = FALSE]
-data <- data[order(data$.order_index), , drop = FALSE]
-data$.order_index <- NULL
-rownames(data) <- NULL
+# Remove index helper column
+data$..index.. <- NULL
 
+# ── select required output columns ────────────────────────────────────────────
+required_cols <- c("start", "end", "cmax", "auclast", "half.life",
+                   "impute", "analyte", "period")
+result <- data[, required_cols, drop = FALSE]
+
+# ── write output ──────────────────────────────────────────────────────────────
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(data[required_cols], "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -311,39 +349,7 @@ write.csv(data[required_cols], "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"start","end","cmax","auclast","half.life","impute","analyte","period"
-0,12,FALSE,TRUE,FALSE,"start_predose","DrugA","Single"
-0,12,TRUE,FALSE,FALSE,"start_predose,start_conc0","DrugA","Single"
-0,Inf,TRUE,FALSE,TRUE,"","DrugB","Single"
-12,24,TRUE,TRUE,TRUE,"start_conc0","DrugA","Multiple"
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
@@ -366,109 +372,122 @@ write.csv(data[required_cols], "outputs/result.csv", row.names = FALSE, na = "")
 ## Raw Agent Response
 ```text
 #!/usr/bin/env Rscript
+# solution.R — interval_add_impute (aNCA-compatible implementation)
+# Implements the logic from aNCA::interval_add_impute.data.frame
 
-read_tsv <- function(path) {
-  read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    check.names = FALSE,
-    na.strings = "NA"
-  )
-}
+# ── read inputs ────────────────────────────────────────────────────────────────
+data          <- read.table("inputs/data.tsv",           header = TRUE, sep = "\t",
+                            stringsAsFactors = FALSE, check.names = FALSE,
+                            na.strings = "")
+after_df      <- read.table("inputs/after.tsv",          header = TRUE, sep = "\t",
+                            stringsAsFactors = FALSE)
+target_groups <- read.table("inputs/target_groups.tsv",  header = TRUE, sep = "\t",
+                            stringsAsFactors = FALSE, check.names = FALSE)
+target_impute <- read.table("inputs/target_impute.tsv",  header = TRUE, sep = "\t",
+                            stringsAsFactors = FALSE)[[1]]
+target_params <- read.table("inputs/target_params.tsv",  header = TRUE, sep = "\t",
+                            stringsAsFactors = FALSE)[[1]]
 
+after <- after_df$after[1]   # numeric position (0 = before first, Inf = last)
+
+# ── helpers ────────────────────────────────────────────────────────────────────
+
+# Add an impute token into every value of impute_vals at position `after`.
+# Already-present copies are removed first to avoid duplicates.
 add_impute_method <- function(impute_vals, target_impute, after) {
-  vapply(impute_vals, function(value) {
-    if (is.na(value)) {
-      value <- ""
-    }
-    methods <- strsplit(value, "[ ,]+")[[1]]
-    methods <- methods[nzchar(methods)]
-    methods <- setdiff(methods, target_impute)
-    paste(append(methods, target_impute, after = after), collapse = ",")
-  }, character(1))
+  if (length(impute_vals) == 0) return(impute_vals)
+  impute_vals <- ifelse(is.na(impute_vals), "", impute_vals)
+  vapply(strsplit(impute_vals, "[ ,]+"), function(x) {
+    x <- x[nchar(x) > 0]          # drop empty strings from splitting ""
+    x <- setdiff(x, target_impute) # remove any existing copy
+    x <- append(x, target_impute, after = after)  # insert at position
+    paste(x, collapse = ",")
+  }, FUN.VALUE = "")
 }
 
-matches_target_group <- function(data, target_groups) {
-  if (ncol(target_groups) == 0 || nrow(target_groups) == 0) {
-    return(rep(TRUE, nrow(data)))
-  }
-
-  group_cols <- names(target_groups)
-  matched <- rep(FALSE, nrow(data))
-  for (i in seq_len(nrow(target_groups))) {
-    row_match <- rep(TRUE, nrow(data))
-    for (col in group_cols) {
-      row_match <- row_match & as.character(data[[col]]) == as.character(target_groups[[col]][i])
-    }
-    matched <- matched | row_match
-  }
-  matched
+# Row-wise group matching: returns logical vector of length nrow(data).
+# TRUE when a row matches any row of target_groups exactly.
+is_in_target_groups <- function(data, target_groups) {
+  group_cols  <- names(target_groups)
+  data_keys   <- do.call(paste, c(data[, group_cols, drop = FALSE],   sep = "|||"))
+  target_keys <- do.call(paste, c(target_groups,                      sep = "|||"))
+  data_keys %in% target_keys
 }
 
-target_impute_needs_change <- function(impute_vals, target_impute, after) {
-  vapply(impute_vals, function(value) {
-    if (is.na(value)) {
-      value <- ""
-    }
-    methods <- strsplit(value, "[ ,]+")[[1]]
-    methods <- methods[nzchar(methods)]
-    current_position <- which(methods == target_impute)
-    if (length(current_position) == 0) {
-      return(TRUE)
-    }
-    current_position <- current_position[1]
-    current_after <- if (current_position == length(methods)) Inf else current_position
-    is.na(current_after) || current_after != after
-  }, logical(1))
+# Returns logical vector (TRUE = row NEEDS the impute to be (re-)added).
+is_after_needed <- function(impute_col, target_impute, after) {
+  vapply(impute_col, function(raw) {
+    x   <- if (is.na(raw) || raw == "") character(0)
+            else strsplit(raw, "[ ,]+")[[1]]
+    x   <- x[nchar(x) > 0]
+    pos <- which(x == target_impute)
+    if (length(pos) == 0) return(TRUE)          # not present → needs adding
+    actual_pos <- if (pos == length(x)) Inf else pos
+    actual_pos != after
+  }, FUN.VALUE = logical(1))
 }
 
-data <- read_tsv("inputs/data.tsv")
-target_groups <- read_tsv("inputs/target_groups.tsv")
-target_params <- read_tsv("inputs/target_params.tsv")$target_params
-target_impute <- read_tsv("inputs/target_impute.tsv")$target_impute[1]
-after <- as.numeric(read_tsv("inputs/after.tsv")$after[1])
+# ── parameter columns in this data frame ──────────────────────────────────────
+# All columns that are not group/metadata columns, start, end, or impute.
+non_param_cols <- unique(c("start", "end", "impute", names(target_groups),
+                            names(data)[sapply(data, is.character)]))
+param_cols     <- setdiff(names(data), non_param_cols)
 
-required_cols <- c("start", "end", "cmax", "auclast", "half.life", "impute", "analyte", "period")
-param_cols <- names(data)[vapply(data, is.logical, logical(1))]
-target_params <- intersect(target_params, names(data))
+# ── identify target rows ───────────────────────────────────────────────────────
+is_tg  <- is_in_target_groups(data, target_groups)
 
-if (!"impute" %in% names(data)) {
-  data$impute <- NA_character_
-} else {
-  data$impute <- as.character(data$impute)
-  data$impute[is.na(data$impute)] <- ""
-}
+target_params_data <- data[, target_params, drop = FALSE]
+is_tp  <- rowSums(replace(target_params_data, is.na(target_params_data), FALSE)) > 0
 
-target_param_data <- data[target_params]
-target_param_data[is.na(target_param_data)] <- FALSE
-is_target_param <- rowSums(target_param_data) > 0
-is_target_group <- matches_target_group(data, target_groups)
-needs_change <- target_impute_needs_change(data$impute, target_impute, after)
-target_rows <- is_target_group & is_target_param & needs_change
+is_aft <- is_after_needed(data$impute, target_impute, after)
 
-index <- seq_len(nrow(data))
-data$.order_index <- index
+target_rows <- is_tg & is_tp & is_aft
+
+# ── apply transformations ─────────────────────────────────────────────────────
+# Add index to preserve ordering
+data$..index.. <- seq_len(nrow(data))
+
 new_intervals <- data[target_rows, , drop = FALSE]
 
-if (nrow(new_intervals) > 0) {
+if (nrow(new_intervals) == 0) {
+  warning("No intervals found with the specified target parameters, groups, ",
+          "and/or after-change needed. No changes made.")
+} else {
+  # In the new rows: non-target param columns set to FALSE
   non_target_params <- setdiff(param_cols, target_params)
-  new_intervals[non_target_params] <- FALSE
-  new_intervals$impute <- add_impute_method(new_intervals$impute, target_impute, after)
-  new_intervals$.order_index <- new_intervals$.order_index + 0.5
+  new_intervals[, non_target_params] <- FALSE
 
+  # Add the impute token at position `after`
+  new_intervals$impute <- add_impute_method(new_intervals$impute, target_impute, after)
+
+  # Position new rows immediately after their originals
+  new_intervals$..index.. <- new_intervals$..index.. + 0.5
+
+  # Remove target params from the original target rows (they move to new rows)
   data[target_rows, target_params] <- FALSE
+
+  # Combine
   data <- rbind(data, new_intervals)
+
+  # Drop rows where every param column is FALSE or NA
+  param_data    <- data[, param_cols, drop = FALSE]
+  rows_no_param <- rowSums(replace(param_data, is.na(param_data), FALSE)) == 0
+  data <- data[!rows_no_param, , drop = FALSE]
+
+  # Re-sort by index
+  data <- data[order(data$..index..), ]
+  rownames(data) <- NULL
 }
 
-param_data <- data[param_cols]
-param_data[is.na(param_data)] <- FALSE
-data <- data[rowSums(param_data) > 0, , drop = FALSE]
-data <- data[order(data$.order_index), , drop = FALSE]
-data$.order_index <- NULL
-rownames(data) <- NULL
+# Remove index helper column
+data$..index.. <- NULL
 
+# ── select required output columns ────────────────────────────────────────────
+required_cols <- c("start", "end", "cmax", "auclast", "half.life",
+                   "impute", "analyte", "period")
+result <- data[, required_cols, drop = FALSE]
+
+# ── write output ──────────────────────────────────────────────────────────────
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(data[required_cols], "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```

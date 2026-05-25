@@ -90,35 +90,30 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE, na =
 ```r
 #!/usr/bin/env Rscript
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-component_vars <- c("year", "month", "day", "hour", "minute", "second")
+columns <- c("year", "month", "day", "hour", "minute", "second")
 
 partial <- read.delim(
   file = file.path("inputs", "partial.tsv"),
   sep = "\t",
   header = TRUE,
   colClasses = "character",
-  na.strings = c("", "NA"),
+  na.strings = "NA",
   check.names = FALSE
 )
 
-result <- partial[component_vars]
+partial <- partial[columns]
 
-for (row_index in seq_len(nrow(result))) {
-  missing_component <- which(is.na(result[row_index, component_vars]))[1]
+for (row_idx in seq_len(nrow(partial))) {
+  missing_positions <- which(is.na(partial[row_idx, columns]))
 
-  if (!is.na(missing_component)) {
-    result[row_index, component_vars[missing_component:length(component_vars)]] <- NA_character_
+  if (length(missing_positions) > 0L) {
+    first_missing <- missing_positions[1]
+    partial[row_idx, columns[first_missing:length(columns)]] <- NA_character_
   }
 }
 
-write.csv(
-  result,
-  file = file.path("outputs", "result.csv"),
-  row.names = FALSE,
-  na = ""
-)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(partial, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -188,33 +183,28 @@ write.csv(
 ```text
 #!/usr/bin/env Rscript
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-component_vars <- c("year", "month", "day", "hour", "minute", "second")
+columns <- c("year", "month", "day", "hour", "minute", "second")
 
 partial <- read.delim(
   file = file.path("inputs", "partial.tsv"),
   sep = "\t",
   header = TRUE,
   colClasses = "character",
-  na.strings = c("", "NA"),
+  na.strings = "NA",
   check.names = FALSE
 )
 
-result <- partial[component_vars]
+partial <- partial[columns]
 
-for (row_index in seq_len(nrow(result))) {
-  missing_component <- which(is.na(result[row_index, component_vars]))[1]
+for (row_idx in seq_len(nrow(partial))) {
+  missing_positions <- which(is.na(partial[row_idx, columns]))
 
-  if (!is.na(missing_component)) {
-    result[row_index, component_vars[missing_component:length(component_vars)]] <- NA_character_
+  if (length(missing_positions) > 0L) {
+    first_missing <- missing_positions[1]
+    partial[row_idx, columns[first_missing:length(columns)]] <- NA_character_
   }
 }
 
-write.csv(
-  result,
-  file = file.path("outputs", "result.csv"),
-  row.names = FALSE,
-  na = ""
-)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(partial, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```

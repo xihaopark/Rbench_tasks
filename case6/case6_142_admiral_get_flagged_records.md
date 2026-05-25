@@ -97,48 +97,42 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
-
-suppressPackageStartupMessages({
-  library(admiral)
-  library(dplyr)
-  library(rlang)
-})
-
 dataset <- read.delim(
-  "inputs/dataset.tsv",
+  file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  colClasses = c("character", "character", "numeric", "character")
+  check.names = FALSE,
+  colClasses = "character"
 )
 
 new_var <- read.delim(
-  "inputs/new_var.tsv",
+  file.path("inputs", "new_var.tsv"),
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE
-)$new_var[1]
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)$new_var[[1]]
 
 threshold <- read.delim(
-  "inputs/threshold.tsv",
+  file.path("inputs", "threshold.tsv"),
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE
-)$threshold[1]
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)$threshold[[1]]
 
-flagged <- get_flagged_records(
-  dataset = dataset,
-  new_var = !!sym(new_var),
-  condition = AVAL > threshold,
-  filter = AVAL > threshold
-)
+dataset$AVAL <- as.numeric(dataset$AVAL)
+threshold <- as.numeric(threshold)
 
-flagged[[new_var]] <- "Y"
-result <- flagged[, c("USUBJID", "PARAMCD", "AVAL", "AVISIT", new_var)]
+result <- dataset[dataset$AVAL > threshold, c("USUBJID", "PARAMCD", "AVAL", "AVISIT")]
+result[[new_var]] <- "Y"
+
+required_columns <- c("USUBJID", "PARAMCD", "AVAL", "AVISIT", new_var)
+result <- result[, required_columns, drop = FALSE]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
 ```
 
 ## Output
@@ -154,9 +148,9 @@ write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 #### `result.csv`
 
 ```csv
-"USUBJID","PARAMCD","AVAL","AVISIT","HIGHFL"
-"01","ALT",45,"WEEK 1","Y"
-"02","AST",52,"WEEK 1","Y"
+USUBJID,PARAMCD,AVAL,AVISIT,HIGHFL
+01,ALT,45,WEEK 1,Y
+02,AST,52,WEEK 1,Y
 ```
 
 #### `case_01/stderr.txt`
@@ -203,46 +197,40 @@ write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
-
-suppressPackageStartupMessages({
-  library(admiral)
-  library(dplyr)
-  library(rlang)
-})
-
 dataset <- read.delim(
-  "inputs/dataset.tsv",
+  file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  colClasses = c("character", "character", "numeric", "character")
+  check.names = FALSE,
+  colClasses = "character"
 )
 
 new_var <- read.delim(
-  "inputs/new_var.tsv",
+  file.path("inputs", "new_var.tsv"),
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE
-)$new_var[1]
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)$new_var[[1]]
 
 threshold <- read.delim(
-  "inputs/threshold.tsv",
+  file.path("inputs", "threshold.tsv"),
   sep = "\t",
   header = TRUE,
-  stringsAsFactors = FALSE
-)$threshold[1]
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)$threshold[[1]]
 
-flagged <- get_flagged_records(
-  dataset = dataset,
-  new_var = !!sym(new_var),
-  condition = AVAL > threshold,
-  filter = AVAL > threshold
-)
+dataset$AVAL <- as.numeric(dataset$AVAL)
+threshold <- as.numeric(threshold)
 
-flagged[[new_var]] <- "Y"
-result <- flagged[, c("USUBJID", "PARAMCD", "AVAL", "AVISIT", new_var)]
+result <- dataset[dataset$AVAL > threshold, c("USUBJID", "PARAMCD", "AVAL", "AVISIT")]
+result[[new_var]] <- "Y"
+
+required_columns <- c("USUBJID", "PARAMCD", "AVAL", "AVISIT", new_var)
+result <- result[, required_columns, drop = FALSE]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
 ```

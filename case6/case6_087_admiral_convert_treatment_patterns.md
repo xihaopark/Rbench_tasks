@@ -121,81 +121,100 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-duration <- read.delim(
+#!/usr/bin/env Rscript
+
+treatment_duration <- read.delim(
   file.path("inputs", "treatment_duration.tsv"),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
-
 xxtpt <- read.delim(
   file.path("inputs", "xxtpt.tsv"),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
-if (nrow(duration) != nrow(xxtpt)) {
-  stop("Input files must contain the same number of rows.")
+stopifnot(nrow(treatment_duration) == nrow(xxtpt))
+
+normalize_text <- function(x) {
+  x <- toupper(trimws(x))
+  x <- gsub("[_]+", " ", x)
+  x <- gsub("\\s+", " ", x)
+  x
 }
 
-unit_multiplier <- function(unit) {
+offset_to_hours <- function(value, unit) {
   unit <- toupper(unit)
-  ifelse(
-    grepl("^MIN", unit), 1 / 60,
-    ifelse(
-      grepl("^HOUR|^HR", unit), 1,
-      ifelse(grepl("^DAY", unit), 24, NA_real_)
-    )
-  )
+  if (grepl("^MIN", unit)) {
+    value / 60
+  } else if (grepl("^H", unit)) {
+    value
+  } else if (grepl("^D", unit)) {
+    value * 24
+  } else {
+    stop(sprintf("Unsupported time unit: %s", unit), call. = FALSE)
+  }
 }
 
 extract_offset <- function(text) {
-  match <- regexec("([0-9]+(?:\\.[0-9]+)?)\\s*(MIN(?:UTE)?S?|HOURS?|HRS?|DAYS?)", text)
-  parts <- regmatches(text, match)[[1]]
+  match <- regexec(
+    "([0-9]+(?:\\.[0-9]+)?)\\s*(MIN(?:UTE)?S?|H(?:OU)?RS?|HOUR[S]?|DAY[S]?)",
+    text,
+    perl = TRUE
+  )
+  pieces <- regmatches(text, match)[[1]]
 
-  if (length(parts) == 0) {
+  if (length(pieces) == 0L) {
+    0
+  } else {
+    offset_to_hours(as.numeric(pieces[2]), pieces[3])
+  }
+}
+
+convert_treatment_pattern <- function(text, duration) {
+  text <- normalize_text(text)
+
+  if (text %in% c(
+    "START OF TREATMENT", "TREATMENT START", "START", "ZERO", "0",
+    "PRE-DOSE", "PREDOSE", "PRE DOSE"
+  )) {
     return(0)
   }
 
-  as.numeric(parts[2]) * unit_multiplier(parts[3])
+  if (grepl("AFTER START|AFTER TREATMENT START", text)) {
+    return(extract_offset(text))
+  }
+
+  if (grepl("BEFORE END|BEFORE EOT|PRE-EOT|PRE EOT", text)) {
+    return(duration - extract_offset(text))
+  }
+
+  if (text %in% c("END OF TREATMENT", "TREATMENT END", "END", "EOT")) {
+    return(duration)
+  }
+
+  if (grepl("AFTER END|AFTER EOT|AFTER TREATMENT END", text)) {
+    return(duration + extract_offset(text))
+  }
+
+  stop(sprintf("Unrecognized treatment-relative pattern: %s", text), call. = FALSE)
 }
 
-convert_xxtpt <- function(text, treatment_duration) {
-  text <- toupper(trimws(text))
-  offset <- extract_offset(text)
+result <- mapply(
+  convert_treatment_pattern,
+  xxtpt[["xxtpt"]],
+  as.numeric(treatment_duration[["treatment_duration"]])
+)
 
-  if (grepl("^(START OF TREATMENT|PRE-DOSE|PREDOSE|PRE DOSE)$", text) ||
-      grepl("\\b(START|ZERO)\\b", text) && !grepl("\\bAFTER START\\b", text)) {
-    return(0)
-  }
-
-  if (grepl("\\bAFTER START\\b", text)) {
-    return(offset)
-  }
-
-  if (grepl("\\b(BEFORE END|PRE-EOT|PRE EOT)\\b", text)) {
-    return(treatment_duration - offset)
-  }
-
-  if (grepl("\\bAFTER END\\b", text)) {
-    return(treatment_duration + offset)
-  }
-
-  if (grepl("\\b(END OF TREATMENT|END|EOT)\\b", text)) {
-    return(treatment_duration)
-  }
-
-  NA_real_
-}
-
-result <- data.frame(
-  xxtpt = xxtpt$xxtpt,
-  treatment_duration = duration$treatment_duration,
-  result = mapply(convert_xxtpt, xxtpt$xxtpt, duration$treatment_duration),
+output <- data.frame(
+  xxtpt = xxtpt[["xxtpt"]],
+  treatment_duration = treatment_duration[["treatment_duration"]],
+  result = as.numeric(result),
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(output, file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -271,79 +290,98 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ## Raw Agent Response
 ```text
-duration <- read.delim(
+#!/usr/bin/env Rscript
+
+treatment_duration <- read.delim(
   file.path("inputs", "treatment_duration.tsv"),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
-
 xxtpt <- read.delim(
   file.path("inputs", "xxtpt.tsv"),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
-if (nrow(duration) != nrow(xxtpt)) {
-  stop("Input files must contain the same number of rows.")
+stopifnot(nrow(treatment_duration) == nrow(xxtpt))
+
+normalize_text <- function(x) {
+  x <- toupper(trimws(x))
+  x <- gsub("[_]+", " ", x)
+  x <- gsub("\\s+", " ", x)
+  x
 }
 
-unit_multiplier <- function(unit) {
+offset_to_hours <- function(value, unit) {
   unit <- toupper(unit)
-  ifelse(
-    grepl("^MIN", unit), 1 / 60,
-    ifelse(
-      grepl("^HOUR|^HR", unit), 1,
-      ifelse(grepl("^DAY", unit), 24, NA_real_)
-    )
-  )
+  if (grepl("^MIN", unit)) {
+    value / 60
+  } else if (grepl("^H", unit)) {
+    value
+  } else if (grepl("^D", unit)) {
+    value * 24
+  } else {
+    stop(sprintf("Unsupported time unit: %s", unit), call. = FALSE)
+  }
 }
 
 extract_offset <- function(text) {
-  match <- regexec("([0-9]+(?:\\.[0-9]+)?)\\s*(MIN(?:UTE)?S?|HOURS?|HRS?|DAYS?)", text)
-  parts <- regmatches(text, match)[[1]]
+  match <- regexec(
+    "([0-9]+(?:\\.[0-9]+)?)\\s*(MIN(?:UTE)?S?|H(?:OU)?RS?|HOUR[S]?|DAY[S]?)",
+    text,
+    perl = TRUE
+  )
+  pieces <- regmatches(text, match)[[1]]
 
-  if (length(parts) == 0) {
+  if (length(pieces) == 0L) {
+    0
+  } else {
+    offset_to_hours(as.numeric(pieces[2]), pieces[3])
+  }
+}
+
+convert_treatment_pattern <- function(text, duration) {
+  text <- normalize_text(text)
+
+  if (text %in% c(
+    "START OF TREATMENT", "TREATMENT START", "START", "ZERO", "0",
+    "PRE-DOSE", "PREDOSE", "PRE DOSE"
+  )) {
     return(0)
   }
 
-  as.numeric(parts[2]) * unit_multiplier(parts[3])
+  if (grepl("AFTER START|AFTER TREATMENT START", text)) {
+    return(extract_offset(text))
+  }
+
+  if (grepl("BEFORE END|BEFORE EOT|PRE-EOT|PRE EOT", text)) {
+    return(duration - extract_offset(text))
+  }
+
+  if (text %in% c("END OF TREATMENT", "TREATMENT END", "END", "EOT")) {
+    return(duration)
+  }
+
+  if (grepl("AFTER END|AFTER EOT|AFTER TREATMENT END", text)) {
+    return(duration + extract_offset(text))
+  }
+
+  stop(sprintf("Unrecognized treatment-relative pattern: %s", text), call. = FALSE)
 }
 
-convert_xxtpt <- function(text, treatment_duration) {
-  text <- toupper(trimws(text))
-  offset <- extract_offset(text)
+result <- mapply(
+  convert_treatment_pattern,
+  xxtpt[["xxtpt"]],
+  as.numeric(treatment_duration[["treatment_duration"]])
+)
 
-  if (grepl("^(START OF TREATMENT|PRE-DOSE|PREDOSE|PRE DOSE)$", text) ||
-      grepl("\\b(START|ZERO)\\b", text) && !grepl("\\bAFTER START\\b", text)) {
-    return(0)
-  }
-
-  if (grepl("\\bAFTER START\\b", text)) {
-    return(offset)
-  }
-
-  if (grepl("\\b(BEFORE END|PRE-EOT|PRE EOT)\\b", text)) {
-    return(treatment_duration - offset)
-  }
-
-  if (grepl("\\bAFTER END\\b", text)) {
-    return(treatment_duration + offset)
-  }
-
-  if (grepl("\\b(END OF TREATMENT|END|EOT)\\b", text)) {
-    return(treatment_duration)
-  }
-
-  NA_real_
-}
-
-result <- data.frame(
-  xxtpt = xxtpt$xxtpt,
-  treatment_duration = duration$treatment_duration,
-  result = mapply(convert_xxtpt, xxtpt$xxtpt, duration$treatment_duration),
+output <- data.frame(
+  xxtpt = xxtpt[["xxtpt"]],
+  treatment_duration = treatment_duration[["treatment_duration"]],
+  result = as.numeric(result),
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(output, file.path("outputs", "result.csv"), row.names = FALSE)
 ```

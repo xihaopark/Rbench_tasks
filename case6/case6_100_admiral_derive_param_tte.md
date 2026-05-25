@@ -112,7 +112,17 @@ adsl <- read.delim(
   na.strings = c("", "NA")
 )
 
-is_death <- !is.na(adsl$DTHDT) & adsl$DTHFL == "Y"
+to_date <- function(x) {
+  as.Date(x, format = "%Y-%m-%d")
+}
+
+startdt <- to_date(adsl$TRTSDT)
+is_death <- !is.na(adsl$DTHFL) & adsl$DTHFL == "Y"
+selected_adt <- ifelse(is_death, adsl$DTHDT, adsl$LSALVDT)
+adt <- to_date(selected_adt)
+
+adt <- pmax(adt, startdt, na.rm = TRUE)
+adt[is.infinite(adt)] <- NA
 
 result <- data.frame(
   USUBJID = adsl$USUBJID,
@@ -121,20 +131,20 @@ result <- data.frame(
   SRCDOM = "ADSL",
   SRCVAR = ifelse(is_death, "DTHDT", "LSALVDT"),
   CNSR = ifelse(is_death, 0L, 1L),
-  ADT = ifelse(is_death, adsl$DTHDT, adsl$LSALVDT),
-  STARTDT = adsl$TRTSDT,
+  ADT = adt,
+  STARTDT = startdt,
   PARAMCD = "OS",
   PARAM = "Overall Survival",
   stringsAsFactors = FALSE
 )
 
+result <- result[, c(
+  "USUBJID", "STUDYID", "EVNTDESC", "SRCDOM", "SRCVAR",
+  "CNSR", "ADT", "STARTDT", "PARAMCD", "PARAM"
+)]
+
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(
-  result,
-  file = file.path("outputs", "result.csv"),
-  row.names = FALSE,
-  na = ""
-)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -153,9 +163,9 @@ write.csv(
 
 ```csv
 "USUBJID","STUDYID","EVNTDESC","SRCDOM","SRCVAR","CNSR","ADT","STARTDT","PARAMCD","PARAM"
-"01","STUDY1","DEATH","ADSL","DTHDT",0,"2021-04-01","2021-01-01","OS","Overall Survival"
-"02","STUDY1","LAST DATE KNOWN ALIVE","ADSL","LSALVDT",1,"2021-03-15","2021-01-02","OS","Overall Survival"
-"03","STUDY1","LAST DATE KNOWN ALIVE","ADSL","LSALVDT",1,"2021-02-20","2021-01-05","OS","Overall Survival"
+"01","STUDY1","DEATH","ADSL","DTHDT",0,2021-04-01,2021-01-01,"OS","Overall Survival"
+"02","STUDY1","LAST DATE KNOWN ALIVE","ADSL","LSALVDT",1,2021-03-15,2021-01-02,"OS","Overall Survival"
+"03","STUDY1","LAST DATE KNOWN ALIVE","ADSL","LSALVDT",1,2021-02-20,2021-01-05,"OS","Overall Survival"
 ```
 
 #### `case_01/stderr.txt`
@@ -213,7 +223,17 @@ adsl <- read.delim(
   na.strings = c("", "NA")
 )
 
-is_death <- !is.na(adsl$DTHDT) & adsl$DTHFL == "Y"
+to_date <- function(x) {
+  as.Date(x, format = "%Y-%m-%d")
+}
+
+startdt <- to_date(adsl$TRTSDT)
+is_death <- !is.na(adsl$DTHFL) & adsl$DTHFL == "Y"
+selected_adt <- ifelse(is_death, adsl$DTHDT, adsl$LSALVDT)
+adt <- to_date(selected_adt)
+
+adt <- pmax(adt, startdt, na.rm = TRUE)
+adt[is.infinite(adt)] <- NA
 
 result <- data.frame(
   USUBJID = adsl$USUBJID,
@@ -222,18 +242,18 @@ result <- data.frame(
   SRCDOM = "ADSL",
   SRCVAR = ifelse(is_death, "DTHDT", "LSALVDT"),
   CNSR = ifelse(is_death, 0L, 1L),
-  ADT = ifelse(is_death, adsl$DTHDT, adsl$LSALVDT),
-  STARTDT = adsl$TRTSDT,
+  ADT = adt,
+  STARTDT = startdt,
   PARAMCD = "OS",
   PARAM = "Overall Survival",
   stringsAsFactors = FALSE
 )
 
+result <- result[, c(
+  "USUBJID", "STUDYID", "EVNTDESC", "SRCDOM", "SRCVAR",
+  "CNSR", "ADT", "STARTDT", "PARAMCD", "PARAM"
+)]
+
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(
-  result,
-  file = file.path("outputs", "result.csv"),
-  row.names = FALSE,
-  na = ""
-)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```

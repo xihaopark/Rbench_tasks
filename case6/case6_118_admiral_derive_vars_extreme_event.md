@@ -123,64 +123,67 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages({
-  library(admiral)
-  library(dplyr)
-})
+adsl <- read.delim(
+  file = "inputs/dataset.tsv",
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = c(STUDYID = "character", USUBJID = "character", TRTSDT = "character")
+)
 
-read_tsv <- function(path) {
-  read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    colClasses = "character",
-    stringsAsFactors = FALSE,
-    check.names = FALSE,
-    na.strings = c("", "NA")
+mode_df <- read.delim(
+  file = "inputs/mode.tsv",
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE
+)
+
+ae <- read.delim(
+  file = "inputs/source_datasets.tsv",
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = c(
+    STUDYID = "character",
+    USUBJID = "character",
+    ADT = "character",
+    AESEQ = "numeric",
+    AETERM = "character",
+    AETOXGR = "numeric"
   )
-}
+)
 
-dataset <- read_tsv("inputs/dataset.tsv") %>%
-  mutate(TRTSDT = as.Date(TRTSDT))
+adsl <- dplyr::mutate(adsl, TRTSDT = as.Date(TRTSDT))
 
-mode_value <- read_tsv("inputs/mode.tsv")$mode[1]
-if (!mode_value %in% c("first", "last")) {
-  stop("mode.tsv must contain either 'first' or 'last'")
-}
+ae <- dplyr::mutate(ae, ADT = as.Date(ADT))
 
-ae <- read_tsv("inputs/source_datasets.tsv") %>%
-  mutate(
-    ADT = as.Date(ADT),
-    AESEQ = as.numeric(AESEQ),
-    AETOXGR = as.numeric(AETOXGR)
-  )
+selection_mode <- mode_df$mode[[1]]
 
-result <- derive_vars_extreme_event(
-  dataset = dataset,
-  by_vars = exprs(STUDYID, USUBJID),
+result <- admiral::derive_vars_extreme_event(
+  dataset = adsl,
+  by_vars = rlang::exprs(STUDYID, USUBJID),
   events = list(
-    event(
+    admiral::event(
       dataset_name = "ae",
       condition = AETOXGR >= 2,
-      set_values_to = exprs(
+      set_values_to = rlang::exprs(
         EXTDT = ADT,
         EXTTERM = AETERM,
-        EXTGR = AETOXGR
-      ),
-      order = exprs(desc(AETOXGR), ADT, AESEQ),
-      mode = mode_value
+        EXTGR = AETOXGR,
+        EXTSEQ = AESEQ
+      )
     )
   ),
   source_datasets = list(ae = ae),
-  order = exprs(desc(EXTGR), EXTDT, AESEQ),
-  mode = mode_value,
-  check_type = "none",
-  new_vars = exprs(EXTDT, EXTTERM, EXTGR)
-) %>%
-  select(STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
+  order = rlang::exprs(dplyr::desc(EXTGR), EXTDT, EXTSEQ),
+  mode = selection_mode,
+  new_vars = rlang::exprs(EXTDT, EXTTERM, EXTGR)
+)
+
+result <- dplyr::select(result, STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -250,62 +253,65 @@ write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```text
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages({
-  library(admiral)
-  library(dplyr)
-})
+adsl <- read.delim(
+  file = "inputs/dataset.tsv",
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = c(STUDYID = "character", USUBJID = "character", TRTSDT = "character")
+)
 
-read_tsv <- function(path) {
-  read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    colClasses = "character",
-    stringsAsFactors = FALSE,
-    check.names = FALSE,
-    na.strings = c("", "NA")
+mode_df <- read.delim(
+  file = "inputs/mode.tsv",
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE
+)
+
+ae <- read.delim(
+  file = "inputs/source_datasets.tsv",
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  colClasses = c(
+    STUDYID = "character",
+    USUBJID = "character",
+    ADT = "character",
+    AESEQ = "numeric",
+    AETERM = "character",
+    AETOXGR = "numeric"
   )
-}
+)
 
-dataset <- read_tsv("inputs/dataset.tsv") %>%
-  mutate(TRTSDT = as.Date(TRTSDT))
+adsl <- dplyr::mutate(adsl, TRTSDT = as.Date(TRTSDT))
 
-mode_value <- read_tsv("inputs/mode.tsv")$mode[1]
-if (!mode_value %in% c("first", "last")) {
-  stop("mode.tsv must contain either 'first' or 'last'")
-}
+ae <- dplyr::mutate(ae, ADT = as.Date(ADT))
 
-ae <- read_tsv("inputs/source_datasets.tsv") %>%
-  mutate(
-    ADT = as.Date(ADT),
-    AESEQ = as.numeric(AESEQ),
-    AETOXGR = as.numeric(AETOXGR)
-  )
+selection_mode <- mode_df$mode[[1]]
 
-result <- derive_vars_extreme_event(
-  dataset = dataset,
-  by_vars = exprs(STUDYID, USUBJID),
+result <- admiral::derive_vars_extreme_event(
+  dataset = adsl,
+  by_vars = rlang::exprs(STUDYID, USUBJID),
   events = list(
-    event(
+    admiral::event(
       dataset_name = "ae",
       condition = AETOXGR >= 2,
-      set_values_to = exprs(
+      set_values_to = rlang::exprs(
         EXTDT = ADT,
         EXTTERM = AETERM,
-        EXTGR = AETOXGR
-      ),
-      order = exprs(desc(AETOXGR), ADT, AESEQ),
-      mode = mode_value
+        EXTGR = AETOXGR,
+        EXTSEQ = AESEQ
+      )
     )
   ),
   source_datasets = list(ae = ae),
-  order = exprs(desc(EXTGR), EXTDT, AESEQ),
-  mode = mode_value,
-  check_type = "none",
-  new_vars = exprs(EXTDT, EXTTERM, EXTGR)
-) %>%
-  select(STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
+  order = rlang::exprs(dplyr::desc(EXTGR), EXTDT, EXTSEQ),
+  mode = selection_mode,
+  new_vars = rlang::exprs(EXTDT, EXTTERM, EXTGR)
+)
+
+result <- dplyr::select(result, STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
 ```

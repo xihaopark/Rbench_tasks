@@ -202,40 +202,43 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
+library(admiral)
 library(dplyr)
 
-# Read input files
-age      <- read.table("inputs/age.tsv",      header = TRUE, sep = "\t")
-chol     <- read.table("inputs/chol.tsv",     header = TRUE, sep = "\t")
-cholhdl  <- read.table("inputs/cholhdl.tsv",  header = TRUE, sep = "\t")
-diabetfl <- read.table("inputs/diabetfl.tsv", header = TRUE, sep = "\t")
-sex      <- read.table("inputs/sex.tsv",      header = TRUE, sep = "\t")
-smokefl  <- read.table("inputs/smokefl.tsv",  header = TRUE, sep = "\t")
-sysbp    <- read.table("inputs/sysbp.tsv",    header = TRUE, sep = "\t")
-trthypfl <- read.table("inputs/trthypfl.tsv", header = TRUE, sep = "\t")
+# Read all input TSV files
+age      <- read.table("inputs/age.tsv",      header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+chol     <- read.table("inputs/chol.tsv",     header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+cholhdl  <- read.table("inputs/cholhdl.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+diabetfl <- read.table("inputs/diabetfl.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+sex      <- read.table("inputs/sex.tsv",      header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+smokefl  <- read.table("inputs/smokefl.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+sysbp    <- read.table("inputs/sysbp.tsv",    header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+trthypfl <- read.table("inputs/trthypfl.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-# Combine all inputs by row position
-data <- bind_cols(age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl)
+# Combine all inputs into a single data frame (row-bind by position)
+adcv <- bind_cols(age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl)
 
-# Compute the Framingham score
-data <- data %>%
+# Compute the deterministic Framingham fixture score:
+# 0.1*age + 0.02*sysbp + 0.01*chol + 0.5*cholhdl
+#   + 2*I(smokefl=='Y') + 2*I(diabetfl=='Y') + I(trthypfl=='Y')
+adcv <- adcv %>%
   mutate(
-    result = 0.1 * age +
+    result = 0.1  * age +
              0.02 * sysbp +
              0.01 * chol +
-             0.5 * cholhdl +
-             2 * (smokefl == "Y") +
-             2 * (diabetfl == "Y") +
-             1 * (trthypfl == "Y")
+             0.5  * cholhdl +
+             2    * as.integer(smokefl  == "Y") +
+             2    * as.integer(diabetfl == "Y") +
+             1    * as.integer(trthypfl == "Y")
   )
 
-# Select required columns
-result <- data %>%
+# Select required output columns
+result_df <- adcv %>%
   select(age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl, result)
 
-# Write output
+# Create outputs directory if needed and write result
 dir.create("outputs", showWarnings = FALSE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
+write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -250,7 +253,48 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"age","sex","sysbp","chol","cholhdl","smokefl","diabetfl","trthypfl","result"
+45,"F",118,180,3.5,"N","N","N",10.41
+60,"M",142,220,4.2,"Y","N","Y",16.14
+72,"F",155,260,5,"N","Y","Y",18.4
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -272,38 +316,41 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
+library(admiral)
 library(dplyr)
 
-# Read input files
-age      <- read.table("inputs/age.tsv",      header = TRUE, sep = "\t")
-chol     <- read.table("inputs/chol.tsv",     header = TRUE, sep = "\t")
-cholhdl  <- read.table("inputs/cholhdl.tsv",  header = TRUE, sep = "\t")
-diabetfl <- read.table("inputs/diabetfl.tsv", header = TRUE, sep = "\t")
-sex      <- read.table("inputs/sex.tsv",      header = TRUE, sep = "\t")
-smokefl  <- read.table("inputs/smokefl.tsv",  header = TRUE, sep = "\t")
-sysbp    <- read.table("inputs/sysbp.tsv",    header = TRUE, sep = "\t")
-trthypfl <- read.table("inputs/trthypfl.tsv", header = TRUE, sep = "\t")
+# Read all input TSV files
+age      <- read.table("inputs/age.tsv",      header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+chol     <- read.table("inputs/chol.tsv",     header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+cholhdl  <- read.table("inputs/cholhdl.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+diabetfl <- read.table("inputs/diabetfl.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+sex      <- read.table("inputs/sex.tsv",      header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+smokefl  <- read.table("inputs/smokefl.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+sysbp    <- read.table("inputs/sysbp.tsv",    header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+trthypfl <- read.table("inputs/trthypfl.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-# Combine all inputs by row position
-data <- bind_cols(age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl)
+# Combine all inputs into a single data frame (row-bind by position)
+adcv <- bind_cols(age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl)
 
-# Compute the Framingham score
-data <- data %>%
+# Compute the deterministic Framingham fixture score:
+# 0.1*age + 0.02*sysbp + 0.01*chol + 0.5*cholhdl
+#   + 2*I(smokefl=='Y') + 2*I(diabetfl=='Y') + I(trthypfl=='Y')
+adcv <- adcv %>%
   mutate(
-    result = 0.1 * age +
+    result = 0.1  * age +
              0.02 * sysbp +
              0.01 * chol +
-             0.5 * cholhdl +
-             2 * (smokefl == "Y") +
-             2 * (diabetfl == "Y") +
-             1 * (trthypfl == "Y")
+             0.5  * cholhdl +
+             2    * as.integer(smokefl  == "Y") +
+             2    * as.integer(diabetfl == "Y") +
+             1    * as.integer(trthypfl == "Y")
   )
 
-# Select required columns
-result <- data %>%
+# Select required output columns
+result_df <- adcv %>%
   select(age, sex, sysbp, chol, cholhdl, smokefl, diabetfl, trthypfl, result)
 
-# Write output
+# Create outputs directory if needed and write result
 dir.create("outputs", showWarnings = FALSE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
+write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 ```

@@ -5,13 +5,13 @@
 - Package: `admiral`
 - Model: `claude-code/claude-sonnet-4-6`
 - Agent: `Claude Code`
-- Status: `FAIL`
-- Failure stage: `value_mismatch`
+- Status: `PASS`
+- Failure stage: `pass`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-FAIL
+PASS
 ```
 
 ## Prompt
@@ -104,8 +104,6 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
-
 library(admiral)
 library(dplyr)
 library(lubridate)
@@ -114,44 +112,43 @@ library(lubridate)
 dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE,
                       stringsAsFactors = FALSE)
 
-# Parse date columns as POSIXct (datetime) since columns are named *DTM
+# Convert date columns to POSIXct (datetime) as expected by admiral DTM variables
 dataset <- dataset %>%
   mutate(
-    TRTSDTM  = as.POSIXct(TRTSDTM,  format = "%Y-%m-%d", tz = "UTC"),
-    TRTEDTM  = as.POSIXct(TRTEDTM,  format = "%Y-%m-%d", tz = "UTC"),
-    ASTDTM   = as.POSIXct(ASTDTM,   format = "%Y-%m-%d", tz = "UTC"),
-    AENDTM   = as.POSIXct(AENDTM,   format = "%Y-%m-%d", tz = "UTC"),
+    TRTSDTM = as.POSIXct(TRTSDTM, format = "%Y-%m-%d", tz = "UTC"),
+    TRTEDTM = as.POSIXct(TRTEDTM, format = "%Y-%m-%d", tz = "UTC"),
+    ASTDTM  = as.POSIXct(ASTDTM,  format = "%Y-%m-%d", tz = "UTC"),
+    AENDTM  = as.POSIXct(AENDTM,  format = "%Y-%m-%d", tz = "UTC"),
     AEITOXGR = as.integer(AEITOXGR),
     AETOXGR  = as.integer(AETOXGR)
   )
 
-# Derive TRTEMFL using admiral's function.
-# Treatment-emergent rule:
-#   (1) In-window: event started on or after treatment start (and within
-#       any optional end window), OR
-#   (2) Ongoing+worsening: event started before treatment start, was still
-#       ongoing at treatment start, and toxicity grade worsened.
+# Derive TRTEMFL using admiral:
+#   - in-window: ASTDTM >= TRTSDTM and ASTDTM <= TRTEDTM
+#   - ongoing/worsening: pre-existing events (ASTDTM < TRTSDTM) that worsened
+#     (AETOXGR > AEITOXGR) and were ongoing during treatment (AENDTM >= TRTSDTM)
 result <- derive_var_trtemfl(
   dataset,
-  new_var           = TRTEMFL,
-  start_date        = ASTDTM,
-  end_date          = AENDTM,
-  trt_start_date    = TRTSDTM,
-  trt_end_date      = TRTEDTM,
-  end_window        = NULL,
-  initial_intensity = AEITOXGR,
-  intensity         = AETOXGR
+  new_var              = TRTEMFL,
+  start_date           = ASTDTM,
+  end_date             = AENDTM,
+  trt_start_date       = TRTSDTM,
+  trt_end_date         = TRTEDTM,
+  end_window           = 0,
+  ignore_time_for_trt_end = TRUE,
+  initial_intensity    = AEITOXGR,
+  intensity            = AETOXGR
 )
 
-# Keep only required columns
+# Select required columns
 result <- result %>%
   select(USUBJID, TRTSDTM, TRTEDTM, ASTDTM, AENDTM, AEITOXGR, AETOXGR, TRTEMFL)
 
 # Create outputs directory if needed
 dir.create("outputs", showWarnings = FALSE)
 
-# Write result
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+# Write output
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -167,30 +164,77 @@ write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"USUBJID","TRTSDTM","TRTEDTM","ASTDTM","AENDTM","AEITOXGR","AETOXGR","TRTEMFL"
+1,2021-01-01,2021-01-31,2020-12-20,2020-12-21,2,2,NA
+1,2021-01-01,2021-01-31,2021-01-15,2021-01-20,1,3,"Y"
+2,2021-02-01,2021-02-28,2021-03-01,2021-03-05,1,2,NA
+3,2021-03-01,2021-03-31,2021-02-20,2021-03-02,2,3,"Y"
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+```
 
 ## Evaluation Result
 ```json
 {
-  "status": "FAIL",
-  "tier": "schema_ok",
-  "failure_stage": "value_mismatch",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "value_mismatch",
-    "tier": "schema_ok",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
-
 library(admiral)
 library(dplyr)
 library(lubridate)
@@ -199,42 +243,41 @@ library(lubridate)
 dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE,
                       stringsAsFactors = FALSE)
 
-# Parse date columns as POSIXct (datetime) since columns are named *DTM
+# Convert date columns to POSIXct (datetime) as expected by admiral DTM variables
 dataset <- dataset %>%
   mutate(
-    TRTSDTM  = as.POSIXct(TRTSDTM,  format = "%Y-%m-%d", tz = "UTC"),
-    TRTEDTM  = as.POSIXct(TRTEDTM,  format = "%Y-%m-%d", tz = "UTC"),
-    ASTDTM   = as.POSIXct(ASTDTM,   format = "%Y-%m-%d", tz = "UTC"),
-    AENDTM   = as.POSIXct(AENDTM,   format = "%Y-%m-%d", tz = "UTC"),
+    TRTSDTM = as.POSIXct(TRTSDTM, format = "%Y-%m-%d", tz = "UTC"),
+    TRTEDTM = as.POSIXct(TRTEDTM, format = "%Y-%m-%d", tz = "UTC"),
+    ASTDTM  = as.POSIXct(ASTDTM,  format = "%Y-%m-%d", tz = "UTC"),
+    AENDTM  = as.POSIXct(AENDTM,  format = "%Y-%m-%d", tz = "UTC"),
     AEITOXGR = as.integer(AEITOXGR),
     AETOXGR  = as.integer(AETOXGR)
   )
 
-# Derive TRTEMFL using admiral's function.
-# Treatment-emergent rule:
-#   (1) In-window: event started on or after treatment start (and within
-#       any optional end window), OR
-#   (2) Ongoing+worsening: event started before treatment start, was still
-#       ongoing at treatment start, and toxicity grade worsened.
+# Derive TRTEMFL using admiral:
+#   - in-window: ASTDTM >= TRTSDTM and ASTDTM <= TRTEDTM
+#   - ongoing/worsening: pre-existing events (ASTDTM < TRTSDTM) that worsened
+#     (AETOXGR > AEITOXGR) and were ongoing during treatment (AENDTM >= TRTSDTM)
 result <- derive_var_trtemfl(
   dataset,
-  new_var           = TRTEMFL,
-  start_date        = ASTDTM,
-  end_date          = AENDTM,
-  trt_start_date    = TRTSDTM,
-  trt_end_date      = TRTEDTM,
-  end_window        = NULL,
-  initial_intensity = AEITOXGR,
-  intensity         = AETOXGR
+  new_var              = TRTEMFL,
+  start_date           = ASTDTM,
+  end_date             = AENDTM,
+  trt_start_date       = TRTSDTM,
+  trt_end_date         = TRTEDTM,
+  end_window           = 0,
+  ignore_time_for_trt_end = TRUE,
+  initial_intensity    = AEITOXGR,
+  intensity            = AETOXGR
 )
 
-# Keep only required columns
+# Select required columns
 result <- result %>%
   select(USUBJID, TRTSDTM, TRTEDTM, ASTDTM, AENDTM, AEITOXGR, AETOXGR, TRTEMFL)
 
 # Create outputs directory if needed
 dir.create("outputs", showWarnings = FALSE)
 
-# Write result
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+# Write output
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```

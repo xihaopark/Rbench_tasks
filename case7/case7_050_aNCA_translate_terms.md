@@ -3,15 +3,15 @@
 ## Metadata
 - Task ID: `pharmaverse/aNCA/translate_terms`
 - Package: `aNCA`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
-- Status: `PASS`
-- Failure stage: `pass`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
+- Status: `FAIL`
+- Failure stage: `schema_mismatch`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-PASS
+FAIL
 ```
 
 ## Prompt
@@ -54,6 +54,27 @@ Computation: Map each input term by looking it up from mapping_col to target_col
 
 Required columns for result.csv: input_terms, mapping_col, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### input_terms.tsv
+input_terms
+AVAL
+PARAMCD
+
+### mapping_col.tsv
+mapping_col
+Variable
+
+### metadata.tsv
+Variable	Label
+AVAL	Analysis Value
+PARAMCD	Parameter Code
+USUBJID	Subject ID
+
+### target_col.tsv
+target_col
+Label
 ```
 
 ## Input
@@ -195,44 +216,39 @@ if (exists("result_df") && is.data.frame(result_df)) {
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+library(aNCA)
 
-input_terms <- read.delim(
-  file.path("inputs", "input_terms.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-mapping_col <- read.delim(
-  file.path("inputs", "mapping_col.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-metadata <- read.delim(
-  file.path("inputs", "metadata.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-target_col <- read.delim(
-  file.path("inputs", "target_col.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
+# Read inputs
+input_terms_df <- read.table("inputs/input_terms.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+mapping_col_df <- read.table("inputs/mapping_col.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+metadata       <- read.table("inputs/metadata.tsv",    header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+target_col_df  <- read.table("inputs/target_col.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-mapping_name <- mapping_col$mapping_col[[1]]
-target_name <- target_col$target_col[[1]]
+# Extract scalar column names and input terms vector
+terms       <- input_terms_df[[1]]
+mapping_col <- mapping_col_df[[1]][1]
+target_col  <- target_col_df[[1]][1]
 
-match_index <- match(input_terms$input_terms, metadata[[mapping_name]])
-
-result <- data.frame(
-  input_terms = input_terms$input_terms,
-  mapping_col = rep(mapping_name, nrow(input_terms)),
-  result = metadata[[target_name]][match_index],
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+# Translate terms using aNCA::translate_terms
+# Returns a character vector; terms not found are returned unchanged
+result_vec <- translate_terms(
+  input_terms = terms,
+  mapping_col = mapping_col,
+  target_col  = target_col,
+  metadata    = metadata
 )
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+# Build output data frame with required columns
+output <- data.frame(
+  input_terms = terms,
+  mapping_col = mapping_col,
+  result      = result_vec,
+  stringsAsFactors = FALSE
+)
+
+# Create outputs directory if needed and write result
+dir.create("outputs", showWarnings = FALSE)
+write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -246,94 +262,59 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"input_terms","mapping_col","result"
-"AVAL","Variable","Analysis Value"
-"PARAMCD","Variable","Parameter Code"
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
 {
-  "status": "PASS",
-  "tier": "pass",
-  "failure_stage": "pass",
-  "pass": true,
-  "score": 1.0,
-  "message": "",
+  "status": "FAIL",
+  "tier": "output_bad",
+  "failure_stage": "schema_mismatch",
+  "pass": false,
+  "score": 0.0,
+  "message": "Failed at case_embedded",
   "validation_diagnostics": {
-    "failure_stage": "pass",
-    "tier": "pass",
+    "failure_stage": "schema_mismatch",
+    "tier": "output_bad",
     "case_count": 1,
-    "failed_case": null
+    "failed_case": "case_embedded"
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+library(aNCA)
 
-input_terms <- read.delim(
-  file.path("inputs", "input_terms.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-mapping_col <- read.delim(
-  file.path("inputs", "mapping_col.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-metadata <- read.delim(
-  file.path("inputs", "metadata.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-target_col <- read.delim(
-  file.path("inputs", "target_col.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
+# Read inputs
+input_terms_df <- read.table("inputs/input_terms.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+mapping_col_df <- read.table("inputs/mapping_col.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+metadata       <- read.table("inputs/metadata.tsv",    header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+target_col_df  <- read.table("inputs/target_col.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-mapping_name <- mapping_col$mapping_col[[1]]
-target_name <- target_col$target_col[[1]]
+# Extract scalar column names and input terms vector
+terms       <- input_terms_df[[1]]
+mapping_col <- mapping_col_df[[1]][1]
+target_col  <- target_col_df[[1]][1]
 
-match_index <- match(input_terms$input_terms, metadata[[mapping_name]])
-
-result <- data.frame(
-  input_terms = input_terms$input_terms,
-  mapping_col = rep(mapping_name, nrow(input_terms)),
-  result = metadata[[target_name]][match_index],
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+# Translate terms using aNCA::translate_terms
+# Returns a character vector; terms not found are returned unchanged
+result_vec <- translate_terms(
+  input_terms = terms,
+  mapping_col = mapping_col,
+  target_col  = target_col,
+  metadata    = metadata
 )
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+# Build output data frame with required columns
+output <- data.frame(
+  input_terms = terms,
+  mapping_col = mapping_col,
+  result      = result_vec,
+  stringsAsFactors = FALSE
+)
+
+# Create outputs directory if needed and write result
+dir.create("outputs", showWarnings = FALSE)
+write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```

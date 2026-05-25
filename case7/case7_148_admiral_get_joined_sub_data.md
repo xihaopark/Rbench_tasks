@@ -3,8 +3,8 @@
 ## Metadata
 - Task ID: `pharmaverse/admiral/get_joined_sub_data`
 - Package: `admiral`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -54,6 +54,19 @@ Computation: Use left.tsv as the primary dataset and left-join right.tsv by USUB
 
 Required columns for result.csv: USUBJID, AVAL, TRT01A
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### left.tsv
+USUBJID	AVAL
+01	10
+02	20
+03	30
+
+### right.tsv
+USUBJID	TRT01A
+01	Drug A
+02	Placebo
 ```
 
 ## Input
@@ -88,36 +101,32 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-left <- read.delim(
-  file.path("inputs", "left.tsv"),
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
-  colClasses = c(USUBJID = "character")
+#!/usr/bin/env Rscript
+
+library(admiral)
+library(dplyr)
+
+# Read input files
+left  <- read.table("inputs/left.tsv",  sep = "\t", header = TRUE,
+                    stringsAsFactors = FALSE)
+right <- read.table("inputs/right.tsv", sep = "\t", header = TRUE,
+                    stringsAsFactors = FALSE)
+
+# Left-join right.tsv into left.tsv by USUBJID using admiral::derive_vars_merged
+# derive_vars_merged performs a left join, preserving all rows from the primary dataset
+result <- derive_vars_merged(
+  dataset     = left,
+  dataset_add = right,
+  by_vars     = exprs(USUBJID),
+  new_vars    = exprs(TRT01A)
 )
 
-right <- read.delim(
-  file.path("inputs", "right.tsv"),
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
-  colClasses = c(USUBJID = "character")
-)
+# Keep only required columns in required order
+result <- result[, c("USUBJID", "AVAL", "TRT01A")]
 
-left$.row_order <- seq_len(nrow(left))
-
-result <- merge(
-  left,
-  right,
-  by = "USUBJID",
-  all.x = TRUE,
-  sort = FALSE
-)
-
-result <- result[order(result$.row_order), c("USUBJID", "AVAL", "TRT01A")]
-
+# Write output
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -132,38 +141,7 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"USUBJID","AVAL","TRT01A"
-"01",10,"Drug A"
-"02",20,"Placebo"
-"03",30,
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
@@ -185,34 +163,30 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 
 ## Raw Agent Response
 ```text
-left <- read.delim(
-  file.path("inputs", "left.tsv"),
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
-  colClasses = c(USUBJID = "character")
+#!/usr/bin/env Rscript
+
+library(admiral)
+library(dplyr)
+
+# Read input files
+left  <- read.table("inputs/left.tsv",  sep = "\t", header = TRUE,
+                    stringsAsFactors = FALSE)
+right <- read.table("inputs/right.tsv", sep = "\t", header = TRUE,
+                    stringsAsFactors = FALSE)
+
+# Left-join right.tsv into left.tsv by USUBJID using admiral::derive_vars_merged
+# derive_vars_merged performs a left join, preserving all rows from the primary dataset
+result <- derive_vars_merged(
+  dataset     = left,
+  dataset_add = right,
+  by_vars     = exprs(USUBJID),
+  new_vars    = exprs(TRT01A)
 )
 
-right <- read.delim(
-  file.path("inputs", "right.tsv"),
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
-  colClasses = c(USUBJID = "character")
-)
+# Keep only required columns in required order
+result <- result[, c("USUBJID", "AVAL", "TRT01A")]
 
-left$.row_order <- seq_len(nrow(left))
-
-result <- merge(
-  left,
-  right,
-  by = "USUBJID",
-  all.x = TRUE,
-  sort = FALSE
-)
-
-result <- result[order(result$.row_order), c("USUBJID", "AVAL", "TRT01A")]
-
+# Write output
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```

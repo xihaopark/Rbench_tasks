@@ -1,6 +1,6 @@
 # case8
 
-31 Claude Code (claude-sonnet-4-6) clinical benchmark cases. Base prompt, no web access. Same 31-task set as case4/case6/case7 (Codex), directly comparable to case4.
+31 Claude Code (claude-sonnet-4-6) clinical benchmark cases. Base prompt with WebFetch and WebSearch enabled. Same 31-task set as case4/case5/case6 (Codex), directly comparable to case5.
 
 Each case uses the same presentation template as the previous GitHub case batches. The generated code shown here is the evaluator candidate artifact (`generated_solution.R`) from the Claude Code run, not a regenerated sample.
 
@@ -10,11 +10,11 @@ Summary:
 Total cases: 31
 Agent: Claude Code
 Model: claude-code/claude-sonnet-4-6
-Prompt setting: base prompt, no WebFetch/WebSearch (equivalent to case4)
-Run directory: internal/coding_agent_outputs/case2_31/claude-code/claude-sonnet-4-6/case8_base
-Strict pass@1: 15 / 31 = 0.4839
-Status counts: {'PASS': 15, 'NO_OUTPUT': 6, 'FAIL': 10}
-Invalid/internal package API pattern: 1 / 31
+Prompt setting: base prompt + WebFetch/WebSearch enabled (equivalent to case5)
+Run directory: internal/coding_agent_outputs/case2_31/claude-code/claude-sonnet-4-6/case9_web_docs
+Strict pass@1: 13 / 31 = 0.4194
+Status counts: {'FAIL': 9, 'NO_OUTPUT': 9, 'PASS': 13}
+Invalid/internal package API pattern: 3 / 31
 ```
 
 Fairness note:
@@ -26,11 +26,11 @@ Fairness note:
 
 | Case | Package | Topic | Status | Pattern | Document |
 | ---: | --- | --- | --- | --- | --- |
-| 001 | `aNCA` | `PKNCA_impute_method_start_c1` | `PASS` | `` | [case8_001_aNCA_PKNCA_impute_method_start_c1.md](./case8_001_aNCA_PKNCA_impute_method_start_c1.md) |
-| 003 | `aNCA` | `add_exclusion_reasons` | `PASS` | `` | [case8_003_aNCA_add_exclusion_reasons.md](./case8_003_aNCA_add_exclusion_reasons.md) |
-| 004 | `aNCA` | `add_impute_method` | `NO_OUTPUT` | `` | [case8_004_aNCA_add_impute_method.md](./case8_004_aNCA_add_impute_method.md) |
+| 001 | `aNCA` | `PKNCA_impute_method_start_c1` | `FAIL` | `` | [case8_001_aNCA_PKNCA_impute_method_start_c1.md](./case8_001_aNCA_PKNCA_impute_method_start_c1.md) |
+| 003 | `aNCA` | `add_exclusion_reasons` | `NO_OUTPUT` | `invalid_or_internal_package_api` | [case8_003_aNCA_add_exclusion_reasons.md](./case8_003_aNCA_add_exclusion_reasons.md) |
+| 004 | `aNCA` | `add_impute_method` | `PASS` | `` | [case8_004_aNCA_add_impute_method.md](./case8_004_aNCA_add_impute_method.md) |
 | 016 | `aNCA` | `detect_study_types` | `FAIL` | `` | [case8_016_aNCA_detect_study_types.md](./case8_016_aNCA_detect_study_types.md) |
-| 034 | `aNCA` | `interval_add_impute` | `PASS` | `` | [case8_034_aNCA_interval_add_impute.md](./case8_034_aNCA_interval_add_impute.md) |
+| 034 | `aNCA` | `interval_add_impute` | `NO_OUTPUT` | `` | [case8_034_aNCA_interval_add_impute.md](./case8_034_aNCA_interval_add_impute.md) |
 | 036 | `aNCA` | `keep_blq_timepoints` | `NO_OUTPUT` | `invalid_or_internal_package_api` | [case8_036_aNCA_keep_blq_timepoints.md](./case8_036_aNCA_keep_blq_timepoints.md) |
 | 045 | `aNCA` | `remove_impute_method` | `PASS` | `` | [case8_045_aNCA_remove_impute_method.md](./case8_045_aNCA_remove_impute_method.md) |
 | 050 | `aNCA` | `translate_terms` | `FAIL` | `` | [case8_050_aNCA_translate_terms.md](./case8_050_aNCA_translate_terms.md) |
@@ -39,19 +39,19 @@ Fairness note:
 | 065 | `admiral` | `compute_map` | `PASS` | `` | [case8_065_admiral_compute_map.md](./case8_065_admiral_compute_map.md) |
 | 071 | `admiral` | `compute_tmf` | `NO_OUTPUT` | `` | [case8_071_admiral_compute_tmf.md](./case8_071_admiral_compute_tmf.md) |
 | 086 | `admiral` | `convert_time_units` | `NO_OUTPUT` | `` | [case8_086_admiral_convert_time_units.md](./case8_086_admiral_convert_time_units.md) |
-| 087 | `admiral` | `convert_treatment_patterns` | `FAIL` | `` | [case8_087_admiral_convert_treatment_patterns.md](./case8_087_admiral_convert_treatment_patterns.md) |
+| 087 | `admiral` | `convert_treatment_patterns` | `NO_OUTPUT` | `` | [case8_087_admiral_convert_treatment_patterns.md](./case8_087_admiral_convert_treatment_patterns.md) |
 | 088 | `admiral` | `convert_xxtpt_to_hours` | `NO_OUTPUT` | `` | [case8_088_admiral_convert_xxtpt_to_hours.md](./case8_088_admiral_convert_xxtpt_to_hours.md) |
 | 094 | `admiral` | `derive_locf_records` | `FAIL` | `` | [case8_094_admiral_derive_locf_records.md](./case8_094_admiral_derive_locf_records.md) |
-| 097 | `admiral` | `derive_param_map` | `PASS` | `` | [case8_097_admiral_derive_param_map.md](./case8_097_admiral_derive_param_map.md) |
+| 097 | `admiral` | `derive_param_map` | `NO_OUTPUT` | `` | [case8_097_admiral_derive_param_map.md](./case8_097_admiral_derive_param_map.md) |
 | 098 | `admiral` | `derive_param_qtc` | `FAIL` | `` | [case8_098_admiral_derive_param_qtc.md](./case8_098_admiral_derive_param_qtc.md) |
 | 100 | `admiral` | `derive_param_tte` | `FAIL` | `` | [case8_100_admiral_derive_param_tte.md](./case8_100_admiral_derive_param_tte.md) |
 | 101 | `admiral` | `derive_var_atoxgr_dir` | `PASS` | `` | [case8_101_admiral_derive_var_atoxgr_dir.md](./case8_101_admiral_derive_var_atoxgr_dir.md) |
-| 106 | `admiral` | `derive_var_trtemfl` | `FAIL` | `` | [case8_106_admiral_derive_var_trtemfl.md](./case8_106_admiral_derive_var_trtemfl.md) |
+| 106 | `admiral` | `derive_var_trtemfl` | `PASS` | `` | [case8_106_admiral_derive_var_trtemfl.md](./case8_106_admiral_derive_var_trtemfl.md) |
 | 111 | `admiral` | `derive_vars_crit_flag` | `PASS` | `` | [case8_111_admiral_derive_vars_crit_flag.md](./case8_111_admiral_derive_vars_crit_flag.md) |
 | 118 | `admiral` | `derive_vars_extreme_event` | `PASS` | `` | [case8_118_admiral_derive_vars_extreme_event.md](./case8_118_admiral_derive_vars_extreme_event.md) |
 | 123 | `admiral` | `derive_vars_query` | `PASS` | `` | [case8_123_admiral_derive_vars_query.md](./case8_123_admiral_derive_vars_query.md) |
 | 142 | `admiral` | `get_flagged_records` | `FAIL` | `` | [case8_142_admiral_get_flagged_records.md](./case8_142_admiral_get_flagged_records.md) |
-| 147 | `admiral` | `get_imputation_targets` | `NO_OUTPUT` | `` | [case8_147_admiral_get_imputation_targets.md](./case8_147_admiral_get_imputation_targets.md) |
+| 147 | `admiral` | `get_imputation_targets` | `NO_OUTPUT` | `invalid_or_internal_package_api` | [case8_147_admiral_get_imputation_targets.md](./case8_147_admiral_get_imputation_targets.md) |
 | 148 | `admiral` | `get_joined_sub_data` | `PASS` | `` | [case8_148_admiral_get_joined_sub_data.md](./case8_148_admiral_get_joined_sub_data.md) |
 | 160 | `admiral` | `propagate_na_values` | `PASS` | `` | [case8_160_admiral_propagate_na_values.md](./case8_160_admiral_propagate_na_values.md) |
 | 164 | `admiral` | `slice_derivation` | `FAIL` | `` | [case8_164_admiral_slice_derivation.md](./case8_164_admiral_slice_derivation.md) |

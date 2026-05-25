@@ -10,7 +10,7 @@ task, the agent reads input files, writes an R solution script, and the output i
 graded by an automatic evaluator.
 
 The grouped comparison below is specifically about Codex as a coding agent:
-`case4`, `case6`, and `case7` are three Codex runs on the same task set. They are
+`case4`, `case5`, and `case6` are three Codex runs on the same task set. They are
 shown together because they test how different levels of prompt help affect the
 same agent.
 
@@ -19,8 +19,8 @@ The three Codex runs differ only in how much help the prompt gives the agent:
 | Folder | Agent | What the agent was given | Result |
 | --- | --- | --- | ---: |
 | [`case4`](./case4/) | Codex CLI / GPT-5.5 | Task description and input files only. | 19 / 31 = 61.29% |
-| [`case6`](./case6/) | Codex CLI / GPT-5.5 | Same as case4, but the agent was explicitly allowed to look up public R package documentation such as CRAN, r-universe, and GitHub docs. | 19 / 31 = 61.29% |
-| [`case7`](./case7/) | Codex CLI / GPT-5.5 | Same as case4, plus a short list of R package functions used by the reference solution. | 22 / 31 = 70.97% |
+| [`case5`](./case5/) | Codex CLI / GPT-5.5 | Same as case4, but the agent was explicitly allowed to look up public R package documentation such as CRAN, r-universe, and GitHub docs. | 19 / 31 = 61.29% |
+| [`case6`](./case6/) | Codex CLI / GPT-5.5 | Same as case4, plus a short list of R package functions used by the reference solution. | 22 / 31 = 70.97% |
 
 In short, simply allowing documentation lookup did not improve the overall
 score, while giving the agent a concise package-function hint improved the
@@ -33,12 +33,12 @@ prompt settings, to enable a direct cross-agent comparison.
 
 | Folder | Agent | What the agent was given | Result |
 | --- | --- | --- | ---: |
-| [`case8`](./case8/) | Claude Code / claude-sonnet-4-6 | Base prompt, no web access (equivalent to case4). | 15 / 31 = 48.39% |
-| [`case9`](./case9/) | Claude Code / claude-sonnet-4-6 | Same as case8, but WebFetch and WebSearch tools enabled (equivalent to case6). | 13 / 31 = 41.94% |
+| [`case7`](./case7/) | Claude Code / claude-sonnet-4-6 | Base prompt, no web access (equivalent to case4). | 15 / 31 = 48.39% |
+| [`case8`](./case8/) | Claude Code / claude-sonnet-4-6 | Same as case7, but WebFetch and WebSearch tools enabled (equivalent to case5). | 13 / 31 = 41.94% |
 
 Observation: unlike Codex, enabling web search in Claude Code did not maintain
 or improve the score on this 31-task subset. The reference-function hint variant
-(equivalent to case7) is pending.
+(equivalent to case6) is pending.
 
 ---
 
@@ -65,10 +65,10 @@ Case folders:
 - `case2/`: selected 31 harder cases, GPT-5.1 rerun.
 - `case3/`: the same 31 selected cases, GPT-5.5 rerun.
 - `case4/`: the same 31 selected cases, Codex CLI with GPT-5.5.
-- `case6/`: the same 31 selected cases, Codex CLI with GPT-5.5 and public package docs allowed.
-- `case7/`: the same 31 selected cases, Codex CLI with GPT-5.5 and reference package-function list included.
-- `case8/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, base prompt (no web).
-- `case9/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, web access enabled.
+- `case5/`: the same 31 selected cases, Codex CLI with GPT-5.5 and public package docs allowed.
+- `case6/`: the same 31 selected cases, Codex CLI with GPT-5.5 and reference package-function list included.
+- `case7/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, base prompt (no web).
+- `case8/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, web access enabled.
 
 Summary:
 

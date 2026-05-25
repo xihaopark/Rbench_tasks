@@ -96,49 +96,35 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE, na =
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
-
 library(admiral)
-library(dplyr)
-library(readr)
 
-# Create outputs directory if needed
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-# Read input (read all as character to preserve original values like "05", "NA")
-partial <- read_tsv("inputs/partial.tsv", col_types = cols(.default = "c"))
+# Read input
+df <- read.table("inputs/partial.tsv", header = TRUE, sep = "\t",
+                 colClasses = "character", na.strings = c("NA", ""))
 
 # Ordered datetime components
 components <- c("year", "month", "day", "hour", "minute", "second")
 
-# Propagate NA: once a component is NA (or "NA" string), blank all subsequent components
-propagate_na_row <- function(row) {
-  vals <- unlist(row[components])
-  # Find the first truly missing position (NA or "NA" string)
-  first_na <- which(is.na(vals) | vals == "NA")
-  if (length(first_na) > 0) {
-    # Set all components from first NA onwards to NA
-    row[components[first_na[1]:length(components)]] <- NA_character_
+# Propagate NAs: once a component is NA, all subsequent components become NA
+propagate_na_row <- function(row_vals) {
+  first_na <- which(is.na(row_vals))[1]
+  if (!is.na(first_na) && first_na <= length(row_vals)) {
+    row_vals[first_na:length(row_vals)] <- NA
   }
-  row
+  row_vals
 }
 
-# Apply row-wise propagation using purrr-style row iteration
-result <- do.call(rbind, lapply(seq_len(nrow(partial)), function(i) {
-  row <- partial[i, ]
-  vals <- unlist(row[components])
-  # Find the first truly missing position (NA or "NA" string)
-  first_na <- which(is.na(vals) | vals == "NA")
-  if (length(first_na) > 0) {
-    # Set all components from first NA onwards to NA
-    row[components[first_na[1]:length(components)]] <- NA_character_
-  }
-  row
-})) %>%
-  select(all_of(components))
+# Apply to each row
+result <- df[, components, drop = FALSE]
+for (i in seq_len(nrow(result))) {
+  result[i, ] <- propagate_na_row(unlist(result[i, ]))
+}
 
-# Write output - use empty string for NA values
-write_csv(result, "outputs/result.csv", na = "")
+# Create outputs directory
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+
+# Write output (NA as empty string)
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -153,7 +139,38 @@ write_csv(result, "outputs/result.csv", na = "")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"year","month","day","hour","minute","second"
+"2020","05",,,,
+"2021",,,,,
+"2022","07","04",,,
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+```
 
 ## Evaluation Result
 ```json
@@ -175,47 +192,33 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
-
 library(admiral)
-library(dplyr)
-library(readr)
 
-# Create outputs directory if needed
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-# Read input (read all as character to preserve original values like "05", "NA")
-partial <- read_tsv("inputs/partial.tsv", col_types = cols(.default = "c"))
+# Read input
+df <- read.table("inputs/partial.tsv", header = TRUE, sep = "\t",
+                 colClasses = "character", na.strings = c("NA", ""))
 
 # Ordered datetime components
 components <- c("year", "month", "day", "hour", "minute", "second")
 
-# Propagate NA: once a component is NA (or "NA" string), blank all subsequent components
-propagate_na_row <- function(row) {
-  vals <- unlist(row[components])
-  # Find the first truly missing position (NA or "NA" string)
-  first_na <- which(is.na(vals) | vals == "NA")
-  if (length(first_na) > 0) {
-    # Set all components from first NA onwards to NA
-    row[components[first_na[1]:length(components)]] <- NA_character_
+# Propagate NAs: once a component is NA, all subsequent components become NA
+propagate_na_row <- function(row_vals) {
+  first_na <- which(is.na(row_vals))[1]
+  if (!is.na(first_na) && first_na <= length(row_vals)) {
+    row_vals[first_na:length(row_vals)] <- NA
   }
-  row
+  row_vals
 }
 
-# Apply row-wise propagation using purrr-style row iteration
-result <- do.call(rbind, lapply(seq_len(nrow(partial)), function(i) {
-  row <- partial[i, ]
-  vals <- unlist(row[components])
-  # Find the first truly missing position (NA or "NA" string)
-  first_na <- which(is.na(vals) | vals == "NA")
-  if (length(first_na) > 0) {
-    # Set all components from first NA onwards to NA
-    row[components[first_na[1]:length(components)]] <- NA_character_
-  }
-  row
-})) %>%
-  select(all_of(components))
+# Apply to each row
+result <- df[, components, drop = FALSE]
+for (i in seq_len(nrow(result))) {
+  result[i, ] <- propagate_na_row(unlist(result[i, ]))
+}
 
-# Write output - use empty string for NA values
-write_csv(result, "outputs/result.csv", na = "")
+# Create outputs directory
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+
+# Write output (NA as empty string)
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```

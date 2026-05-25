@@ -90,20 +90,17 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 input <- read.delim(
   file = file.path("inputs", "dataset.tsv"),
-  colClasses = c(USUBJID = "character", PARAMCD = "character", AVAL = "numeric"),
+  sep = "\t",
+  header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE
+  check.names = FALSE,
+  colClasses = c(USUBJID = "character", PARAMCD = "character", AVAL = "numeric")
 )
 
 qt <- input[input$PARAMCD == "QT", c("USUBJID", "AVAL")]
 rr <- input[input$PARAMCD == "RR", c("USUBJID", "AVAL")]
 
-paired <- merge(
-  qt,
-  rr,
-  by = "USUBJID",
-  suffixes = c("_QT", "_RR")
-)
+paired <- merge(qt, rr, by = "USUBJID", suffixes = c("_QT", "_RR"), sort = FALSE)
 
 result <- data.frame(
   USUBJID = paired$USUBJID,
@@ -111,8 +108,6 @@ result <- data.frame(
   AVAL = paired$AVAL_QT / sqrt(paired$AVAL_RR),
   stringsAsFactors = FALSE
 )
-
-result <- result[order(result$USUBJID), c("USUBJID", "PARAMCD", "AVAL")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
@@ -185,20 +180,17 @@ write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 
 input <- read.delim(
   file = file.path("inputs", "dataset.tsv"),
-  colClasses = c(USUBJID = "character", PARAMCD = "character", AVAL = "numeric"),
+  sep = "\t",
+  header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE
+  check.names = FALSE,
+  colClasses = c(USUBJID = "character", PARAMCD = "character", AVAL = "numeric")
 )
 
 qt <- input[input$PARAMCD == "QT", c("USUBJID", "AVAL")]
 rr <- input[input$PARAMCD == "RR", c("USUBJID", "AVAL")]
 
-paired <- merge(
-  qt,
-  rr,
-  by = "USUBJID",
-  suffixes = c("_QT", "_RR")
-)
+paired <- merge(qt, rr, by = "USUBJID", suffixes = c("_QT", "_RR"), sort = FALSE)
 
 result <- data.frame(
   USUBJID = paired$USUBJID,
@@ -206,8 +198,6 @@ result <- data.frame(
   AVAL = paired$AVAL_QT / sqrt(paired$AVAL_RR),
   stringsAsFactors = FALSE
 )
-
-result <- result[order(result$USUBJID), c("USUBJID", "PARAMCD", "AVAL")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)

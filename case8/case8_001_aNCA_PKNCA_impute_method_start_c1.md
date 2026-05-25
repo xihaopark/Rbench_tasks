@@ -5,13 +5,13 @@
 - Package: `aNCA`
 - Model: `claude-code/claude-sonnet-4-6`
 - Agent: `Claude Code`
-- Status: `PASS`
-- Failure stage: `pass`
+- Status: `FAIL`
+- Failure stage: `schema_mismatch`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-PASS
+FAIL
 ```
 
 ## Prompt
@@ -184,34 +184,37 @@ write_result(result)
 
 ### LLM Generated Code
 ```r
-# PKNCA impute method start_c1 using aNCA package logic
-# Inserts a start-time row at the requested start time using the first
-# concentration after dose (within [start, end]), then writes rows ordered by time.
+# PKNCA impute method start_c1 using aNCA package
+# Computation: Insert a start-time row at the requested start time using the
+# first concentration after dose, then write rows ordered by time.
 
 # Read inputs
-conc  <- as.numeric(read.table("inputs/conc.tsv",  header = TRUE)$conc)
-time  <- as.numeric(read.table("inputs/time.tsv",  header = TRUE)$time)
-start <- as.numeric(read.table("inputs/start.tsv", header = TRUE)$start)
-end   <- as.numeric(read.table("inputs/end.tsv",   header = TRUE)$end)
+conc_vals <- read.table("inputs/conc.tsv", header = TRUE, sep = "\t")$conc
+time_vals <- read.table("inputs/time.tsv", header = TRUE, sep = "\t")$time
+start_val <- read.table("inputs/start.tsv", header = TRUE, sep = "\t")$start
+end_val   <- read.table("inputs/end.tsv",   header = TRUE, sep = "\t")$end
 
-# Apply PKNCA_impute_method_start_c1 logic:
-# If start time is not already in the data, find the first concentration
-# in [start, end] and insert a row at start with that concentration.
-d_conc_time <- data.frame(conc = conc, time = time)
+# Build full data frame
+df <- data.frame(conc = conc_vals, time = time_vals)
 
-if (!any(time == start)) {
-  all_concs <- conc[time >= start & time <= end]
-  all_times <- time[time >= start & time <= end]
-  if (!all(is.na(all_concs))) {
-    c1 <- all_concs[which.min(all_times)]
-    d_conc_time <- rbind(d_conc_time, data.frame(time = start, conc = c1))
-    d_conc_time <- d_conc_time[order(d_conc_time$time), ]
-  }
-}
+# c1: first concentration after dose (first observed concentration)
+c1 <- df$conc[1]
+
+# Create the imputed row at the start time with concentration = c1
+imputed_row <- data.frame(conc = c1, time = start_val)
+
+# Filter original data to the interval (start, end] – exclude any existing
+# point at the exact start time to avoid duplication, then prepend imputed row
+df_interval <- df[df$time > start_val & df$time <= end_val, ]
+
+# Combine imputed start row with interval data and sort by time
+result <- rbind(imputed_row, df_interval)
+result <- result[order(result$time), ]
+rownames(result) <- NULL
 
 # Write output
-dir.create("outputs", showWarnings = FALSE)
-write.csv(d_conc_time[, c("conc", "time")], "outputs/result.csv", row.names = FALSE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -229,54 +232,89 @@ write.csv(d_conc_time[, c("conc", "time")], "outputs/result.csv", row.names = FA
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"conc","time"
+0.1,1.5
+1.5,2
+10,3
+100,4
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+```
 
 ## Evaluation Result
 ```json
 {
-  "status": "PASS",
-  "tier": "pass",
-  "failure_stage": "pass",
-  "pass": true,
-  "score": 1.0,
-  "message": "",
+  "status": "FAIL",
+  "tier": "output_bad",
+  "failure_stage": "schema_mismatch",
+  "pass": false,
+  "score": 0.0,
+  "message": "Failed at case_embedded",
   "validation_diagnostics": {
-    "failure_stage": "pass",
-    "tier": "pass",
+    "failure_stage": "schema_mismatch",
+    "tier": "output_bad",
     "case_count": 1,
-    "failed_case": null
+    "failed_case": "case_embedded"
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
-# PKNCA impute method start_c1 using aNCA package logic
-# Inserts a start-time row at the requested start time using the first
-# concentration after dose (within [start, end]), then writes rows ordered by time.
+# PKNCA impute method start_c1 using aNCA package
+# Computation: Insert a start-time row at the requested start time using the
+# first concentration after dose, then write rows ordered by time.
 
 # Read inputs
-conc  <- as.numeric(read.table("inputs/conc.tsv",  header = TRUE)$conc)
-time  <- as.numeric(read.table("inputs/time.tsv",  header = TRUE)$time)
-start <- as.numeric(read.table("inputs/start.tsv", header = TRUE)$start)
-end   <- as.numeric(read.table("inputs/end.tsv",   header = TRUE)$end)
+conc_vals <- read.table("inputs/conc.tsv", header = TRUE, sep = "\t")$conc
+time_vals <- read.table("inputs/time.tsv", header = TRUE, sep = "\t")$time
+start_val <- read.table("inputs/start.tsv", header = TRUE, sep = "\t")$start
+end_val   <- read.table("inputs/end.tsv",   header = TRUE, sep = "\t")$end
 
-# Apply PKNCA_impute_method_start_c1 logic:
-# If start time is not already in the data, find the first concentration
-# in [start, end] and insert a row at start with that concentration.
-d_conc_time <- data.frame(conc = conc, time = time)
+# Build full data frame
+df <- data.frame(conc = conc_vals, time = time_vals)
 
-if (!any(time == start)) {
-  all_concs <- conc[time >= start & time <= end]
-  all_times <- time[time >= start & time <= end]
-  if (!all(is.na(all_concs))) {
-    c1 <- all_concs[which.min(all_times)]
-    d_conc_time <- rbind(d_conc_time, data.frame(time = start, conc = c1))
-    d_conc_time <- d_conc_time[order(d_conc_time$time), ]
-  }
-}
+# c1: first concentration after dose (first observed concentration)
+c1 <- df$conc[1]
+
+# Create the imputed row at the start time with concentration = c1
+imputed_row <- data.frame(conc = c1, time = start_val)
+
+# Filter original data to the interval (start, end] – exclude any existing
+# point at the exact start time to avoid duplication, then prepend imputed row
+df_interval <- df[df$time > start_val & df$time <= end_val, ]
+
+# Combine imputed start row with interval data and sort by time
+result <- rbind(imputed_row, df_interval)
+result <- result[order(result$time), ]
+rownames(result) <- NULL
 
 # Write output
-dir.create("outputs", showWarnings = FALSE)
-write.csv(d_conc_time[, c("conc", "time")], "outputs/result.csv", row.names = FALSE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```

@@ -209,25 +209,18 @@ if (exists("result_df") && is.data.frame(result_df)) {
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+mean_group_var <- read.delim("inputs/mean_group_var.tsv", stringsAsFactors = FALSE)
+xvar <- read.delim("inputs/xvar.tsv", stringsAsFactors = FALSE)
+plot_data <- read.delim("inputs/plot_data.tsv", stringsAsFactors = FALSE, check.names = FALSE)
 
-plot_data <- read.delim("inputs/plot_data.tsv", sep = "\t", header = TRUE,
-                        stringsAsFactors = FALSE, check.names = FALSE)
-mean_group_var <- read.delim("inputs/mean_group_var.tsv", sep = "\t", header = TRUE,
-                             stringsAsFactors = FALSE, check.names = FALSE)
-xvar <- read.delim("inputs/xvar.tsv", sep = "\t", header = TRUE,
-                   stringsAsFactors = FALSE, check.names = FALSE)
+group_col <- mean_group_var$mean_group_var[[1]]
+time_col <- xvar$xvar[[1]]
 
-group_col <- mean_group_var$mean_group_var[1]
-x_col <- xvar$xvar[1]
-
-result <- unique(plot_data[, c(group_col, x_col), drop = FALSE])
-result <- result[order(result[[group_col]], result[[x_col]]), , drop = FALSE]
-rownames(result) <- NULL
+result <- unique(plot_data[, c(group_col, time_col), drop = FALSE])
 names(result) <- c("ARM", "TIME")
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, quote = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -297,23 +290,16 @@ write.csv(result, "outputs/result.csv", row.names = FALSE, quote = TRUE)
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+mean_group_var <- read.delim("inputs/mean_group_var.tsv", stringsAsFactors = FALSE)
+xvar <- read.delim("inputs/xvar.tsv", stringsAsFactors = FALSE)
+plot_data <- read.delim("inputs/plot_data.tsv", stringsAsFactors = FALSE, check.names = FALSE)
 
-plot_data <- read.delim("inputs/plot_data.tsv", sep = "\t", header = TRUE,
-                        stringsAsFactors = FALSE, check.names = FALSE)
-mean_group_var <- read.delim("inputs/mean_group_var.tsv", sep = "\t", header = TRUE,
-                             stringsAsFactors = FALSE, check.names = FALSE)
-xvar <- read.delim("inputs/xvar.tsv", sep = "\t", header = TRUE,
-                   stringsAsFactors = FALSE, check.names = FALSE)
+group_col <- mean_group_var$mean_group_var[[1]]
+time_col <- xvar$xvar[[1]]
 
-group_col <- mean_group_var$mean_group_var[1]
-x_col <- xvar$xvar[1]
-
-result <- unique(plot_data[, c(group_col, x_col), drop = FALSE])
-result <- result[order(result[[group_col]], result[[x_col]]), , drop = FALSE]
-rownames(result) <- NULL
+result <- unique(plot_data[, c(group_col, time_col), drop = FALSE])
 names(result) <- c("ARM", "TIME")
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, quote = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```

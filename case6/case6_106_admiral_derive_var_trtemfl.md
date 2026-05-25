@@ -95,34 +95,25 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
-
-library(admiral)
-
-input <- read.delim(
-  file = file.path("inputs", "dataset.tsv"),
+input <- utils::read.delim(
+  file = "inputs/dataset.tsv",
   sep = "\t",
   header = TRUE,
+  colClasses = "character",
   stringsAsFactors = FALSE,
-  colClasses = c(
-    USUBJID = "character",
-    TRTSDTM = "character",
-    TRTEDTM = "character",
-    ASTDTM = "character",
-    AENDTM = "character",
-    AEITOXGR = "numeric",
-    AETOXGR = "numeric"
-  )
+  na.strings = c("", "NA")
 )
 
 date_vars <- c("TRTSDTM", "TRTEDTM", "ASTDTM", "AENDTM")
-input[date_vars] <- lapply(input[date_vars], as.Date)
+for (var in date_vars) {
+  input[[var]] <- as.Date(input[[var]])
+}
 
-result <- derive_var_trtemfl(
-  input,
-  start_date = ASTDTM,
-  end_date = AENDTM,
-  trt_start_date = TRTSDTM,
+input$AEITOXGR <- as.numeric(input$AEITOXGR)
+input$AETOXGR <- as.numeric(input$AETOXGR)
+
+result <- admiral::derive_var_trtemfl(
+  dataset = input,
   trt_end_date = TRTEDTM,
   end_window = 0,
   initial_intensity = AEITOXGR,
@@ -135,7 +126,7 @@ result <- result[
 ]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+utils::write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -205,34 +196,25 @@ write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, 
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
-
-library(admiral)
-
-input <- read.delim(
-  file = file.path("inputs", "dataset.tsv"),
+input <- utils::read.delim(
+  file = "inputs/dataset.tsv",
   sep = "\t",
   header = TRUE,
+  colClasses = "character",
   stringsAsFactors = FALSE,
-  colClasses = c(
-    USUBJID = "character",
-    TRTSDTM = "character",
-    TRTEDTM = "character",
-    ASTDTM = "character",
-    AENDTM = "character",
-    AEITOXGR = "numeric",
-    AETOXGR = "numeric"
-  )
+  na.strings = c("", "NA")
 )
 
 date_vars <- c("TRTSDTM", "TRTEDTM", "ASTDTM", "AENDTM")
-input[date_vars] <- lapply(input[date_vars], as.Date)
+for (var in date_vars) {
+  input[[var]] <- as.Date(input[[var]])
+}
 
-result <- derive_var_trtemfl(
-  input,
-  start_date = ASTDTM,
-  end_date = AENDTM,
-  trt_start_date = TRTSDTM,
+input$AEITOXGR <- as.numeric(input$AEITOXGR)
+input$AETOXGR <- as.numeric(input$AETOXGR)
+
+result <- admiral::derive_var_trtemfl(
+  dataset = input,
   trt_end_date = TRTEDTM,
   end_window = 0,
   initial_intensity = AEITOXGR,
@@ -245,5 +227,5 @@ result <- result[
 ]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+utils::write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
 ```

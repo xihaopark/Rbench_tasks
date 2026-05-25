@@ -5,13 +5,13 @@
 - Package: `admiral`
 - Model: `claude-code/claude-sonnet-4-6`
 - Agent: `Claude Code`
-- Status: `PASS`
-- Failure stage: `pass`
+- Status: `NO_OUTPUT`
+- Failure stage: `execution_failure`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-PASS
+NO_OUTPUT
 ```
 
 ## Prompt
@@ -95,50 +95,35 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
+#!/usr/bin/env Rscript
+
 library(admiral)
 library(dplyr)
 
 # Read input dataset
-dataset <- read.table("inputs/dataset.tsv", header = TRUE, sep = "\t",
-                      stringsAsFactors = FALSE)
-dataset$AVAL <- as.numeric(dataset$AVAL)
+dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE,
+                      colClasses = c(USUBJID = "character", PARAMCD = "character", AVAL = "numeric"))
 
-# Create outputs directory
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-# Try using admiral's derive_param_map to add MAP rows to the dataset
-result_full <- tryCatch({
-  derive_param_map(
-    dataset,
-    by_vars = exprs(USUBJID),
-    set_values_to = exprs(PARAMCD = "MAP"),
-    sysbp_code = "SYSBP",
-    diabp_code = "DIABP"
+# Derive MAP parameter using admiral's derive_param_computed
+# MAP = (2 * DIABP + SYSBP) / 3
+result <- derive_param_computed(
+  dataset,
+  by_vars    = exprs(USUBJID),
+  parameters = c("SYSBP", "DIABP"),
+  set_values_to = exprs(
+    AVAL    = (2 * AVAL.DIABP + AVAL.SYSBP) / 3,
+    PARAMCD = "MAP"
   )
-}, error = function(e) {
-  message("derive_param_map failed: ", e$message, " - computing manually")
-  # Manual computation
-  sysbp <- dataset[dataset$PARAMCD == "SYSBP", c("USUBJID", "AVAL")]
-  names(sysbp)[2] <- "AVAL_SYSBP"
-  diabp <- dataset[dataset$PARAMCD == "DIABP", c("USUBJID", "AVAL")]
-  names(diabp)[2] <- "AVAL_DIABP"
-  merged <- merge(sysbp, diabp, by = "USUBJID")
-  map_rows <- data.frame(
-    USUBJID = merged$USUBJID,
-    PARAMCD = "MAP",
-    AVAL = (2 * merged$AVAL_DIABP + merged$AVAL_SYSBP) / 3,
-    stringsAsFactors = FALSE
-  )
-  rbind(dataset, map_rows)
-})
+)
 
-# Filter to MAP rows only and select required columns
-result <- result_full[result_full$PARAMCD == "MAP", c("USUBJID", "PARAMCD", "AVAL")]
+# Keep only MAP rows with required columns
+map_rows <- result %>%
+  filter(PARAMCD == "MAP") %>%
+  select(USUBJID, PARAMCD, AVAL)
 
 # Write output
-write.csv(result, "outputs/result.csv", row.names = FALSE)
-message("Done. Rows written: ", nrow(result))
-print(result)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(map_rows, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -154,68 +139,92 @@ print(result)
 ### LLM Output
 No LLM output artifact was produced.
 
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Error in assert_parameters_argument(constant_parameters, optional = TRUE) : 
+  unused argument (optional = TRUE)
+Calls: derive_param_computed
+Execution halted
+```
+
 ## Evaluation Result
 ```json
 {
-  "status": "PASS",
-  "tier": "pass",
-  "failure_stage": "pass",
-  "pass": true,
-  "score": 1.0,
-  "message": "",
+  "status": "NO_OUTPUT",
+  "tier": "exec_fail",
+  "failure_stage": "execution_failure",
+  "pass": false,
+  "score": 0.0,
+  "message": "Failed at case_embedded",
   "validation_diagnostics": {
-    "failure_stage": "pass",
-    "tier": "pass",
+    "failure_stage": "execution_failure",
+    "tier": "exec_fail",
     "case_count": 1,
-    "failed_case": null
+    "failed_case": "case_embedded"
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
+#!/usr/bin/env Rscript
+
 library(admiral)
 library(dplyr)
 
 # Read input dataset
-dataset <- read.table("inputs/dataset.tsv", header = TRUE, sep = "\t",
-                      stringsAsFactors = FALSE)
-dataset$AVAL <- as.numeric(dataset$AVAL)
+dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE,
+                      colClasses = c(USUBJID = "character", PARAMCD = "character", AVAL = "numeric"))
 
-# Create outputs directory
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-# Try using admiral's derive_param_map to add MAP rows to the dataset
-result_full <- tryCatch({
-  derive_param_map(
-    dataset,
-    by_vars = exprs(USUBJID),
-    set_values_to = exprs(PARAMCD = "MAP"),
-    sysbp_code = "SYSBP",
-    diabp_code = "DIABP"
+# Derive MAP parameter using admiral's derive_param_computed
+# MAP = (2 * DIABP + SYSBP) / 3
+result <- derive_param_computed(
+  dataset,
+  by_vars    = exprs(USUBJID),
+  parameters = c("SYSBP", "DIABP"),
+  set_values_to = exprs(
+    AVAL    = (2 * AVAL.DIABP + AVAL.SYSBP) / 3,
+    PARAMCD = "MAP"
   )
-}, error = function(e) {
-  message("derive_param_map failed: ", e$message, " - computing manually")
-  # Manual computation
-  sysbp <- dataset[dataset$PARAMCD == "SYSBP", c("USUBJID", "AVAL")]
-  names(sysbp)[2] <- "AVAL_SYSBP"
-  diabp <- dataset[dataset$PARAMCD == "DIABP", c("USUBJID", "AVAL")]
-  names(diabp)[2] <- "AVAL_DIABP"
-  merged <- merge(sysbp, diabp, by = "USUBJID")
-  map_rows <- data.frame(
-    USUBJID = merged$USUBJID,
-    PARAMCD = "MAP",
-    AVAL = (2 * merged$AVAL_DIABP + merged$AVAL_SYSBP) / 3,
-    stringsAsFactors = FALSE
-  )
-  rbind(dataset, map_rows)
-})
+)
 
-# Filter to MAP rows only and select required columns
-result <- result_full[result_full$PARAMCD == "MAP", c("USUBJID", "PARAMCD", "AVAL")]
+# Keep only MAP rows with required columns
+map_rows <- result %>%
+  filter(PARAMCD == "MAP") %>%
+  select(USUBJID, PARAMCD, AVAL)
 
 # Write output
-write.csv(result, "outputs/result.csv", row.names = FALSE)
-message("Done. Rows written: ", nrow(result))
-print(result)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(map_rows, "outputs/result.csv", row.names = FALSE)
 ```

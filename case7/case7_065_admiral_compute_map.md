@@ -3,8 +3,8 @@
 ## Metadata
 - Task ID: `pharmaverse/admiral/compute_map`
 - Package: `admiral`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -54,6 +54,29 @@ Computation: Call admiral::compute_map with diabp, sysbp, and hr from the aligne
 
 Required columns for result.csv: diabp, sysbp, hr, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### diabp.tsv
+diabp
+80
+85
+70
+95
+
+### hr.tsv
+hr
+60
+75
+90
+110
+
+### sysbp.tsv
+sysbp
+120
+135
+110
+160
 ```
 
 ## Input
@@ -104,26 +127,18 @@ write.csv(data.frame(diabp = diabp, sysbp = sysbp, hr = hr, result = result), fi
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+library(admiral)
 
-diabp_df <- read.delim("inputs/diabp.tsv", stringsAsFactors = FALSE)
-sysbp_df <- read.delim("inputs/sysbp.tsv", stringsAsFactors = FALSE)
-hr_df <- read.delim("inputs/hr.tsv", stringsAsFactors = FALSE)
-
-diabp <- diabp_df$diabp
-sysbp <- sysbp_df$sysbp
-hr <- hr_df$hr
+diabp <- read.delim("inputs/diabp.tsv")$diabp
+hr    <- read.delim("inputs/hr.tsv")$hr
+sysbp <- read.delim("inputs/sysbp.tsv")$sysbp
 
 result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
 
-output <- data.frame(
-  diabp = diabp,
-  sysbp = sysbp,
-  hr = hr,
-  result = result
-)
+dir.create("outputs", showWarnings = FALSE)
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+output <- data.frame(diabp = diabp, sysbp = sysbp, hr = hr, result = result)
+
 write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```
 
@@ -140,39 +155,7 @@ write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"diabp","sysbp","hr","result"
-80,120,60,92.7395237619899
-85,135,75,103.240653638352
-70,110,90,85.9752811815739
-95,160,110,123.186790537475
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
@@ -194,25 +177,17 @@ write.csv(output, "outputs/result.csv", row.names = FALSE)
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+library(admiral)
 
-diabp_df <- read.delim("inputs/diabp.tsv", stringsAsFactors = FALSE)
-sysbp_df <- read.delim("inputs/sysbp.tsv", stringsAsFactors = FALSE)
-hr_df <- read.delim("inputs/hr.tsv", stringsAsFactors = FALSE)
-
-diabp <- diabp_df$diabp
-sysbp <- sysbp_df$sysbp
-hr <- hr_df$hr
+diabp <- read.delim("inputs/diabp.tsv")$diabp
+hr    <- read.delim("inputs/hr.tsv")$hr
+sysbp <- read.delim("inputs/sysbp.tsv")$sysbp
 
 result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
 
-output <- data.frame(
-  diabp = diabp,
-  sysbp = sysbp,
-  hr = hr,
-  result = result
-)
+dir.create("outputs", showWarnings = FALSE)
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+output <- data.frame(diabp = diabp, sysbp = sysbp, hr = hr, result = result)
+
 write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```

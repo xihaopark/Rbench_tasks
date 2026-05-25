@@ -5,13 +5,13 @@
 - Package: `admiral`
 - Model: `claude-code/claude-sonnet-4-6`
 - Agent: `Claude Code`
-- Status: `FAIL`
-- Failure stage: `value_mismatch`
+- Status: `NO_OUTPUT`
+- Failure stage: `execution_failure`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-FAIL
+NO_OUTPUT
 ```
 
 ## Prompt
@@ -144,92 +144,110 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 library(admiral)
 
 # Read inputs
-treatment_duration_df <- read.table("inputs/treatment_duration.tsv", header = TRUE, sep = "\t",
-                                    stringsAsFactors = FALSE)
-xxtpt_df              <- read.table("inputs/xxtpt.tsv",               header = TRUE, sep = "\t",
-                                    stringsAsFactors = FALSE)
+treatment_duration_df <- read.delim("inputs/treatment_duration.tsv", stringsAsFactors = FALSE)
+xxtpt_df              <- read.delim("inputs/xxtpt.tsv", stringsAsFactors = FALSE)
 
-# Combine row-wise (one row per timepoint, all share the same treatment duration)
+# Combine into a single data frame (row-wise)
 df <- data.frame(
   xxtpt              = xxtpt_df$xxtpt,
   treatment_duration = treatment_duration_df$treatment_duration,
   stringsAsFactors   = FALSE
 )
 
-# Helper: convert a numeric value + unit string to hours
-parse_to_hours <- function(num_str, unit_str) {
-  val  <- as.numeric(num_str)
-  unit <- toupper(trimws(unit_str))
-  if (grepl("^MIN",  unit)) return(val / 60)
-  if (grepl("^H",    unit)) return(val)        # HOUR, HOURS, H
-  if (grepl("^DAY",  unit)) return(val * 24)
-  if (grepl("^WEEK", unit)) return(val * 168)
-  return(val)  # unknown unit → assume hours
+# ---------------------------------------------------------------------------
+# Step 1: Try admiral's convert_xxtpt_to_hours first.
+# Handles: PRE-DOSE, END OF TREATMENT, Nh before/after start of treatment,
+#   N min pre EOT, Nh/min after EOI/EOT, etc.
+# ---------------------------------------------------------------------------
+df$result <- convert_xxtpt_to_hours(
+  xxtpt              = df$xxtpt,
+  treatment_duration = df$treatment_duration
+)
+
+# ---------------------------------------------------------------------------
+# Step 2: Custom fallback for the patterns admiral does not cover.
+# Helper: convert value + unit string into hours
+# ---------------------------------------------------------------------------
+parse_hours <- function(value_str, unit_str) {
+  val  <- as.numeric(value_str)
+  unit <- tolower(trimws(unit_str))
+  if (substr(unit, 1, 1) == "m") val / 60 else val
 }
 
-# Convert a single xxtpt label to hours given a treatment duration value
-convert_one <- function(pattern, duration) {
-  p <- toupper(trimws(pattern))
+na_idx <- which(is.na(df$result))
 
-  # ── Patterns that map to 0 (treatment start / pre-dose) ──────────────────
-  if (grepl("^(START OF TREATMENT|PREDOSE|PRE-DOSE|PRE DOSE|ZERO|BASELINE)$", p)) {
-    return(0)
+for (i in na_idx) {
+  tpt <- toupper(trimws(df$xxtpt[i]))
+  dur <- df$treatment_duration[i]
+
+  # ---- Start / zero / pre-dose -> 0 ----------------------------------------
+  start_pat <- paste0(
+    "^(START\\s+OF\\s+(TREATMENT|INFUSION)|TREATMENT\\s+START|",
+    "ZERO|START|PREDOSE|PRE[- ]?DOSE|PRE[- ]?(TREATMENT|INFUSION)|",
+    "BEFORE|PRE-?INF(USION)?)$"
+  )
+  if (grepl(start_pat, tpt, perl = TRUE)) {
+    df$result[i] <- 0
+    next
   }
 
-  # ── X UNIT AFTER START  (positive offset from start) ─────────────────────
-  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+AFTER\\s+START",
-               p, perl = TRUE)
-  if (m != -1) {
-    sub_str <- regmatches(p, m)
-    parts   <- regmatches(sub_str,
-                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
-    return(parse_to_hours(parts[2], parts[3]))
+  # ---- N UNIT after start ---------------------------------------------------
+  after_start_pat <- paste0(
+    "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)\\s+",
+    "(?:AFTER|POST)\\s+START(?:\\s+OF\\s+(?:TREATMENT|INFUSION))?$"
+  )
+  if (grepl(after_start_pat, tpt, perl = TRUE)) {
+    parts <- regmatches(tpt, regexec(
+      "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)\\s+(?:AFTER|POST)\\s+START",
+      tpt, perl = TRUE))[[1]]
+    df$result[i] <- parse_hours(parts[2], parts[3])
+    next
   }
 
-  # ── X UNIT BEFORE END  (offset subtracted from end) ──────────────────────
-  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+BEFORE\\s+END",
-               p, perl = TRUE)
-  if (m != -1) {
-    sub_str <- regmatches(p, m)
-    parts   <- regmatches(sub_str,
-                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
-    return(duration - parse_to_hours(parts[2], parts[3]))
+  # ---- N UNIT before end / pre-EOT -> treatment_duration - offset -----------
+  before_end_pat <- paste0(
+    "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)\\s+",
+    "(?:BEFORE|PRIOR|PRE)\\s+(?:END(?:\\s+OF\\s+(?:TREATMENT|INFUSION))?|EO[IT])$"
+  )
+  if (grepl(before_end_pat, tpt, perl = TRUE)) {
+    parts <- regmatches(tpt, regexec(
+      "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)",
+      tpt, perl = TRUE))[[1]]
+    df$result[i] <- dur - parse_hours(parts[2], parts[3])
+    next
   }
 
-  # ── PRE-EOT / PRE EOT  (just before end, no explicit offset → end) ───────
-  if (grepl("^PRE.?EOT$|^PRE.?END OF TREATMENT$", p)) {
-    return(duration)
+  # ---- Pure end markers -> treatment_duration -------------------------------
+  end_pat <- paste0(
+    "^(END\\s+OF\\s+(TREATMENT|INFUSION)|EOT|EOI|",
+    "AFTER\\s+END\\s+OF\\s+(TREATMENT|INFUSION))$"
+  )
+  if (grepl(end_pat, tpt, perl = TRUE)) {
+    df$result[i] <- dur
+    next
   }
 
-  # ── END OF TREATMENT / EOT → treatment duration ──────────────────────────
-  if (grepl("^(END OF TREATMENT|EOT|EOI|END OF INFUSION)$", p)) {
-    return(duration)
+  # ---- N UNIT after end -> treatment_duration + offset ----------------------
+  after_end_pat <- paste0(
+    "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)\\s+",
+    "(?:AFTER|POST)\\s+(?:END(?:\\s+OF\\s+(?:TREATMENT|INFUSION))?|EO[IT])$"
+  )
+  if (grepl(after_end_pat, tpt, perl = TRUE)) {
+    parts <- regmatches(tpt, regexec(
+      "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)",
+      tpt, perl = TRUE))[[1]]
+    df$result[i] <- dur + parse_hours(parts[2], parts[3])
+    next
   }
-
-  # ── X UNIT AFTER END  (positive offset beyond end) ───────────────────────
-  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+AFTER\\s+END",
-               p, perl = TRUE)
-  if (m != -1) {
-    sub_str <- regmatches(p, m)
-    parts   <- regmatches(sub_str,
-                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
-    return(duration + parse_to_hours(parts[2], parts[3]))
-  }
-
-  # ── Fallback: unrecognised pattern ───────────────────────────────────────
-  warning(sprintf("Unrecognised timepoint pattern: '%s'", pattern))
-  return(NA_real_)
 }
 
-# Apply conversion row-by-row
-df$result <- mapply(convert_one, df$xxtpt, df$treatment_duration)
-
+# ---------------------------------------------------------------------------
 # Write output
-dir.create("outputs", showWarnings = FALSE)
-write.csv(df, "outputs/result.csv", row.names = FALSE)
-
-# Quick diagnostic print
-print(df)
+# ---------------------------------------------------------------------------
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(df[, c("xxtpt", "treatment_duration", "result")],
+          "outputs/result.csv",
+          row.names = FALSE)
 ```
 
 ## Output
@@ -250,18 +268,46 @@ print(df)
 ### LLM Output
 No LLM output artifact was produced.
 
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+Error in convert_special_cases(xxtpt, result, na_idx, treatment_duration) : 
+  unused arguments (result, na_idx, treatment_duration)
+Calls: convert_xxtpt_to_hours
+Execution halted
+```
+
 ## Evaluation Result
 ```json
 {
-  "status": "FAIL",
-  "tier": "schema_ok",
-  "failure_stage": "value_mismatch",
+  "status": "NO_OUTPUT",
+  "tier": "exec_fail",
+  "failure_stage": "execution_failure",
   "pass": false,
   "score": 0.0,
   "message": "Failed at case_embedded",
   "validation_diagnostics": {
-    "failure_stage": "value_mismatch",
-    "tier": "schema_ok",
+    "failure_stage": "execution_failure",
+    "tier": "exec_fail",
     "case_count": 1,
     "failed_case": "case_embedded"
   }
@@ -273,90 +319,108 @@ No LLM output artifact was produced.
 library(admiral)
 
 # Read inputs
-treatment_duration_df <- read.table("inputs/treatment_duration.tsv", header = TRUE, sep = "\t",
-                                    stringsAsFactors = FALSE)
-xxtpt_df              <- read.table("inputs/xxtpt.tsv",               header = TRUE, sep = "\t",
-                                    stringsAsFactors = FALSE)
+treatment_duration_df <- read.delim("inputs/treatment_duration.tsv", stringsAsFactors = FALSE)
+xxtpt_df              <- read.delim("inputs/xxtpt.tsv", stringsAsFactors = FALSE)
 
-# Combine row-wise (one row per timepoint, all share the same treatment duration)
+# Combine into a single data frame (row-wise)
 df <- data.frame(
   xxtpt              = xxtpt_df$xxtpt,
   treatment_duration = treatment_duration_df$treatment_duration,
   stringsAsFactors   = FALSE
 )
 
-# Helper: convert a numeric value + unit string to hours
-parse_to_hours <- function(num_str, unit_str) {
-  val  <- as.numeric(num_str)
-  unit <- toupper(trimws(unit_str))
-  if (grepl("^MIN",  unit)) return(val / 60)
-  if (grepl("^H",    unit)) return(val)        # HOUR, HOURS, H
-  if (grepl("^DAY",  unit)) return(val * 24)
-  if (grepl("^WEEK", unit)) return(val * 168)
-  return(val)  # unknown unit → assume hours
+# ---------------------------------------------------------------------------
+# Step 1: Try admiral's convert_xxtpt_to_hours first.
+# Handles: PRE-DOSE, END OF TREATMENT, Nh before/after start of treatment,
+#   N min pre EOT, Nh/min after EOI/EOT, etc.
+# ---------------------------------------------------------------------------
+df$result <- convert_xxtpt_to_hours(
+  xxtpt              = df$xxtpt,
+  treatment_duration = df$treatment_duration
+)
+
+# ---------------------------------------------------------------------------
+# Step 2: Custom fallback for the patterns admiral does not cover.
+# Helper: convert value + unit string into hours
+# ---------------------------------------------------------------------------
+parse_hours <- function(value_str, unit_str) {
+  val  <- as.numeric(value_str)
+  unit <- tolower(trimws(unit_str))
+  if (substr(unit, 1, 1) == "m") val / 60 else val
 }
 
-# Convert a single xxtpt label to hours given a treatment duration value
-convert_one <- function(pattern, duration) {
-  p <- toupper(trimws(pattern))
+na_idx <- which(is.na(df$result))
 
-  # ── Patterns that map to 0 (treatment start / pre-dose) ──────────────────
-  if (grepl("^(START OF TREATMENT|PREDOSE|PRE-DOSE|PRE DOSE|ZERO|BASELINE)$", p)) {
-    return(0)
+for (i in na_idx) {
+  tpt <- toupper(trimws(df$xxtpt[i]))
+  dur <- df$treatment_duration[i]
+
+  # ---- Start / zero / pre-dose -> 0 ----------------------------------------
+  start_pat <- paste0(
+    "^(START\\s+OF\\s+(TREATMENT|INFUSION)|TREATMENT\\s+START|",
+    "ZERO|START|PREDOSE|PRE[- ]?DOSE|PRE[- ]?(TREATMENT|INFUSION)|",
+    "BEFORE|PRE-?INF(USION)?)$"
+  )
+  if (grepl(start_pat, tpt, perl = TRUE)) {
+    df$result[i] <- 0
+    next
   }
 
-  # ── X UNIT AFTER START  (positive offset from start) ─────────────────────
-  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+AFTER\\s+START",
-               p, perl = TRUE)
-  if (m != -1) {
-    sub_str <- regmatches(p, m)
-    parts   <- regmatches(sub_str,
-                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
-    return(parse_to_hours(parts[2], parts[3]))
+  # ---- N UNIT after start ---------------------------------------------------
+  after_start_pat <- paste0(
+    "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)\\s+",
+    "(?:AFTER|POST)\\s+START(?:\\s+OF\\s+(?:TREATMENT|INFUSION))?$"
+  )
+  if (grepl(after_start_pat, tpt, perl = TRUE)) {
+    parts <- regmatches(tpt, regexec(
+      "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)\\s+(?:AFTER|POST)\\s+START",
+      tpt, perl = TRUE))[[1]]
+    df$result[i] <- parse_hours(parts[2], parts[3])
+    next
   }
 
-  # ── X UNIT BEFORE END  (offset subtracted from end) ──────────────────────
-  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+BEFORE\\s+END",
-               p, perl = TRUE)
-  if (m != -1) {
-    sub_str <- regmatches(p, m)
-    parts   <- regmatches(sub_str,
-                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
-    return(duration - parse_to_hours(parts[2], parts[3]))
+  # ---- N UNIT before end / pre-EOT -> treatment_duration - offset -----------
+  before_end_pat <- paste0(
+    "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)\\s+",
+    "(?:BEFORE|PRIOR|PRE)\\s+(?:END(?:\\s+OF\\s+(?:TREATMENT|INFUSION))?|EO[IT])$"
+  )
+  if (grepl(before_end_pat, tpt, perl = TRUE)) {
+    parts <- regmatches(tpt, regexec(
+      "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)",
+      tpt, perl = TRUE))[[1]]
+    df$result[i] <- dur - parse_hours(parts[2], parts[3])
+    next
   }
 
-  # ── PRE-EOT / PRE EOT  (just before end, no explicit offset → end) ───────
-  if (grepl("^PRE.?EOT$|^PRE.?END OF TREATMENT$", p)) {
-    return(duration)
+  # ---- Pure end markers -> treatment_duration -------------------------------
+  end_pat <- paste0(
+    "^(END\\s+OF\\s+(TREATMENT|INFUSION)|EOT|EOI|",
+    "AFTER\\s+END\\s+OF\\s+(TREATMENT|INFUSION))$"
+  )
+  if (grepl(end_pat, tpt, perl = TRUE)) {
+    df$result[i] <- dur
+    next
   }
 
-  # ── END OF TREATMENT / EOT → treatment duration ──────────────────────────
-  if (grepl("^(END OF TREATMENT|EOT|EOI|END OF INFUSION)$", p)) {
-    return(duration)
+  # ---- N UNIT after end -> treatment_duration + offset ----------------------
+  after_end_pat <- paste0(
+    "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)\\s+",
+    "(?:AFTER|POST)\\s+(?:END(?:\\s+OF\\s+(?:TREATMENT|INFUSION))?|EO[IT])$"
+  )
+  if (grepl(after_end_pat, tpt, perl = TRUE)) {
+    parts <- regmatches(tpt, regexec(
+      "^(\\d+(?:\\.\\d+)?)\\s*(MIN(?:UTE)?S?|H(?:OUR)?S?)",
+      tpt, perl = TRUE))[[1]]
+    df$result[i] <- dur + parse_hours(parts[2], parts[3])
+    next
   }
-
-  # ── X UNIT AFTER END  (positive offset beyond end) ───────────────────────
-  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+AFTER\\s+END",
-               p, perl = TRUE)
-  if (m != -1) {
-    sub_str <- regmatches(p, m)
-    parts   <- regmatches(sub_str,
-                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
-    return(duration + parse_to_hours(parts[2], parts[3]))
-  }
-
-  # ── Fallback: unrecognised pattern ───────────────────────────────────────
-  warning(sprintf("Unrecognised timepoint pattern: '%s'", pattern))
-  return(NA_real_)
 }
 
-# Apply conversion row-by-row
-df$result <- mapply(convert_one, df$xxtpt, df$treatment_duration)
-
+# ---------------------------------------------------------------------------
 # Write output
-dir.create("outputs", showWarnings = FALSE)
-write.csv(df, "outputs/result.csv", row.names = FALSE)
-
-# Quick diagnostic print
-print(df)
+# ---------------------------------------------------------------------------
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(df[, c("xxtpt", "treatment_duration", "result")],
+          "outputs/result.csv",
+          row.names = FALSE)
 ```

@@ -94,50 +94,52 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
 dataset <- read.delim(
-  file.path("inputs", "dataset.tsv"),
+  "inputs/dataset.tsv",
   sep = "\t",
-  header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE,
-  colClasses = c(USUBJID = "character")
+  colClasses = c(USUBJID = "character", AVISITN = "numeric", AVAL = "numeric")
 )
-
-filter_spec <- read.delim(
-  file.path("inputs", "filter.tsv"),
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-
+filter_spec <- read.delim("inputs/filter.tsv", sep = "\t", stringsAsFactors = FALSE)
 filter_expr <- parse(text = filter_spec$filter[1])[[1]]
-selected <- eval(filter_expr, envir = dataset, enclos = parent.frame())
-selected <- as.logical(selected)
-selected[is.na(selected)] <- FALSE
 
-dataset$.row_id <- seq_len(nrow(dataset))
-dataset$.selected <- selected
-
-kept_by_subject <- lapply(split(dataset, dataset$USUBJID, drop = TRUE), function(subject_rows) {
-  subject_rows <- subject_rows[order(subject_rows$AVISITN, subject_rows$.row_id), ]
-  first_selected <- which(subject_rows$.selected)[1]
-
-  if (is.na(first_selected)) {
-    return(subject_rows[FALSE, ])
+derive_through_first_selected_visit <- function(dataset) {
+  eval_filter <- function(data) {
+    selected <- eval(filter_expr, envir = data, enclos = parent.frame())
+    if (length(selected) == 1L) {
+      selected <- rep(selected, nrow(data))
+    }
+    selected[is.na(selected)] <- FALSE
+    as.logical(selected)
   }
 
-  selected_visit <- subject_rows$AVISITN[first_selected]
-  subject_rows[subject_rows$AVISITN <= selected_visit, ]
-})
+  keep_subject <- function(data) {
+    selected <- eval_filter(data)
+    if (!any(selected)) {
+      return(data[FALSE, , drop = FALSE])
+    }
 
-kept <- do.call(rbind, kept_by_subject)
+    first_selected_visit <- min(data$AVISITN[selected], na.rm = TRUE)
+    data[data$AVISITN <= first_selected_visit, , drop = FALSE]
+  }
 
-result <- kept[order(kept$.row_id), c("USUBJID", "AVISITN", "AVAL")]
+  pieces <- split(dataset, dataset$USUBJID, drop = TRUE)
+  kept <- lapply(pieces, keep_subject)
+  result <- do.call(rbind, kept)
+  rownames(result) <- NULL
+  result
+}
 
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "", quote = FALSE)
+result <- admiral::slice_derivation(
+  dataset,
+  derivation = derive_through_first_selected_visit,
+  admiral::derivation_slice(filter = TRUE)
+)
+
+result <- result[, c("USUBJID", "AVISITN", "AVAL")]
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, quote = TRUE)
 ```
 
 ## Output
@@ -156,9 +158,9 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 #### `result.csv`
 
 ```csv
-USUBJID,AVISITN,AVAL
-01,1,10
-02,1,9
+"USUBJID","AVISITN","AVAL"
+"01",1,10
+"02",1,9
 ```
 
 #### `case_01/stderr.txt`
@@ -207,48 +209,50 @@ USUBJID,AVISITN,AVAL
 ```text
 #!/usr/bin/env Rscript
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
 dataset <- read.delim(
-  file.path("inputs", "dataset.tsv"),
+  "inputs/dataset.tsv",
   sep = "\t",
-  header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE,
-  colClasses = c(USUBJID = "character")
+  colClasses = c(USUBJID = "character", AVISITN = "numeric", AVAL = "numeric")
 )
-
-filter_spec <- read.delim(
-  file.path("inputs", "filter.tsv"),
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-
+filter_spec <- read.delim("inputs/filter.tsv", sep = "\t", stringsAsFactors = FALSE)
 filter_expr <- parse(text = filter_spec$filter[1])[[1]]
-selected <- eval(filter_expr, envir = dataset, enclos = parent.frame())
-selected <- as.logical(selected)
-selected[is.na(selected)] <- FALSE
 
-dataset$.row_id <- seq_len(nrow(dataset))
-dataset$.selected <- selected
-
-kept_by_subject <- lapply(split(dataset, dataset$USUBJID, drop = TRUE), function(subject_rows) {
-  subject_rows <- subject_rows[order(subject_rows$AVISITN, subject_rows$.row_id), ]
-  first_selected <- which(subject_rows$.selected)[1]
-
-  if (is.na(first_selected)) {
-    return(subject_rows[FALSE, ])
+derive_through_first_selected_visit <- function(dataset) {
+  eval_filter <- function(data) {
+    selected <- eval(filter_expr, envir = data, enclos = parent.frame())
+    if (length(selected) == 1L) {
+      selected <- rep(selected, nrow(data))
+    }
+    selected[is.na(selected)] <- FALSE
+    as.logical(selected)
   }
 
-  selected_visit <- subject_rows$AVISITN[first_selected]
-  subject_rows[subject_rows$AVISITN <= selected_visit, ]
-})
+  keep_subject <- function(data) {
+    selected <- eval_filter(data)
+    if (!any(selected)) {
+      return(data[FALSE, , drop = FALSE])
+    }
 
-kept <- do.call(rbind, kept_by_subject)
+    first_selected_visit <- min(data$AVISITN[selected], na.rm = TRUE)
+    data[data$AVISITN <= first_selected_visit, , drop = FALSE]
+  }
 
-result <- kept[order(kept$.row_id), c("USUBJID", "AVISITN", "AVAL")]
+  pieces <- split(dataset, dataset$USUBJID, drop = TRUE)
+  kept <- lapply(pieces, keep_subject)
+  result <- do.call(rbind, kept)
+  rownames(result) <- NULL
+  result
+}
 
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "", quote = FALSE)
+result <- admiral::slice_derivation(
+  dataset,
+  derivation = derive_through_first_selected_visit,
+  admiral::derivation_slice(filter = TRUE)
+)
+
+result <- result[, c("USUBJID", "AVISITN", "AVAL")]
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, quote = TRUE)
 ```

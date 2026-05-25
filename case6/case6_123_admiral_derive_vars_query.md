@@ -95,52 +95,40 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 #!/usr/bin/env Rscript
 
 dataset <- read.delim(
-  file = "inputs/dataset.tsv",
+  file = file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE,
   colClasses = "character",
-  na.strings = c("", "NA")
+  check.names = FALSE
 )
 
 queries <- read.delim(
-  file = "inputs/dataset_queries.tsv",
+  file = file.path("inputs", "dataset_queries.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE,
   colClasses = "character",
-  na.strings = c("", "NA")
+  check.names = FALSE
 )
 
-for (i in seq_len(nrow(queries))) {
-  srcvar <- queries$SRCVAR[i]
-  termchar <- queries$TERMCHAR[i]
-  newvar <- queries$NEWVAR[i]
+for (idx in seq_len(nrow(queries))) {
+  src_var <- queries$SRCVAR[idx]
+  term <- queries$TERMCHAR[idx]
+  new_var <- queries$NEWVAR[idx]
 
-  if (!srcvar %in% names(dataset)) {
-    stop(sprintf("Source variable '%s' was not found in dataset.tsv", srcvar))
+  if (!src_var %in% names(dataset)) {
+    stop(sprintf("Source variable '%s' is not present in dataset.tsv", src_var))
   }
 
-  matches <- !is.na(dataset[[srcvar]]) & dataset[[srcvar]] == termchar
-  dataset[[newvar]] <- ifelse(matches, "Y", "N")
+  dataset[[new_var]] <- ifelse(!is.na(dataset[[src_var]]) & dataset[[src_var]] == term, "Y", "N")
 }
 
-required_columns <- c("USUBJID", "AETERM", "AEREL", "AESEV", queries$NEWVAR)
-missing_columns <- setdiff(required_columns, names(dataset))
-
-if (length(missing_columns) > 0) {
-  stop(sprintf(
-    "Required column(s) missing from result: %s",
-    paste(missing_columns, collapse = ", ")
-  ))
-}
-
-result <- dataset[, required_columns, drop = FALSE]
+required_cols <- c("USUBJID", "AETERM", "AEREL", "AESEV", "CQ01FL", "CQ02FL")
+result <- dataset[, required_cols, drop = FALSE]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -211,50 +199,38 @@ write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
 #!/usr/bin/env Rscript
 
 dataset <- read.delim(
-  file = "inputs/dataset.tsv",
+  file = file.path("inputs", "dataset.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE,
   colClasses = "character",
-  na.strings = c("", "NA")
+  check.names = FALSE
 )
 
 queries <- read.delim(
-  file = "inputs/dataset_queries.tsv",
+  file = file.path("inputs", "dataset_queries.tsv"),
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
-  check.names = FALSE,
   colClasses = "character",
-  na.strings = c("", "NA")
+  check.names = FALSE
 )
 
-for (i in seq_len(nrow(queries))) {
-  srcvar <- queries$SRCVAR[i]
-  termchar <- queries$TERMCHAR[i]
-  newvar <- queries$NEWVAR[i]
+for (idx in seq_len(nrow(queries))) {
+  src_var <- queries$SRCVAR[idx]
+  term <- queries$TERMCHAR[idx]
+  new_var <- queries$NEWVAR[idx]
 
-  if (!srcvar %in% names(dataset)) {
-    stop(sprintf("Source variable '%s' was not found in dataset.tsv", srcvar))
+  if (!src_var %in% names(dataset)) {
+    stop(sprintf("Source variable '%s' is not present in dataset.tsv", src_var))
   }
 
-  matches <- !is.na(dataset[[srcvar]]) & dataset[[srcvar]] == termchar
-  dataset[[newvar]] <- ifelse(matches, "Y", "N")
+  dataset[[new_var]] <- ifelse(!is.na(dataset[[src_var]]) & dataset[[src_var]] == term, "Y", "N")
 }
 
-required_columns <- c("USUBJID", "AETERM", "AEREL", "AESEV", queries$NEWVAR)
-missing_columns <- setdiff(required_columns, names(dataset))
-
-if (length(missing_columns) > 0) {
-  stop(sprintf(
-    "Required column(s) missing from result: %s",
-    paste(missing_columns, collapse = ", ")
-  ))
-}
-
-result <- dataset[, required_columns, drop = FALSE]
+required_cols <- c("USUBJID", "AETERM", "AEREL", "AESEV", "CQ01FL", "CQ02FL")
+result <- dataset[, required_cols, drop = FALSE]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```

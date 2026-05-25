@@ -110,62 +110,72 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 ```r
 #!/usr/bin/env Rscript
 
-read_tsv <- function(path) {
-  read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    check.names = FALSE,
-    colClasses = "character",
-    na.strings = "NA",
-    blank.lines.skip = FALSE,
-    strip.white = FALSE
-  )
+read_single_column_tsv <- function(path, column_name) {
+  lines <- readLines(path, warn = FALSE)
+  if (length(lines) == 0L) {
+    stop("Input file is empty: ", path)
+  }
+
+  header <- strsplit(lines[[1L]], "\t", fixed = TRUE)[[1L]]
+  column_index <- match(column_name, header)
+  if (is.na(column_index)) {
+    stop("Required column not found: ", column_name)
+  }
+
+  if (length(lines) == 1L) {
+    return(character())
+  }
+
+  values <- vapply(lines[-1L], function(line) {
+    fields <- strsplit(line, "\t", fixed = TRUE)[[1L]]
+    if (length(fields) < column_index) "" else fields[[column_index]]
+  }, character(1L), USE.NAMES = FALSE)
+
+  values[values == "NA"] <- NA_character_
+  values
 }
 
 remove_impute_token <- function(value, target) {
   if (is.na(value)) {
     return(NA_character_)
   }
-  if (is.na(target) || identical(target, "")) {
-    return(value)
-  }
   if (identical(value, "")) {
     return("")
   }
-
-  delimiter <- if (grepl(",", value, fixed = TRUE)) "," else " "
-  pieces <- if (identical(delimiter, ",")) {
-    strsplit(value, ",", fixed = TRUE)[[1]]
-  } else {
-    strsplit(value, "[[:space:]]+")[[1]]
+  if (is.na(target) || identical(target, "")) {
+    return(value)
   }
 
-  pieces <- trimws(pieces)
-  pieces <- pieces[!is.na(pieces) & pieces != "" & pieces != target]
-  paste(pieces, collapse = delimiter)
+  has_comma <- grepl(",", value, fixed = TRUE)
+  tokens <- if (has_comma) {
+    strsplit(value, "\\s*,\\s*")[[1L]]
+  } else {
+    strsplit(trimws(value), "\\s+")[[1L]]
+  }
+
+  tokens <- tokens[tokens != target]
+  if (length(tokens) == 0L) {
+    return("")
+  }
+
+  paste(tokens, collapse = if (has_comma) "," else " ")
 }
 
-impute_vals <- read_tsv("inputs/impute_vals.tsv")
-target_impute <- read_tsv("inputs/target_impute.tsv")
-target <- target_impute$target_impute[1]
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-result <- data.frame(
-  impute_vals = impute_vals$impute_vals,
-  result = vapply(
-    impute_vals$impute_vals,
-    remove_impute_token,
-    character(1),
-    target = target,
-    USE.NAMES = FALSE
-  ),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+impute_vals <- read_single_column_tsv("inputs/impute_vals.tsv", "impute_vals")
+target_impute <- read_single_column_tsv("inputs/target_impute.tsv", "target_impute")
+
+target <- if (length(target_impute) == 0L) NA_character_ else target_impute[[1L]]
+result <- vapply(impute_vals, remove_impute_token, character(1L), target = target)
+
+output <- data.frame(
+  impute_vals = impute_vals,
+  result = result,
+  stringsAsFactors = FALSE
 )
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "NA")
+write.csv(output, "outputs/result.csv", row.names = FALSE, na = "NA")
 ```
 
 ## Output
@@ -235,60 +245,70 @@ write.csv(result, "outputs/result.csv", row.names = FALSE, na = "NA")
 ```text
 #!/usr/bin/env Rscript
 
-read_tsv <- function(path) {
-  read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    check.names = FALSE,
-    colClasses = "character",
-    na.strings = "NA",
-    blank.lines.skip = FALSE,
-    strip.white = FALSE
-  )
+read_single_column_tsv <- function(path, column_name) {
+  lines <- readLines(path, warn = FALSE)
+  if (length(lines) == 0L) {
+    stop("Input file is empty: ", path)
+  }
+
+  header <- strsplit(lines[[1L]], "\t", fixed = TRUE)[[1L]]
+  column_index <- match(column_name, header)
+  if (is.na(column_index)) {
+    stop("Required column not found: ", column_name)
+  }
+
+  if (length(lines) == 1L) {
+    return(character())
+  }
+
+  values <- vapply(lines[-1L], function(line) {
+    fields <- strsplit(line, "\t", fixed = TRUE)[[1L]]
+    if (length(fields) < column_index) "" else fields[[column_index]]
+  }, character(1L), USE.NAMES = FALSE)
+
+  values[values == "NA"] <- NA_character_
+  values
 }
 
 remove_impute_token <- function(value, target) {
   if (is.na(value)) {
     return(NA_character_)
   }
-  if (is.na(target) || identical(target, "")) {
-    return(value)
-  }
   if (identical(value, "")) {
     return("")
   }
-
-  delimiter <- if (grepl(",", value, fixed = TRUE)) "," else " "
-  pieces <- if (identical(delimiter, ",")) {
-    strsplit(value, ",", fixed = TRUE)[[1]]
-  } else {
-    strsplit(value, "[[:space:]]+")[[1]]
+  if (is.na(target) || identical(target, "")) {
+    return(value)
   }
 
-  pieces <- trimws(pieces)
-  pieces <- pieces[!is.na(pieces) & pieces != "" & pieces != target]
-  paste(pieces, collapse = delimiter)
+  has_comma <- grepl(",", value, fixed = TRUE)
+  tokens <- if (has_comma) {
+    strsplit(value, "\\s*,\\s*")[[1L]]
+  } else {
+    strsplit(trimws(value), "\\s+")[[1L]]
+  }
+
+  tokens <- tokens[tokens != target]
+  if (length(tokens) == 0L) {
+    return("")
+  }
+
+  paste(tokens, collapse = if (has_comma) "," else " ")
 }
 
-impute_vals <- read_tsv("inputs/impute_vals.tsv")
-target_impute <- read_tsv("inputs/target_impute.tsv")
-target <- target_impute$target_impute[1]
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-result <- data.frame(
-  impute_vals = impute_vals$impute_vals,
-  result = vapply(
-    impute_vals$impute_vals,
-    remove_impute_token,
-    character(1),
-    target = target,
-    USE.NAMES = FALSE
-  ),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+impute_vals <- read_single_column_tsv("inputs/impute_vals.tsv", "impute_vals")
+target_impute <- read_single_column_tsv("inputs/target_impute.tsv", "target_impute")
+
+target <- if (length(target_impute) == 0L) NA_character_ else target_impute[[1L]]
+result <- vapply(impute_vals, remove_impute_token, character(1L), target = target)
+
+output <- data.frame(
+  impute_vals = impute_vals,
+  result = result,
+  stringsAsFactors = FALSE
 )
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "NA")
+write.csv(output, "outputs/result.csv", row.names = FALSE, na = "NA")
 ```

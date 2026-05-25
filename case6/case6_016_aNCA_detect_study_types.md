@@ -156,62 +156,58 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 #!/usr/bin/env Rscript
 
 read_tsv <- function(path) {
-  utils::read.delim(path, sep = "\t", stringsAsFactors = FALSE, check.names = FALSE)
+  read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE,
+             check.names = FALSE)
 }
 
-read_first_value <- function(path) {
+metadata_value <- function(path) {
   value <- read_tsv(path)[[1]]
-  if (length(value) == 0L || is.na(value[1])) {
-    stop("Missing column name in ", path, call. = FALSE)
+  if (length(value) == 0 || is.na(value[1]) || !nzchar(value[1])) {
+    stop("Missing metadata value in ", path)
   }
   value[1]
 }
 
 normalize_text <- function(x) {
-  x <- trimws(tolower(as.character(x)))
-  gsub("[_-]+", " ", x)
+  x <- tolower(trimws(as.character(x)))
+  gsub("[_ -]+", " ", x)
 }
 
-data <- read_tsv(file.path("inputs", "data.tsv"))
-groups <- read_tsv(file.path("inputs", "groups.tsv"))[[1]]
-route_column <- read_first_value(file.path("inputs", "route_column.tsv"))
-metabfl_column <- read_first_value(file.path("inputs", "metabfl_column.tsv"))
-volume_column <- read_first_value(file.path("inputs", "volume_column.tsv"))
+data <- read_tsv("inputs/data.tsv")
+group_cols <- read_tsv("inputs/groups.tsv")[[1]]
+subject_col <- group_cols[1]
+route_col <- metadata_value("inputs/route_column.tsv")
+metabfl_col <- metadata_value("inputs/metabfl_column.tsv")
+volume_col <- metadata_value("inputs/volume_column.tsv")
 
-required_columns <- c(groups, route_column, metabfl_column, volume_column)
-missing_columns <- setdiff(required_columns, names(data))
-if (length(missing_columns) > 0L) {
-  stop(
-    "Input data is missing required column(s): ",
-    paste(missing_columns, collapse = ", "),
-    call. = FALSE
-  )
+route <- normalize_text(data[[route_col]])
+volume <- suppressWarnings(as.numeric(data[[volume_col]]))
+metabfl <- normalize_text(data[[metabfl_col]])
+
+is_excretion <- route %in% c("urine", "feces", "faeces", "excretion") |
+  grepl("\\burin|\\bfec|\\bfaec|excret", route) |
+  (!is.na(volume) & volume > 0)
+is_iv_infusion <- grepl("\\biv\\b|intraven", route) & grepl("infus", route)
+is_oral <- grepl("\\boral\\b|\\bpo\\b|per os", route)
+
+study_type <- ifelse(is_excretion, "excretion",
+                     ifelse(is_iv_infusion, "iv_infusion",
+                            ifelse(is_oral, "oral", NA_character_)))
+
+if (anyNA(study_type)) {
+  unresolved <- unique(route[is.na(study_type)])
+  stop("Could not classify study type for route value(s): ",
+       paste(unresolved, collapse = ", "))
 }
-
-subject_column <- if ("subject" %in% names(data)) "subject" else groups[1]
-route <- normalize_text(data[[route_column]])
-volume <- suppressWarnings(as.numeric(data[[volume_column]]))
-
-is_excretion <- (!is.na(volume) & volume > 0) |
-  grepl("\\b(urine|feces|faeces|excreta|excretion)\\b", route)
-is_oral <- grepl("\\boral\\b", route)
-is_iv_infusion <- grepl("\\biv\\b|intravenous", route) & grepl("infusion", route)
-
-study_type <- ifelse(
-  is_excretion,
-  "excretion",
-  ifelse(is_oral, "oral", ifelse(is_iv_infusion, "iv_infusion", NA_character_))
-)
 
 result <- data.frame(
-  subject = data[[subject_column]],
+  subject = data[[subject_col]],
   study_type = study_type,
-  stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -283,60 +279,56 @@ utils::write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, 
 #!/usr/bin/env Rscript
 
 read_tsv <- function(path) {
-  utils::read.delim(path, sep = "\t", stringsAsFactors = FALSE, check.names = FALSE)
+  read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE,
+             check.names = FALSE)
 }
 
-read_first_value <- function(path) {
+metadata_value <- function(path) {
   value <- read_tsv(path)[[1]]
-  if (length(value) == 0L || is.na(value[1])) {
-    stop("Missing column name in ", path, call. = FALSE)
+  if (length(value) == 0 || is.na(value[1]) || !nzchar(value[1])) {
+    stop("Missing metadata value in ", path)
   }
   value[1]
 }
 
 normalize_text <- function(x) {
-  x <- trimws(tolower(as.character(x)))
-  gsub("[_-]+", " ", x)
+  x <- tolower(trimws(as.character(x)))
+  gsub("[_ -]+", " ", x)
 }
 
-data <- read_tsv(file.path("inputs", "data.tsv"))
-groups <- read_tsv(file.path("inputs", "groups.tsv"))[[1]]
-route_column <- read_first_value(file.path("inputs", "route_column.tsv"))
-metabfl_column <- read_first_value(file.path("inputs", "metabfl_column.tsv"))
-volume_column <- read_first_value(file.path("inputs", "volume_column.tsv"))
+data <- read_tsv("inputs/data.tsv")
+group_cols <- read_tsv("inputs/groups.tsv")[[1]]
+subject_col <- group_cols[1]
+route_col <- metadata_value("inputs/route_column.tsv")
+metabfl_col <- metadata_value("inputs/metabfl_column.tsv")
+volume_col <- metadata_value("inputs/volume_column.tsv")
 
-required_columns <- c(groups, route_column, metabfl_column, volume_column)
-missing_columns <- setdiff(required_columns, names(data))
-if (length(missing_columns) > 0L) {
-  stop(
-    "Input data is missing required column(s): ",
-    paste(missing_columns, collapse = ", "),
-    call. = FALSE
-  )
+route <- normalize_text(data[[route_col]])
+volume <- suppressWarnings(as.numeric(data[[volume_col]]))
+metabfl <- normalize_text(data[[metabfl_col]])
+
+is_excretion <- route %in% c("urine", "feces", "faeces", "excretion") |
+  grepl("\\burin|\\bfec|\\bfaec|excret", route) |
+  (!is.na(volume) & volume > 0)
+is_iv_infusion <- grepl("\\biv\\b|intraven", route) & grepl("infus", route)
+is_oral <- grepl("\\boral\\b|\\bpo\\b|per os", route)
+
+study_type <- ifelse(is_excretion, "excretion",
+                     ifelse(is_iv_infusion, "iv_infusion",
+                            ifelse(is_oral, "oral", NA_character_)))
+
+if (anyNA(study_type)) {
+  unresolved <- unique(route[is.na(study_type)])
+  stop("Could not classify study type for route value(s): ",
+       paste(unresolved, collapse = ", "))
 }
-
-subject_column <- if ("subject" %in% names(data)) "subject" else groups[1]
-route <- normalize_text(data[[route_column]])
-volume <- suppressWarnings(as.numeric(data[[volume_column]]))
-
-is_excretion <- (!is.na(volume) & volume > 0) |
-  grepl("\\b(urine|feces|faeces|excreta|excretion)\\b", route)
-is_oral <- grepl("\\boral\\b", route)
-is_iv_infusion <- grepl("\\biv\\b|intravenous", route) & grepl("infusion", route)
-
-study_type <- ifelse(
-  is_excretion,
-  "excretion",
-  ifelse(is_oral, "oral", ifelse(is_iv_infusion, "iv_infusion", NA_character_))
-)
 
 result <- data.frame(
-  subject = data[[subject_column]],
+  subject = data[[subject_col]],
   study_type = study_type,
-  stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```

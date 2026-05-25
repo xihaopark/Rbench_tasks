@@ -95,43 +95,42 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
-
 library(dplyr)
 
-# Read input data
-dataset <- read.table("inputs/dataset.tsv", header = TRUE, sep = "\t",
-                      colClasses = c("character", "character", "numeric"))
-
-# Separate QT and RR records
-qt_data <- dataset %>%
-  filter(PARAMCD == "QT") %>%
-  rename(QT = AVAL) %>%
-  select(USUBJID, QT)
-
-rr_data <- dataset %>%
-  filter(PARAMCD == "RR") %>%
-  rename(RR = AVAL) %>%
-  select(USUBJID, RR)
-
-# Join paired QT and RR by subject
-paired <- inner_join(qt_data, rr_data, by = "USUBJID")
+# Read input, keeping USUBJID as character
+dataset <- read.delim(
+  "inputs/dataset.tsv",
+  sep = "\t",
+  stringsAsFactors = FALSE,
+  colClasses = c(USUBJID = "character")
+)
 
 # Derive QTCBR using Bazett's formula: QTCBR = QT / sqrt(RR)
-qtcbr <- paired %>%
+# Pair QT and RR records by USUBJID
+qt_records <- dataset %>%
+  filter(PARAMCD == "QT") %>%
+  select(USUBJID, QT = AVAL)
+
+rr_records <- dataset %>%
+  filter(PARAMCD == "RR") %>%
+  select(USUBJID, RR = AVAL)
+
+# Join and compute QTCBR
+qtcbr <- qt_records %>%
+  inner_join(rr_records, by = "USUBJID") %>%
   mutate(
     PARAMCD = "QTCBR",
-    AVAL    = QT / sqrt(RR)
+    AVAL = QT / sqrt(RR)
   ) %>%
   select(USUBJID, PARAMCD, AVAL)
 
-# Create outputs directory
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE)
 
 # Write result
 write.csv(qtcbr, "outputs/result.csv", row.names = FALSE)
 
-cat("Done. Rows written:", nrow(qtcbr), "\n")
+cat("Done. QTCBR rows:\n")
 print(qtcbr)
 ```
 
@@ -146,7 +145,47 @@ print(qtcbr)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"USUBJID","PARAMCD","AVAL"
+"01","QTCBR",12.6491106406735
+"02","QTCBR",12.7279220613579
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -168,42 +207,41 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
-
 library(dplyr)
 
-# Read input data
-dataset <- read.table("inputs/dataset.tsv", header = TRUE, sep = "\t",
-                      colClasses = c("character", "character", "numeric"))
-
-# Separate QT and RR records
-qt_data <- dataset %>%
-  filter(PARAMCD == "QT") %>%
-  rename(QT = AVAL) %>%
-  select(USUBJID, QT)
-
-rr_data <- dataset %>%
-  filter(PARAMCD == "RR") %>%
-  rename(RR = AVAL) %>%
-  select(USUBJID, RR)
-
-# Join paired QT and RR by subject
-paired <- inner_join(qt_data, rr_data, by = "USUBJID")
+# Read input, keeping USUBJID as character
+dataset <- read.delim(
+  "inputs/dataset.tsv",
+  sep = "\t",
+  stringsAsFactors = FALSE,
+  colClasses = c(USUBJID = "character")
+)
 
 # Derive QTCBR using Bazett's formula: QTCBR = QT / sqrt(RR)
-qtcbr <- paired %>%
+# Pair QT and RR records by USUBJID
+qt_records <- dataset %>%
+  filter(PARAMCD == "QT") %>%
+  select(USUBJID, QT = AVAL)
+
+rr_records <- dataset %>%
+  filter(PARAMCD == "RR") %>%
+  select(USUBJID, RR = AVAL)
+
+# Join and compute QTCBR
+qtcbr <- qt_records %>%
+  inner_join(rr_records, by = "USUBJID") %>%
   mutate(
     PARAMCD = "QTCBR",
-    AVAL    = QT / sqrt(RR)
+    AVAL = QT / sqrt(RR)
   ) %>%
   select(USUBJID, PARAMCD, AVAL)
 
-# Create outputs directory
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE)
 
 # Write result
 write.csv(qtcbr, "outputs/result.csv", row.names = FALSE)
 
-cat("Done. Rows written:", nrow(qtcbr), "\n")
+cat("Done. QTCBR rows:\n")
 print(qtcbr)
 ```

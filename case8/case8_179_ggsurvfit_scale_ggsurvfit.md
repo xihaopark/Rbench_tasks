@@ -113,37 +113,29 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ### LLM Generated Code
 ```r
 #!/usr/bin/env Rscript
+# RBioBench Task: scale_ggsurvfit
+# Read inputs, call ggsurvfit::scale_ggsurvfit, and write a one-row class/summary table.
 
 library(ggsurvfit)
 
-# Create outputs directory if needed
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-# Read input TSV files
+# Read input TSVs
 x_scales_df <- read.delim("inputs/x_scales.tsv", stringsAsFactors = FALSE)
 y_scales_df <- read.delim("inputs/y_scales.tsv", stringsAsFactors = FALSE)
 
-# Parse the list expressions
-x_scales_expr <- x_scales_df$expr[1]
-y_scales_expr <- y_scales_df$expr[1]
+# Parse the list expressions from the 'expr' column
+x_scales <- eval(parse(text = x_scales_df$expr[1]))
+y_scales <- eval(parse(text = y_scales_df$expr[1]))
 
-x_scales <- eval(parse(text = x_scales_expr))
-y_scales <- eval(parse(text = y_scales_expr))
+# Call scale_ggsurvfit with parsed arguments
+result <- ggsurvfit::scale_ggsurvfit(x_scales = x_scales, y_scales = y_scales)
 
-# Call scale_ggsurvfit with the parsed parameters
-result <- ggsurvfit::scale_ggsurvfit(
-  x_scales = x_scales,
-  y_scales = y_scales
-)
+# Build one-row summary table with scale_classes column
+scale_classes <- paste(class(result), collapse = "; ")
+out <- data.frame(scale_classes = scale_classes, stringsAsFactors = FALSE)
 
-# Get the class(es) of the resulting object and collapse into a single string
-scale_classes <- paste(class(result), collapse = ";")
-
-# Write one-row class/summary table
-output_df <- data.frame(scale_classes = scale_classes, stringsAsFactors = FALSE)
-write.csv(output_df, "outputs/result.csv", row.names = FALSE)
-
-cat("Done. scale_classes:", scale_classes, "\n")
+# Write output
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -156,7 +148,37 @@ cat("Done. scale_classes:", scale_classes, "\n")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"scale_classes"
+"scale_ggsurvfit"
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+Loading required package: ggplot2
+```
 
 ## Evaluation Result
 ```json
@@ -179,35 +201,27 @@ No LLM output artifact was produced.
 ## Raw Agent Response
 ```text
 #!/usr/bin/env Rscript
+# RBioBench Task: scale_ggsurvfit
+# Read inputs, call ggsurvfit::scale_ggsurvfit, and write a one-row class/summary table.
 
 library(ggsurvfit)
 
-# Create outputs directory if needed
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-# Read input TSV files
+# Read input TSVs
 x_scales_df <- read.delim("inputs/x_scales.tsv", stringsAsFactors = FALSE)
 y_scales_df <- read.delim("inputs/y_scales.tsv", stringsAsFactors = FALSE)
 
-# Parse the list expressions
-x_scales_expr <- x_scales_df$expr[1]
-y_scales_expr <- y_scales_df$expr[1]
+# Parse the list expressions from the 'expr' column
+x_scales <- eval(parse(text = x_scales_df$expr[1]))
+y_scales <- eval(parse(text = y_scales_df$expr[1]))
 
-x_scales <- eval(parse(text = x_scales_expr))
-y_scales <- eval(parse(text = y_scales_expr))
+# Call scale_ggsurvfit with parsed arguments
+result <- ggsurvfit::scale_ggsurvfit(x_scales = x_scales, y_scales = y_scales)
 
-# Call scale_ggsurvfit with the parsed parameters
-result <- ggsurvfit::scale_ggsurvfit(
-  x_scales = x_scales,
-  y_scales = y_scales
-)
+# Build one-row summary table with scale_classes column
+scale_classes <- paste(class(result), collapse = "; ")
+out <- data.frame(scale_classes = scale_classes, stringsAsFactors = FALSE)
 
-# Get the class(es) of the resulting object and collapse into a single string
-scale_classes <- paste(class(result), collapse = ";")
-
-# Write one-row class/summary table
-output_df <- data.frame(scale_classes = scale_classes, stringsAsFactors = FALSE)
-write.csv(output_df, "outputs/result.csv", row.names = FALSE)
-
-cat("Done. scale_classes:", scale_classes, "\n")
+# Write output
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```

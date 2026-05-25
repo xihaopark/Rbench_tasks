@@ -3,8 +3,8 @@
 ## Metadata
 - Task ID: `pharmaverse/admiral/propagate_na_values`
 - Package: `admiral`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -54,6 +54,14 @@ Computation: For ordered datetime components, keep components before the first m
 
 Required columns for result.csv: year, month, day, hour, minute, second
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### partial.tsv
+year	month	day	hour	minute	second
+2020	05	NA	10	30	45
+2021	NA	12	09	15	00
+2022	07	04	NA	20	30
 ```
 
 ## Input
@@ -90,30 +98,47 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE, na =
 ```r
 #!/usr/bin/env Rscript
 
-columns <- c("year", "month", "day", "hour", "minute", "second")
+library(admiral)
+library(dplyr)
+library(readr)
 
-partial <- read.delim(
-  file = file.path("inputs", "partial.tsv"),
-  sep = "\t",
-  header = TRUE,
-  colClasses = "character",
-  na.strings = "NA",
-  check.names = FALSE
-)
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-partial <- partial[columns]
+# Read input (read all as character to preserve original values like "05", "NA")
+partial <- read_tsv("inputs/partial.tsv", col_types = cols(.default = "c"))
 
-for (row_idx in seq_len(nrow(partial))) {
-  missing_positions <- which(is.na(partial[row_idx, columns]))
+# Ordered datetime components
+components <- c("year", "month", "day", "hour", "minute", "second")
 
-  if (length(missing_positions) > 0L) {
-    first_missing <- missing_positions[1]
-    partial[row_idx, columns[first_missing:length(columns)]] <- NA_character_
+# Propagate NA: once a component is NA (or "NA" string), blank all subsequent components
+propagate_na_row <- function(row) {
+  vals <- unlist(row[components])
+  # Find the first truly missing position (NA or "NA" string)
+  first_na <- which(is.na(vals) | vals == "NA")
+  if (length(first_na) > 0) {
+    # Set all components from first NA onwards to NA
+    row[components[first_na[1]:length(components)]] <- NA_character_
   }
+  row
 }
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(partial, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+# Apply row-wise propagation using purrr-style row iteration
+result <- do.call(rbind, lapply(seq_len(nrow(partial)), function(i) {
+  row <- partial[i, ]
+  vals <- unlist(row[components])
+  # Find the first truly missing position (NA or "NA" string)
+  first_na <- which(is.na(vals) | vals == "NA")
+  if (length(first_na) > 0) {
+    # Set all components from first NA onwards to NA
+    row[components[first_na[1]:length(components)]] <- NA_character_
+  }
+  row
+})) %>%
+  select(all_of(components))
+
+# Write output - use empty string for NA values
+write_csv(result, "outputs/result.csv", na = "")
 ```
 
 ## Output
@@ -128,38 +153,7 @@ write.csv(partial, file = file.path("outputs", "result.csv"), row.names = FALSE,
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"year","month","day","hour","minute","second"
-"2020","05",,,,
-"2021",,,,,
-"2022","07","04",,,
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
@@ -183,28 +177,45 @@ write.csv(partial, file = file.path("outputs", "result.csv"), row.names = FALSE,
 ```text
 #!/usr/bin/env Rscript
 
-columns <- c("year", "month", "day", "hour", "minute", "second")
+library(admiral)
+library(dplyr)
+library(readr)
 
-partial <- read.delim(
-  file = file.path("inputs", "partial.tsv"),
-  sep = "\t",
-  header = TRUE,
-  colClasses = "character",
-  na.strings = "NA",
-  check.names = FALSE
-)
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-partial <- partial[columns]
+# Read input (read all as character to preserve original values like "05", "NA")
+partial <- read_tsv("inputs/partial.tsv", col_types = cols(.default = "c"))
 
-for (row_idx in seq_len(nrow(partial))) {
-  missing_positions <- which(is.na(partial[row_idx, columns]))
+# Ordered datetime components
+components <- c("year", "month", "day", "hour", "minute", "second")
 
-  if (length(missing_positions) > 0L) {
-    first_missing <- missing_positions[1]
-    partial[row_idx, columns[first_missing:length(columns)]] <- NA_character_
+# Propagate NA: once a component is NA (or "NA" string), blank all subsequent components
+propagate_na_row <- function(row) {
+  vals <- unlist(row[components])
+  # Find the first truly missing position (NA or "NA" string)
+  first_na <- which(is.na(vals) | vals == "NA")
+  if (length(first_na) > 0) {
+    # Set all components from first NA onwards to NA
+    row[components[first_na[1]:length(components)]] <- NA_character_
   }
+  row
 }
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(partial, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+# Apply row-wise propagation using purrr-style row iteration
+result <- do.call(rbind, lapply(seq_len(nrow(partial)), function(i) {
+  row <- partial[i, ]
+  vals <- unlist(row[components])
+  # Find the first truly missing position (NA or "NA" string)
+  first_na <- which(is.na(vals) | vals == "NA")
+  if (length(first_na) > 0) {
+    # Set all components from first NA onwards to NA
+    row[components[first_na[1]:length(components)]] <- NA_character_
+  }
+  row
+})) %>%
+  select(all_of(components))
+
+# Write output - use empty string for NA values
+write_csv(result, "outputs/result.csv", na = "")
 ```

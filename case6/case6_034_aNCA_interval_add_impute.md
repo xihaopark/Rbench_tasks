@@ -195,131 +195,107 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 read_tsv <- function(path) {
   read.delim(
     path,
-    header = TRUE,
     sep = "\t",
+    header = TRUE,
     stringsAsFactors = FALSE,
-    check.names = FALSE
+    check.names = FALSE,
+    na.strings = "NA"
   )
 }
 
-add_impute_token <- function(x, target_impute, after) {
-  vapply(x, function(value) {
-    if (is.na(value) || identical(value, "")) {
-      parts <- character()
-    } else {
-      parts <- unlist(strsplit(value, "[ ,]+"))
-      parts <- parts[nzchar(parts)]
+add_impute_method <- function(impute_vals, target_impute, after) {
+  vapply(impute_vals, function(value) {
+    if (is.na(value)) {
+      value <- ""
     }
-
-    parts <- setdiff(parts, target_impute)
-    paste(append(parts, values = target_impute, after = after), collapse = ",")
-  }, character(1), USE.NAMES = FALSE)
+    methods <- strsplit(value, "[ ,]+")[[1]]
+    methods <- methods[nzchar(methods)]
+    methods <- setdiff(methods, target_impute)
+    paste(append(methods, target_impute, after = after), collapse = ",")
+  }, character(1))
 }
 
-matches_target_groups <- function(data, target_groups) {
-  if (nrow(target_groups) == 0 || ncol(target_groups) == 0) {
+matches_target_group <- function(data, target_groups) {
+  if (ncol(target_groups) == 0 || nrow(target_groups) == 0) {
     return(rep(TRUE, nrow(data)))
   }
 
   group_cols <- names(target_groups)
-  if (!all(group_cols %in% names(data))) {
-    stop("Target group columns are missing from data: ",
-         paste(setdiff(group_cols, names(data)), collapse = ", "))
+  matched <- rep(FALSE, nrow(data))
+  for (i in seq_len(nrow(target_groups))) {
+    row_match <- rep(TRUE, nrow(data))
+    for (col in group_cols) {
+      row_match <- row_match & as.character(data[[col]]) == as.character(target_groups[[col]][i])
+    }
+    matched <- matched | row_match
   }
-
-  data_keys <- do.call(paste, c(data[group_cols], sep = "\r"))
-  target_keys <- do.call(paste, c(target_groups[group_cols], sep = "\r"))
-  data_keys %in% target_keys
+  matched
 }
 
-is_impute_at_position <- function(impute, target_impute, after) {
-  vapply(impute, function(value) {
-    if (is.na(value) || identical(value, "")) {
-      return(FALSE)
+target_impute_needs_change <- function(impute_vals, target_impute, after) {
+  vapply(impute_vals, function(value) {
+    if (is.na(value)) {
+      value <- ""
     }
-
-    parts <- unlist(strsplit(value, "[ ,]+"))
-    parts <- parts[nzchar(parts)]
-    pos <- which(parts == target_impute)
-    if (length(pos) == 0) {
-      return(FALSE)
+    methods <- strsplit(value, "[ ,]+")[[1]]
+    methods <- methods[nzchar(methods)]
+    current_position <- which(methods == target_impute)
+    if (length(current_position) == 0) {
+      return(TRUE)
     }
-
-    current_after <- if (pos[1] == length(parts)) Inf else pos[1]
-    identical(as.numeric(current_after), as.numeric(after))
-  }, logical(1), USE.NAMES = FALSE)
-}
-
-interval_add_impute_fallback <- function(data, target_impute, after, target_params, target_groups) {
-  if (!"impute" %in% names(data)) {
-    data$impute <- NA_character_
-  }
-  if (!is.character(data$impute)) {
-    data$impute <- as.character(data$impute)
-  }
-
-  param_cols <- names(data)[vapply(data, is.logical, logical(1))]
-  if (length(target_params) == 0) {
-    target_params <- param_cols
-  }
-  missing_params <- setdiff(target_params, names(data))
-  if (length(missing_params) > 0) {
-    stop("Target parameter columns are missing from data: ",
-         paste(missing_params, collapse = ", "))
-  }
-
-  target_param_data <- data[target_params]
-  target_param_data[is.na(target_param_data)] <- FALSE
-  is_target_param <- rowSums(target_param_data) > 0
-  is_target_group <- matches_target_groups(data, target_groups)
-  needs_position_change <- !is_impute_at_position(data$impute, target_impute, after)
-  target_rows <- is_target_group & is_target_param & needs_position_change
-
-  if (!any(target_rows)) {
-    return(data)
-  }
-
-  data$.source_order <- seq_len(nrow(data))
-  inserted <- data[target_rows, , drop = FALSE]
-  non_target_params <- setdiff(param_cols, target_params)
-  if (length(non_target_params) > 0) {
-    inserted[non_target_params] <- FALSE
-  }
-  inserted$impute <- add_impute_token(inserted$impute, target_impute, after)
-  inserted$.source_order <- inserted$.source_order + 0.5
-
-  data[target_rows, target_params] <- FALSE
-  out <- rbind(data, inserted)
-
-  param_data <- out[param_cols]
-  param_data[is.na(param_data)] <- FALSE
-  out <- out[rowSums(param_data) > 0, , drop = FALSE]
-  out <- out[order(out$.source_order), , drop = FALSE]
-  out$.source_order <- NULL
-  rownames(out) <- NULL
-  out
+    current_position <- current_position[1]
+    current_after <- if (current_position == length(methods)) Inf else current_position
+    is.na(current_after) || current_after != after
+  }, logical(1))
 }
 
 data <- read_tsv("inputs/data.tsv")
 target_groups <- read_tsv("inputs/target_groups.tsv")
-target_params <- read_tsv("inputs/target_params.tsv")[[1]]
-target_impute <- read_tsv("inputs/target_impute.tsv")[[1]][1]
-after <- read_tsv("inputs/after.tsv")[[1]][1]
+target_params <- read_tsv("inputs/target_params.tsv")$target_params
+target_impute <- read_tsv("inputs/target_impute.tsv")$target_impute[1]
+after <- as.numeric(read_tsv("inputs/after.tsv")$after[1])
 
-result <- interval_add_impute_fallback(
-  data = data,
-  target_impute = target_impute,
-  after = after,
-  target_params = target_params,
-  target_groups = target_groups
-)
+required_cols <- c("start", "end", "cmax", "auclast", "half.life", "impute", "analyte", "period")
+param_cols <- names(data)[vapply(data, is.logical, logical(1))]
+target_params <- intersect(target_params, names(data))
 
-required_cols <- c("start", "end", "cmax", "auclast", "half.life",
-                   "impute", "analyte", "period")
-result <- result[required_cols]
+if (!"impute" %in% names(data)) {
+  data$impute <- NA_character_
+} else {
+  data$impute <- as.character(data$impute)
+  data$impute[is.na(data$impute)] <- ""
+}
+
+target_param_data <- data[target_params]
+target_param_data[is.na(target_param_data)] <- FALSE
+is_target_param <- rowSums(target_param_data) > 0
+is_target_group <- matches_target_group(data, target_groups)
+needs_change <- target_impute_needs_change(data$impute, target_impute, after)
+target_rows <- is_target_group & is_target_param & needs_change
+
+index <- seq_len(nrow(data))
+data$.order_index <- index
+new_intervals <- data[target_rows, , drop = FALSE]
+
+if (nrow(new_intervals) > 0) {
+  non_target_params <- setdiff(param_cols, target_params)
+  new_intervals[non_target_params] <- FALSE
+  new_intervals$impute <- add_impute_method(new_intervals$impute, target_impute, after)
+  new_intervals$.order_index <- new_intervals$.order_index + 0.5
+
+  data[target_rows, target_params] <- FALSE
+  data <- rbind(data, new_intervals)
+}
+
+param_data <- data[param_cols]
+param_data[is.na(param_data)] <- FALSE
+data <- data[rowSums(param_data) > 0, , drop = FALSE]
+data <- data[order(data$.order_index), , drop = FALSE]
+data$.order_index <- NULL
+rownames(data) <- NULL
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(data[required_cols], "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -394,129 +370,105 @@ write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 read_tsv <- function(path) {
   read.delim(
     path,
-    header = TRUE,
     sep = "\t",
+    header = TRUE,
     stringsAsFactors = FALSE,
-    check.names = FALSE
+    check.names = FALSE,
+    na.strings = "NA"
   )
 }
 
-add_impute_token <- function(x, target_impute, after) {
-  vapply(x, function(value) {
-    if (is.na(value) || identical(value, "")) {
-      parts <- character()
-    } else {
-      parts <- unlist(strsplit(value, "[ ,]+"))
-      parts <- parts[nzchar(parts)]
+add_impute_method <- function(impute_vals, target_impute, after) {
+  vapply(impute_vals, function(value) {
+    if (is.na(value)) {
+      value <- ""
     }
-
-    parts <- setdiff(parts, target_impute)
-    paste(append(parts, values = target_impute, after = after), collapse = ",")
-  }, character(1), USE.NAMES = FALSE)
+    methods <- strsplit(value, "[ ,]+")[[1]]
+    methods <- methods[nzchar(methods)]
+    methods <- setdiff(methods, target_impute)
+    paste(append(methods, target_impute, after = after), collapse = ",")
+  }, character(1))
 }
 
-matches_target_groups <- function(data, target_groups) {
-  if (nrow(target_groups) == 0 || ncol(target_groups) == 0) {
+matches_target_group <- function(data, target_groups) {
+  if (ncol(target_groups) == 0 || nrow(target_groups) == 0) {
     return(rep(TRUE, nrow(data)))
   }
 
   group_cols <- names(target_groups)
-  if (!all(group_cols %in% names(data))) {
-    stop("Target group columns are missing from data: ",
-         paste(setdiff(group_cols, names(data)), collapse = ", "))
+  matched <- rep(FALSE, nrow(data))
+  for (i in seq_len(nrow(target_groups))) {
+    row_match <- rep(TRUE, nrow(data))
+    for (col in group_cols) {
+      row_match <- row_match & as.character(data[[col]]) == as.character(target_groups[[col]][i])
+    }
+    matched <- matched | row_match
   }
-
-  data_keys <- do.call(paste, c(data[group_cols], sep = "\r"))
-  target_keys <- do.call(paste, c(target_groups[group_cols], sep = "\r"))
-  data_keys %in% target_keys
+  matched
 }
 
-is_impute_at_position <- function(impute, target_impute, after) {
-  vapply(impute, function(value) {
-    if (is.na(value) || identical(value, "")) {
-      return(FALSE)
+target_impute_needs_change <- function(impute_vals, target_impute, after) {
+  vapply(impute_vals, function(value) {
+    if (is.na(value)) {
+      value <- ""
     }
-
-    parts <- unlist(strsplit(value, "[ ,]+"))
-    parts <- parts[nzchar(parts)]
-    pos <- which(parts == target_impute)
-    if (length(pos) == 0) {
-      return(FALSE)
+    methods <- strsplit(value, "[ ,]+")[[1]]
+    methods <- methods[nzchar(methods)]
+    current_position <- which(methods == target_impute)
+    if (length(current_position) == 0) {
+      return(TRUE)
     }
-
-    current_after <- if (pos[1] == length(parts)) Inf else pos[1]
-    identical(as.numeric(current_after), as.numeric(after))
-  }, logical(1), USE.NAMES = FALSE)
-}
-
-interval_add_impute_fallback <- function(data, target_impute, after, target_params, target_groups) {
-  if (!"impute" %in% names(data)) {
-    data$impute <- NA_character_
-  }
-  if (!is.character(data$impute)) {
-    data$impute <- as.character(data$impute)
-  }
-
-  param_cols <- names(data)[vapply(data, is.logical, logical(1))]
-  if (length(target_params) == 0) {
-    target_params <- param_cols
-  }
-  missing_params <- setdiff(target_params, names(data))
-  if (length(missing_params) > 0) {
-    stop("Target parameter columns are missing from data: ",
-         paste(missing_params, collapse = ", "))
-  }
-
-  target_param_data <- data[target_params]
-  target_param_data[is.na(target_param_data)] <- FALSE
-  is_target_param <- rowSums(target_param_data) > 0
-  is_target_group <- matches_target_groups(data, target_groups)
-  needs_position_change <- !is_impute_at_position(data$impute, target_impute, after)
-  target_rows <- is_target_group & is_target_param & needs_position_change
-
-  if (!any(target_rows)) {
-    return(data)
-  }
-
-  data$.source_order <- seq_len(nrow(data))
-  inserted <- data[target_rows, , drop = FALSE]
-  non_target_params <- setdiff(param_cols, target_params)
-  if (length(non_target_params) > 0) {
-    inserted[non_target_params] <- FALSE
-  }
-  inserted$impute <- add_impute_token(inserted$impute, target_impute, after)
-  inserted$.source_order <- inserted$.source_order + 0.5
-
-  data[target_rows, target_params] <- FALSE
-  out <- rbind(data, inserted)
-
-  param_data <- out[param_cols]
-  param_data[is.na(param_data)] <- FALSE
-  out <- out[rowSums(param_data) > 0, , drop = FALSE]
-  out <- out[order(out$.source_order), , drop = FALSE]
-  out$.source_order <- NULL
-  rownames(out) <- NULL
-  out
+    current_position <- current_position[1]
+    current_after <- if (current_position == length(methods)) Inf else current_position
+    is.na(current_after) || current_after != after
+  }, logical(1))
 }
 
 data <- read_tsv("inputs/data.tsv")
 target_groups <- read_tsv("inputs/target_groups.tsv")
-target_params <- read_tsv("inputs/target_params.tsv")[[1]]
-target_impute <- read_tsv("inputs/target_impute.tsv")[[1]][1]
-after <- read_tsv("inputs/after.tsv")[[1]][1]
+target_params <- read_tsv("inputs/target_params.tsv")$target_params
+target_impute <- read_tsv("inputs/target_impute.tsv")$target_impute[1]
+after <- as.numeric(read_tsv("inputs/after.tsv")$after[1])
 
-result <- interval_add_impute_fallback(
-  data = data,
-  target_impute = target_impute,
-  after = after,
-  target_params = target_params,
-  target_groups = target_groups
-)
+required_cols <- c("start", "end", "cmax", "auclast", "half.life", "impute", "analyte", "period")
+param_cols <- names(data)[vapply(data, is.logical, logical(1))]
+target_params <- intersect(target_params, names(data))
 
-required_cols <- c("start", "end", "cmax", "auclast", "half.life",
-                   "impute", "analyte", "period")
-result <- result[required_cols]
+if (!"impute" %in% names(data)) {
+  data$impute <- NA_character_
+} else {
+  data$impute <- as.character(data$impute)
+  data$impute[is.na(data$impute)] <- ""
+}
+
+target_param_data <- data[target_params]
+target_param_data[is.na(target_param_data)] <- FALSE
+is_target_param <- rowSums(target_param_data) > 0
+is_target_group <- matches_target_group(data, target_groups)
+needs_change <- target_impute_needs_change(data$impute, target_impute, after)
+target_rows <- is_target_group & is_target_param & needs_change
+
+index <- seq_len(nrow(data))
+data$.order_index <- index
+new_intervals <- data[target_rows, , drop = FALSE]
+
+if (nrow(new_intervals) > 0) {
+  non_target_params <- setdiff(param_cols, target_params)
+  new_intervals[non_target_params] <- FALSE
+  new_intervals$impute <- add_impute_method(new_intervals$impute, target_impute, after)
+  new_intervals$.order_index <- new_intervals$.order_index + 0.5
+
+  data[target_rows, target_params] <- FALSE
+  data <- rbind(data, new_intervals)
+}
+
+param_data <- data[param_cols]
+param_data[is.na(param_data)] <- FALSE
+data <- data[rowSums(param_data) > 0, , drop = FALSE]
+data <- data[order(data$.order_index), , drop = FALSE]
+data$.order_index <- NULL
+rownames(data) <- NULL
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(data[required_cols], "outputs/result.csv", row.names = FALSE, na = "")
 ```

@@ -154,8 +154,8 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-read_input <- function(filename) {
-  read.delim(file.path("inputs", filename), stringsAsFactors = FALSE)
+read_input <- function(file) {
+  read.delim(file.path("inputs", file), stringsAsFactors = FALSE, check.names = FALSE)
 }
 
 age <- read_input("age.tsv")
@@ -261,8 +261,8 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```text
 #!/usr/bin/env Rscript
 
-read_input <- function(filename) {
-  read.delim(file.path("inputs", filename), stringsAsFactors = FALSE)
+read_input <- function(file) {
+  read.delim(file.path("inputs", file), stringsAsFactors = FALSE, check.names = FALSE)
 }
 
 age <- read_input("age.tsv")

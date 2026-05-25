@@ -3,8 +3,8 @@
 ## Metadata
 - Task ID: `pharmaverse/admiral/compute_egfr`
 - Package: `admiral`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
 - Status: `FAIL`
 - Failure stage: `value_mismatch`
 - Pattern: ``
@@ -55,6 +55,32 @@ Computation: Use the MDRD-style eGFR convention: 175 * creat^(-1.154) * age^(-0.
 Required columns for result.csv: creat, age, sex, race, result
 Required columns for summary.csv: n_rows, n_cols, col_names
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### age.tsv
+age
+45
+60
+72
+
+### creat.tsv
+creat
+0.8
+1.1
+1.4
+
+### race.tsv
+race
+OTHER
+BLACK OR AFRICAN AMERICAN
+OTHER
+
+### sex.tsv
+sex
+F
+M
+F
 ```
 
 ## Input
@@ -115,40 +141,51 @@ write.csv(summary_df, file.path("outputs", "summary.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+library(admiral)
 
-age <- read.delim("inputs/age.tsv", stringsAsFactors = FALSE)
-creat <- read.delim("inputs/creat.tsv", stringsAsFactors = FALSE)
-race <- read.delim("inputs/race.tsv", stringsAsFactors = FALSE)
-sex <- read.delim("inputs/sex.tsv", stringsAsFactors = FALSE)
+# Read input files
+age   <- read.table("inputs/age.tsv",   header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+creat <- read.table("inputs/creat.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+race  <- read.table("inputs/race.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+sex   <- read.table("inputs/sex.tsv",   header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-result <- data.frame(
+# Combine inputs into a single data frame
+df <- data.frame(
   creat = creat$creat,
-  age = age$age,
-  sex = sex$sex,
-  race = race$race,
+  age   = age$age,
+  sex   = sex$sex,
+  race  = race$race,
   stringsAsFactors = FALSE
 )
 
-sex_factor <- ifelse(result$sex == "F", 0.742, 1)
-race_factor <- ifelse(result$race == "BLACK OR AFRICAN AMERICAN", 1.212, 1)
+# Compute eGFR using MDRD formula:
+# 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
+# sex_factor: F = 0.742, M = 1.0
+# race_factor: BLACK OR AFRICAN AMERICAN = 1.212, otherwise = 1.0
 
-result$result <- 175 *
-  result$creat^(-1.154) *
-  result$age^(-0.203) *
-  sex_factor *
-  race_factor
+sex_factor  <- ifelse(df$sex == "F", 0.742, 1.0)
+race_factor <- ifelse(df$race == "BLACK OR AFRICAN AMERICAN", 1.212, 1.0)
 
-summary <- data.frame(
-  n_rows = nrow(result),
-  n_cols = ncol(result),
-  col_names = paste(names(result), collapse = ","),
+df$result <- 175 * df$creat^(-1.154) * df$age^(-0.203) * sex_factor * race_factor
+
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE)
+
+# Write result.csv
+result_df <- df[, c("creat", "age", "sex", "race", "result")]
+write.csv(result_df, "outputs/result.csv", row.names = FALSE)
+
+# Write summary.csv
+summary_df <- data.frame(
+  n_rows    = nrow(result_df),
+  n_cols    = ncol(result_df),
+  col_names = paste(colnames(result_df), collapse = ","),
   stringsAsFactors = FALSE
 )
+write.csv(summary_df, "outputs/summary.csv", row.names = FALSE)
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
-write.csv(summary, "outputs/summary.csv", row.names = FALSE)
+cat("Done. result.csv rows:", nrow(result_df), "\n")
+print(result_df)
 ```
 
 ## Output
@@ -170,45 +207,7 @@ write.csv(summary, "outputs/summary.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"creat","age","sex","race","result"
-0.8,45,"F","OTHER",77.566459506687
-1.1,60,"M","BLACK OR AFRICAN AMERICAN",82.7577750329383
-1.4,72,"F","OTHER",36.9633822946498
-```
-
-#### `summary.csv`
-
-```csv
-"n_rows","n_cols","col_names"
-3,5,"creat,age,sex,race,result"
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
@@ -230,38 +229,49 @@ write.csv(summary, "outputs/summary.csv", row.names = FALSE)
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+library(admiral)
 
-age <- read.delim("inputs/age.tsv", stringsAsFactors = FALSE)
-creat <- read.delim("inputs/creat.tsv", stringsAsFactors = FALSE)
-race <- read.delim("inputs/race.tsv", stringsAsFactors = FALSE)
-sex <- read.delim("inputs/sex.tsv", stringsAsFactors = FALSE)
+# Read input files
+age   <- read.table("inputs/age.tsv",   header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+creat <- read.table("inputs/creat.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+race  <- read.table("inputs/race.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+sex   <- read.table("inputs/sex.tsv",   header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-result <- data.frame(
+# Combine inputs into a single data frame
+df <- data.frame(
   creat = creat$creat,
-  age = age$age,
-  sex = sex$sex,
-  race = race$race,
+  age   = age$age,
+  sex   = sex$sex,
+  race  = race$race,
   stringsAsFactors = FALSE
 )
 
-sex_factor <- ifelse(result$sex == "F", 0.742, 1)
-race_factor <- ifelse(result$race == "BLACK OR AFRICAN AMERICAN", 1.212, 1)
+# Compute eGFR using MDRD formula:
+# 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
+# sex_factor: F = 0.742, M = 1.0
+# race_factor: BLACK OR AFRICAN AMERICAN = 1.212, otherwise = 1.0
 
-result$result <- 175 *
-  result$creat^(-1.154) *
-  result$age^(-0.203) *
-  sex_factor *
-  race_factor
+sex_factor  <- ifelse(df$sex == "F", 0.742, 1.0)
+race_factor <- ifelse(df$race == "BLACK OR AFRICAN AMERICAN", 1.212, 1.0)
 
-summary <- data.frame(
-  n_rows = nrow(result),
-  n_cols = ncol(result),
-  col_names = paste(names(result), collapse = ","),
+df$result <- 175 * df$creat^(-1.154) * df$age^(-0.203) * sex_factor * race_factor
+
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE)
+
+# Write result.csv
+result_df <- df[, c("creat", "age", "sex", "race", "result")]
+write.csv(result_df, "outputs/result.csv", row.names = FALSE)
+
+# Write summary.csv
+summary_df <- data.frame(
+  n_rows    = nrow(result_df),
+  n_cols    = ncol(result_df),
+  col_names = paste(colnames(result_df), collapse = ","),
   stringsAsFactors = FALSE
 )
+write.csv(summary_df, "outputs/summary.csv", row.names = FALSE)
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
-write.csv(summary, "outputs/summary.csv", row.names = FALSE)
+cat("Done. result.csv rows:", nrow(result_df), "\n")
+print(result_df)
 ```

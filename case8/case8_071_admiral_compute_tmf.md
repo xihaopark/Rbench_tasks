@@ -122,31 +122,30 @@ write.csv(data.frame(dtc = dtc, dtm = dtm_chr, result = result), file.path("outp
 ### LLM Generated Code
 ```r
 library(admiral)
+library(lubridate)
 
 # Read inputs
-dtc_df <- read.delim("inputs/dtc.tsv", stringsAsFactors = FALSE)
-dtm_df <- read.delim("inputs/dtm.tsv", stringsAsFactors = FALSE)
-ignore_seconds_flag_df <- read.delim("inputs/ignore_seconds_flag.tsv", stringsAsFactors = FALSE)
+dtc_df  <- read.table("inputs/dtc.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+dtm_df  <- read.table("inputs/dtm.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+flag_df <- read.table("inputs/ignore_seconds_flag.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-dtc <- dtc_df$dtc
-dtm <- as.POSIXct(dtm_df$dtm, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
-ignore_seconds_flag <- as.logical(ignore_seconds_flag_df$ignore_seconds_flag[1])
+dtc_vec  <- dtc_df$dtc
+dtm_vec  <- ymd_hms(dtm_df$dtm)
+ignore_s <- as.logical(flag_df$ignore_seconds_flag[1])
 
 # Compute TMF using admiral::compute_tmf
-result <- compute_tmf(dtc = dtc, dtm = dtm, ignore_seconds_flag = ignore_seconds_flag)
+result_vec <- compute_tmf(dtc = dtc_vec, dtm = dtm_vec, ignore_seconds_flag = ignore_s)
 
-# Build output dataframe
+# Build output
 out <- data.frame(
-  dtc = dtc,
-  dtm = format(dtm, "%Y-%m-%d %H:%M:%S"),
-  result = result,
+  dtc    = dtc_vec,
+  dtm    = dtm_df$dtm,
+  result = result_vec,
   stringsAsFactors = FALSE
 )
 
-# Create outputs directory if needed
+# Write output
 dir.create("outputs", showWarnings = FALSE)
-
-# Write result
 write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```
 
@@ -163,6 +162,41 @@ write.csv(out, "outputs/result.csv", row.names = FALSE)
 
 ### LLM Output
 No LLM output artifact was produced.
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘lubridate’
+
+The following objects are masked from ‘package:base’:
+
+    date, intersect, setdiff, union
+
+Error in get_partialdatetime(dtc, create_datetime = TRUE) : 
+  unused argument (create_datetime = TRUE)
+Calls: compute_tmf
+Execution halted
+```
 
 ## Evaluation Result
 ```json
@@ -185,30 +219,29 @@ No LLM output artifact was produced.
 ## Raw Agent Response
 ```text
 library(admiral)
+library(lubridate)
 
 # Read inputs
-dtc_df <- read.delim("inputs/dtc.tsv", stringsAsFactors = FALSE)
-dtm_df <- read.delim("inputs/dtm.tsv", stringsAsFactors = FALSE)
-ignore_seconds_flag_df <- read.delim("inputs/ignore_seconds_flag.tsv", stringsAsFactors = FALSE)
+dtc_df  <- read.table("inputs/dtc.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+dtm_df  <- read.table("inputs/dtm.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+flag_df <- read.table("inputs/ignore_seconds_flag.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-dtc <- dtc_df$dtc
-dtm <- as.POSIXct(dtm_df$dtm, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
-ignore_seconds_flag <- as.logical(ignore_seconds_flag_df$ignore_seconds_flag[1])
+dtc_vec  <- dtc_df$dtc
+dtm_vec  <- ymd_hms(dtm_df$dtm)
+ignore_s <- as.logical(flag_df$ignore_seconds_flag[1])
 
 # Compute TMF using admiral::compute_tmf
-result <- compute_tmf(dtc = dtc, dtm = dtm, ignore_seconds_flag = ignore_seconds_flag)
+result_vec <- compute_tmf(dtc = dtc_vec, dtm = dtm_vec, ignore_seconds_flag = ignore_s)
 
-# Build output dataframe
+# Build output
 out <- data.frame(
-  dtc = dtc,
-  dtm = format(dtm, "%Y-%m-%d %H:%M:%S"),
-  result = result,
+  dtc    = dtc_vec,
+  dtm    = dtm_df$dtm,
+  result = result_vec,
   stringsAsFactors = FALSE
 )
 
-# Create outputs directory if needed
+# Write output
 dir.create("outputs", showWarnings = FALSE)
-
-# Write result
 write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```

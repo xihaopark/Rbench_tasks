@@ -120,38 +120,62 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 
 ### LLM Generated Code
 ```r
-impute_vals_df <- read.delim(file.path("inputs", "impute_vals.tsv"), check.names = FALSE, stringsAsFactors = FALSE)
-target_impute_df <- read.delim(file.path("inputs", "target_impute.tsv"), check.names = FALSE, stringsAsFactors = FALSE)
+# RBioBench Task: remove_impute_method using aNCA package
+# Remove the target token from comma- or space-separated imputation strings
 
-impute_vals <- as.character(impute_vals_df[[1]])
-target_impute <- as.character(target_impute_df[[1]][1])
+library(readr)
 
-remove_impute_method <- function(impute_vals, target_impute) {
-  if (length(impute_vals) == 0) {
-    return(impute_vals)
-  }
-  result <- vapply(impute_vals, function(value) {
-    if (is.na(value)) {
-      return(NA_character_)
-    }
-    if (!nzchar(value)) {
-      return("")
-    }
-    parts <- strsplit(value, "[ ,]+")[[1]]
-    parts <- parts[nzchar(parts)]
-    paste(setdiff(parts, target_impute), collapse = ",")
-  }, FUN.VALUE = character(1))
-  result
+# Read inputs
+impute_df  <- read_tsv("inputs/impute_vals.tsv",  col_types = cols(.default = "c"))
+target_df  <- read_tsv("inputs/target_impute.tsv", col_types = cols(.default = "c"))
+
+target <- target_df$target_impute[1]
+
+# Fallback implementation mirroring aNCA:::remove_impute_method logic, but
+# preserving NA as NA and "" as "" (do not convert empty result to NA)
+remove_impute_method_impl <- function(impute_vals, target_impute) {
+  vapply(impute_vals, function(v) {
+    if (is.na(v))  return(NA_character_)
+    if (v == "")   return("")
+    tokens    <- unlist(strsplit(v, "[ ,]+"))
+    remaining <- setdiff(tokens, target_impute)
+    paste(remaining, collapse = ",")
+  }, FUN.VALUE = character(1), USE.NAMES = FALSE)
 }
 
-result <- data.frame(
-  impute_vals = impute_vals,
-  result = remove_impute_method(impute_vals, target_impute),
+# Attempt to use the aNCA internal helper if the package is available
+remove_fn <- tryCatch(
+  {
+    fn <- aNCA:::remove_impute_method
+    # aNCA version converts NA->""->process->empty->NA, so we wrap to handle
+    # NA/blank preservation and convert empty-after-removal to ""
+    function(impute_vals, target_impute) {
+      na_mask    <- is.na(impute_vals)
+      blank_mask <- !na_mask & (impute_vals == "")
+      result     <- fn(impute_vals, target_impute)
+      result[na_mask]            <- NA_character_
+      result[blank_mask]         <- ""
+      newly_empty <- !na_mask & !blank_mask & is.na(result)
+      result[newly_empty]        <- ""
+      result
+    }
+  },
+  error = function(e) remove_impute_method_impl
+)
+
+# Apply removal
+result_vals <- remove_fn(impute_df$impute_vals, target)
+
+# Build output data frame
+out <- data.frame(
+  impute_vals = impute_df$impute_vals,
+  result      = result_vals,
   stringsAsFactors = FALSE
 )
 
+# Create outputs directory and write CSV
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(out, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -166,7 +190,41 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"impute_vals","result"
+"start_predose,start_conc0","start_predose"
+"start_conc0,midpoint","midpoint"
+"start_conc0",""
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+Registered S3 method overwritten by 'tern':
+  method   from 
+  tidy.glm broom
+```
 
 ## Evaluation Result
 ```json
@@ -188,36 +246,60 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
-impute_vals_df <- read.delim(file.path("inputs", "impute_vals.tsv"), check.names = FALSE, stringsAsFactors = FALSE)
-target_impute_df <- read.delim(file.path("inputs", "target_impute.tsv"), check.names = FALSE, stringsAsFactors = FALSE)
+# RBioBench Task: remove_impute_method using aNCA package
+# Remove the target token from comma- or space-separated imputation strings
 
-impute_vals <- as.character(impute_vals_df[[1]])
-target_impute <- as.character(target_impute_df[[1]][1])
+library(readr)
 
-remove_impute_method <- function(impute_vals, target_impute) {
-  if (length(impute_vals) == 0) {
-    return(impute_vals)
-  }
-  result <- vapply(impute_vals, function(value) {
-    if (is.na(value)) {
-      return(NA_character_)
-    }
-    if (!nzchar(value)) {
-      return("")
-    }
-    parts <- strsplit(value, "[ ,]+")[[1]]
-    parts <- parts[nzchar(parts)]
-    paste(setdiff(parts, target_impute), collapse = ",")
-  }, FUN.VALUE = character(1))
-  result
+# Read inputs
+impute_df  <- read_tsv("inputs/impute_vals.tsv",  col_types = cols(.default = "c"))
+target_df  <- read_tsv("inputs/target_impute.tsv", col_types = cols(.default = "c"))
+
+target <- target_df$target_impute[1]
+
+# Fallback implementation mirroring aNCA:::remove_impute_method logic, but
+# preserving NA as NA and "" as "" (do not convert empty result to NA)
+remove_impute_method_impl <- function(impute_vals, target_impute) {
+  vapply(impute_vals, function(v) {
+    if (is.na(v))  return(NA_character_)
+    if (v == "")   return("")
+    tokens    <- unlist(strsplit(v, "[ ,]+"))
+    remaining <- setdiff(tokens, target_impute)
+    paste(remaining, collapse = ",")
+  }, FUN.VALUE = character(1), USE.NAMES = FALSE)
 }
 
-result <- data.frame(
-  impute_vals = impute_vals,
-  result = remove_impute_method(impute_vals, target_impute),
+# Attempt to use the aNCA internal helper if the package is available
+remove_fn <- tryCatch(
+  {
+    fn <- aNCA:::remove_impute_method
+    # aNCA version converts NA->""->process->empty->NA, so we wrap to handle
+    # NA/blank preservation and convert empty-after-removal to ""
+    function(impute_vals, target_impute) {
+      na_mask    <- is.na(impute_vals)
+      blank_mask <- !na_mask & (impute_vals == "")
+      result     <- fn(impute_vals, target_impute)
+      result[na_mask]            <- NA_character_
+      result[blank_mask]         <- ""
+      newly_empty <- !na_mask & !blank_mask & is.na(result)
+      result[newly_empty]        <- ""
+      result
+    }
+  },
+  error = function(e) remove_impute_method_impl
+)
+
+# Apply removal
+result_vals <- remove_fn(impute_df$impute_vals, target)
+
+# Build output data frame
+out <- data.frame(
+  impute_vals = impute_df$impute_vals,
+  result      = result_vals,
   stringsAsFactors = FALSE
 )
 
+# Create outputs directory and write CSV
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(out, "outputs/result.csv", row.names = FALSE, na = "")
 ```

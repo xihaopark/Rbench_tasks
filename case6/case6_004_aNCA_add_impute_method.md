@@ -116,36 +116,43 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 #!/usr/bin/env Rscript
 
 after_df <- read.delim("inputs/after.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-impute_df <- read.delim("inputs/impute_vals.tsv", stringsAsFactors = FALSE, check.names = FALSE)
+impute_vals_df <- read.delim("inputs/impute_vals.tsv", stringsAsFactors = FALSE, check.names = FALSE)
 target_df <- read.delim("inputs/target_impute.tsv", stringsAsFactors = FALSE, check.names = FALSE)
 
-after_pos <- as.integer(after_df$after[[1]])
-target_impute <- target_df$target_impute[[1]]
+after <- as.integer(after_df$after[[1]])
+target_impute <- as.character(target_df$target_impute[[1]])
 
-insert_after <- function(value, token, after) {
-  parts <- if (is.na(value) || value == "") character(0) else strsplit(value, ",", fixed = TRUE)[[1]]
+insert_after <- function(value, token, after_position) {
+  parts <- if (is.na(value) || !nzchar(value)) character(0) else strsplit(value, ",", fixed = TRUE)[[1]]
 
-  if (after <= 0L) {
+  if (after_position <= 0L) {
     inserted <- c(token, parts)
-  } else if (after >= length(parts)) {
+  } else if (after_position >= length(parts)) {
     inserted <- c(parts, token)
   } else {
-    inserted <- c(parts[seq_len(after)], token, parts[(after + 1L):length(parts)])
+    inserted <- c(parts[seq_len(after_position)], token, parts[(after_position + 1L):length(parts)])
   }
 
   paste(inserted, collapse = ",")
 }
 
 result <- data.frame(
-  impute_vals = impute_df$impute_vals,
-  after = after_pos,
-  result = vapply(impute_df$impute_vals, insert_after, character(1), token = target_impute, after = after_pos),
+  impute_vals = impute_vals_df$impute_vals,
+  after = after,
+  result = vapply(
+    impute_vals_df$impute_vals,
+    insert_after,
+    character(1),
+    token = target_impute,
+    after_position = after,
+    USE.NAMES = FALSE
+  ),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -218,34 +225,41 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 #!/usr/bin/env Rscript
 
 after_df <- read.delim("inputs/after.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-impute_df <- read.delim("inputs/impute_vals.tsv", stringsAsFactors = FALSE, check.names = FALSE)
+impute_vals_df <- read.delim("inputs/impute_vals.tsv", stringsAsFactors = FALSE, check.names = FALSE)
 target_df <- read.delim("inputs/target_impute.tsv", stringsAsFactors = FALSE, check.names = FALSE)
 
-after_pos <- as.integer(after_df$after[[1]])
-target_impute <- target_df$target_impute[[1]]
+after <- as.integer(after_df$after[[1]])
+target_impute <- as.character(target_df$target_impute[[1]])
 
-insert_after <- function(value, token, after) {
-  parts <- if (is.na(value) || value == "") character(0) else strsplit(value, ",", fixed = TRUE)[[1]]
+insert_after <- function(value, token, after_position) {
+  parts <- if (is.na(value) || !nzchar(value)) character(0) else strsplit(value, ",", fixed = TRUE)[[1]]
 
-  if (after <= 0L) {
+  if (after_position <= 0L) {
     inserted <- c(token, parts)
-  } else if (after >= length(parts)) {
+  } else if (after_position >= length(parts)) {
     inserted <- c(parts, token)
   } else {
-    inserted <- c(parts[seq_len(after)], token, parts[(after + 1L):length(parts)])
+    inserted <- c(parts[seq_len(after_position)], token, parts[(after_position + 1L):length(parts)])
   }
 
   paste(inserted, collapse = ",")
 }
 
 result <- data.frame(
-  impute_vals = impute_df$impute_vals,
-  after = after_pos,
-  result = vapply(impute_df$impute_vals, insert_after, character(1), token = target_impute, after = after_pos),
+  impute_vals = impute_vals_df$impute_vals,
+  after = after,
+  result = vapply(
+    impute_vals_df$impute_vals,
+    insert_after,
+    character(1),
+    token = target_impute,
+    after_position = after,
+    USE.NAMES = FALSE
+  ),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
+write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```

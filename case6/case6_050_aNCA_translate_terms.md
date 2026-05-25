@@ -195,33 +195,44 @@ if (exists("result_df") && is.data.frame(result_df)) {
 
 ### LLM Generated Code
 ```r
-input_terms <- read.delim("inputs/input_terms.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-mapping_col <- read.delim("inputs/mapping_col.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-metadata <- read.delim("inputs/metadata.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-target_col <- read.delim("inputs/target_col.tsv", stringsAsFactors = FALSE, check.names = FALSE)
+#!/usr/bin/env Rscript
 
-map_column <- mapping_col$mapping_col[[1]]
-target_column <- target_col$target_col[[1]]
+input_terms <- read.delim(
+  file.path("inputs", "input_terms.tsv"),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+mapping_col <- read.delim(
+  file.path("inputs", "mapping_col.tsv"),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+metadata <- read.delim(
+  file.path("inputs", "metadata.tsv"),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+target_col <- read.delim(
+  file.path("inputs", "target_col.tsv"),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
 
-if (!map_column %in% names(metadata)) {
-  stop(sprintf("Mapping column '%s' was not found in metadata.tsv", map_column))
-}
-if (!target_column %in% names(metadata)) {
-  stop(sprintf("Target column '%s' was not found in metadata.tsv", target_column))
-}
+mapping_name <- mapping_col$mapping_col[[1]]
+target_name <- target_col$target_col[[1]]
 
-match_index <- match(input_terms$input_terms, metadata[[map_column]])
+match_index <- match(input_terms$input_terms, metadata[[mapping_name]])
 
 result <- data.frame(
   input_terms = input_terms$input_terms,
-  mapping_col = rep(map_column, nrow(input_terms)),
-  result = metadata[[target_column]][match_index],
+  mapping_col = rep(mapping_name, nrow(input_terms)),
+  result = metadata[[target_name]][match_index],
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -287,31 +298,42 @@ write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 
 ## Raw Agent Response
 ```text
-input_terms <- read.delim("inputs/input_terms.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-mapping_col <- read.delim("inputs/mapping_col.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-metadata <- read.delim("inputs/metadata.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-target_col <- read.delim("inputs/target_col.tsv", stringsAsFactors = FALSE, check.names = FALSE)
+#!/usr/bin/env Rscript
 
-map_column <- mapping_col$mapping_col[[1]]
-target_column <- target_col$target_col[[1]]
+input_terms <- read.delim(
+  file.path("inputs", "input_terms.tsv"),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+mapping_col <- read.delim(
+  file.path("inputs", "mapping_col.tsv"),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+metadata <- read.delim(
+  file.path("inputs", "metadata.tsv"),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
+target_col <- read.delim(
+  file.path("inputs", "target_col.tsv"),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
+)
 
-if (!map_column %in% names(metadata)) {
-  stop(sprintf("Mapping column '%s' was not found in metadata.tsv", map_column))
-}
-if (!target_column %in% names(metadata)) {
-  stop(sprintf("Target column '%s' was not found in metadata.tsv", target_column))
-}
+mapping_name <- mapping_col$mapping_col[[1]]
+target_name <- target_col$target_col[[1]]
 
-match_index <- match(input_terms$input_terms, metadata[[map_column]])
+match_index <- match(input_terms$input_terms, metadata[[mapping_name]])
 
 result <- data.frame(
   input_terms = input_terms$input_terms,
-  mapping_col = rep(map_column, nrow(input_terms)),
-  result = metadata[[target_column]][match_index],
+  mapping_col = rep(mapping_name, nrow(input_terms)),
+  result = metadata[[target_name]][match_index],
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```

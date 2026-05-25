@@ -5,13 +5,13 @@
 - Package: `aNCA`
 - Model: `claude-code/claude-sonnet-4-6`
 - Agent: `Claude Code`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `PASS`
+- Failure stage: `pass`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-NO_OUTPUT
+PASS
 ```
 
 ## Prompt
@@ -130,65 +130,57 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-# Solution: add impute method using aNCA package
-# add_impute_method(impute_vals, target_impute, after)
-# Inserts target_impute into the impute_vals vector at position after
+#!/usr/bin/env Rscript
 
-# Read inputs
-after_df <- read.delim("inputs/after.tsv", stringsAsFactors = FALSE)
-impute_vals_df <- read.delim("inputs/impute_vals.tsv", stringsAsFactors = FALSE)
-target_impute_df <- read.delim("inputs/target_impute.tsv", stringsAsFactors = FALSE)
-
-after_val <- after_df$after[1]
-target_impute_val <- target_impute_df$target_impute[1]
-
-# Try to use aNCA package if available; otherwise implement the logic directly.
-# add_impute_method: inserts target_impute into the impute_vals character vector
-# after position `after`, returning a character string/vector.
-add_impute_method_local <- function(impute_vals, target_impute, after) {
-  # impute_vals is a comma-separated string representing a vector of methods
-  methods <- unlist(strsplit(impute_vals, ","))
-  n <- length(methods)
-  if (after <= 0) {
-    result <- c(target_impute, methods)
-  } else if (after >= n) {
-    result <- c(methods, target_impute)
-  } else {
-    result <- c(methods[seq_len(after)], target_impute, methods[(after + 1):n])
-  }
-  paste(result, collapse = ",")
+# add_impute_method: insert target_impute into each comma-separated impute_vals
+# string at position `after`, removing any prior occurrence first.
+# Implementation mirrors aNCA:::add_impute_method (intervals_helpers.R).
+add_impute_method_impl <- function(impute_vals, target_impute, after) {
+  if (length(impute_vals) == 0) return(impute_vals)
+  impute_vals <- ifelse(is.na(impute_vals), "", impute_vals)
+  parts <- strsplit(impute_vals, split = "[ ,]+")
+  parts <- lapply(parts, FUN = setdiff, target_impute)
+  parts <- lapply(parts, FUN = append, values = target_impute, after = after)
+  vapply(parts, FUN = paste, collapse = ",", FUN.VALUE = "")
 }
 
-# Attempt to use aNCA::add_impute_method if the package is available
-use_aNCA <- requireNamespace("aNCA", quietly = TRUE)
+# Read inputs
+after_df         <- read.table("inputs/after.tsv",          header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+impute_vals_df   <- read.table("inputs/impute_vals.tsv",    header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+target_impute_df <- read.table("inputs/target_impute.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-# Apply per row: each row of impute_vals is a comma-separated methods string
-result_vec <- sapply(impute_vals_df$impute_vals, function(iv) {
-  if (use_aNCA) {
-    # aNCA::add_impute_method takes a character vector; split the csv string
-    methods <- unlist(strsplit(iv, ","))
-    res <- aNCA::add_impute_method(methods, target_impute_val, after_val)
-    # Result may be a vector; collapse back to comma-separated
-    paste(res, collapse = ",")
-  } else {
-    add_impute_method_local(iv, target_impute_val, after_val)
-  }
-}, USE.NAMES = FALSE)
+# Extract values
+after         <- after_df$after[1]
+target_impute <- target_impute_df$target_impute[1]
+impute_vals   <- impute_vals_df$impute_vals
+
+# Use aNCA package function when available; fall back to local implementation
+result_vec <- tryCatch({
+  library(aNCA)
+  aNCA:::add_impute_method(
+    impute_vals   = impute_vals,
+    target_impute = target_impute,
+    after         = after
+  )
+}, error = function(e) {
+  message("aNCA not available; using built-in implementation: ", conditionMessage(e))
+  add_impute_method_impl(impute_vals, target_impute, after)
+})
 
 # Build output data frame
-output_df <- data.frame(
-  impute_vals = impute_vals_df$impute_vals,
-  after = after_val,
-  result = result_vec,
+result_df <- data.frame(
+  impute_vals = impute_vals,
+  after       = after,
+  result      = result_vec,
   stringsAsFactors = FALSE
 )
 
 # Write output
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output_df, "outputs/result.csv", row.names = FALSE)
+write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 
 cat("Done. Output written to outputs/result.csv\n")
-print(output_df)
+print(result_df)
 ```
 
 ## Output
@@ -204,85 +196,124 @@ print(output_df)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"impute_vals","after","result"
+"start_predose",1,"start_predose,start_conc0"
+"start_predose,end_obs",1,"start_predose,start_conc0,end_obs"
+"end_obs",1,"end_obs,start_conc0"
+"start_conc0,end_obs",1,"end_obs,start_conc0"
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+Registered S3 method overwritten by 'tern':
+  method   from 
+  tidy.glm broom
+
+Attaching package: ‘aNCA’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    apply_mapping, convert_volume_units, create_start_impute,
+    detect_study_types, dose_profile_duplicates, filter_breaks,
+    format_pkncadata_intervals, g_pkcg01_lin, g_pkcg01_log,
+    g_pkcg02_lin, g_pkcg02_log, generate_tooltip_text, get_label,
+    interval_add_impute, interval_remove_impute, l_pkcl01,
+    multiple_matrix_ratios, parse_annotation, pk.calc.volpk, read_pk,
+    simplify_unit, translate_terms
+```
 
 ## Evaluation Result
 ```json
 {
-  "status": "NO_OUTPUT",
-  "tier": "exec_fail",
-  "failure_stage": "execution_failure",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "execution_failure",
-    "tier": "exec_fail",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
-# Solution: add impute method using aNCA package
-# add_impute_method(impute_vals, target_impute, after)
-# Inserts target_impute into the impute_vals vector at position after
+#!/usr/bin/env Rscript
 
-# Read inputs
-after_df <- read.delim("inputs/after.tsv", stringsAsFactors = FALSE)
-impute_vals_df <- read.delim("inputs/impute_vals.tsv", stringsAsFactors = FALSE)
-target_impute_df <- read.delim("inputs/target_impute.tsv", stringsAsFactors = FALSE)
-
-after_val <- after_df$after[1]
-target_impute_val <- target_impute_df$target_impute[1]
-
-# Try to use aNCA package if available; otherwise implement the logic directly.
-# add_impute_method: inserts target_impute into the impute_vals character vector
-# after position `after`, returning a character string/vector.
-add_impute_method_local <- function(impute_vals, target_impute, after) {
-  # impute_vals is a comma-separated string representing a vector of methods
-  methods <- unlist(strsplit(impute_vals, ","))
-  n <- length(methods)
-  if (after <= 0) {
-    result <- c(target_impute, methods)
-  } else if (after >= n) {
-    result <- c(methods, target_impute)
-  } else {
-    result <- c(methods[seq_len(after)], target_impute, methods[(after + 1):n])
-  }
-  paste(result, collapse = ",")
+# add_impute_method: insert target_impute into each comma-separated impute_vals
+# string at position `after`, removing any prior occurrence first.
+# Implementation mirrors aNCA:::add_impute_method (intervals_helpers.R).
+add_impute_method_impl <- function(impute_vals, target_impute, after) {
+  if (length(impute_vals) == 0) return(impute_vals)
+  impute_vals <- ifelse(is.na(impute_vals), "", impute_vals)
+  parts <- strsplit(impute_vals, split = "[ ,]+")
+  parts <- lapply(parts, FUN = setdiff, target_impute)
+  parts <- lapply(parts, FUN = append, values = target_impute, after = after)
+  vapply(parts, FUN = paste, collapse = ",", FUN.VALUE = "")
 }
 
-# Attempt to use aNCA::add_impute_method if the package is available
-use_aNCA <- requireNamespace("aNCA", quietly = TRUE)
+# Read inputs
+after_df         <- read.table("inputs/after.tsv",          header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+impute_vals_df   <- read.table("inputs/impute_vals.tsv",    header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+target_impute_df <- read.table("inputs/target_impute.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-# Apply per row: each row of impute_vals is a comma-separated methods string
-result_vec <- sapply(impute_vals_df$impute_vals, function(iv) {
-  if (use_aNCA) {
-    # aNCA::add_impute_method takes a character vector; split the csv string
-    methods <- unlist(strsplit(iv, ","))
-    res <- aNCA::add_impute_method(methods, target_impute_val, after_val)
-    # Result may be a vector; collapse back to comma-separated
-    paste(res, collapse = ",")
-  } else {
-    add_impute_method_local(iv, target_impute_val, after_val)
-  }
-}, USE.NAMES = FALSE)
+# Extract values
+after         <- after_df$after[1]
+target_impute <- target_impute_df$target_impute[1]
+impute_vals   <- impute_vals_df$impute_vals
+
+# Use aNCA package function when available; fall back to local implementation
+result_vec <- tryCatch({
+  library(aNCA)
+  aNCA:::add_impute_method(
+    impute_vals   = impute_vals,
+    target_impute = target_impute,
+    after         = after
+  )
+}, error = function(e) {
+  message("aNCA not available; using built-in implementation: ", conditionMessage(e))
+  add_impute_method_impl(impute_vals, target_impute, after)
+})
 
 # Build output data frame
-output_df <- data.frame(
-  impute_vals = impute_vals_df$impute_vals,
-  after = after_val,
-  result = result_vec,
+result_df <- data.frame(
+  impute_vals = impute_vals,
+  after       = after,
+  result      = result_vec,
   stringsAsFactors = FALSE
 )
 
 # Write output
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output_df, "outputs/result.csv", row.names = FALSE)
+write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 
 cat("Done. Output written to outputs/result.csv\n")
-print(output_df)
+print(result_df)
 ```

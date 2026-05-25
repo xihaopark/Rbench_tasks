@@ -178,41 +178,74 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-# Load required libraries
+#!/usr/bin/env Rscript
+
 library(dplyr)
+
+# Read inputs
+data <- read.table("inputs/data.tsv", sep = "\t", header = TRUE,
+                   stringsAsFactors = FALSE, check.names = FALSE)
+groups_df      <- read.table("inputs/groups.tsv", sep = "\t", header = TRUE,
+                              stringsAsFactors = FALSE)
+metabfl_column <- read.table("inputs/metabfl_column.tsv", sep = "\t",
+                              header = TRUE, stringsAsFactors = FALSE)[[1]]
+route_column   <- read.table("inputs/route_column.tsv", sep = "\t",
+                              header = TRUE, stringsAsFactors = FALSE)[[1]]
+volume_column  <- read.table("inputs/volume_column.tsv", sep = "\t",
+                              header = TRUE, stringsAsFactors = FALSE)[[1]]
 
 # Create outputs directory if needed
 dir.create("outputs", showWarnings = FALSE)
 
-# Read input files
-data <- read.delim("inputs/data.tsv", stringsAsFactors = FALSE)
-groups <- read.delim("inputs/groups.tsv", stringsAsFactors = FALSE)
-metabfl_column <- read.delim("inputs/metabfl_column.tsv", stringsAsFactors = FALSE)
-route_column <- read.delim("inputs/route_column.tsv", stringsAsFactors = FALSE)
-volume_column <- read.delim("inputs/volume_column.tsv", stringsAsFactors = FALSE)
+# Attempt to use aNCA::detect_study_types when all required columns are present;
+# otherwise fall back to direct classification.
+use_anca <- requireNamespace("aNCA", quietly = TRUE) &&
+  all(c("DOSNOA", "ADOSEDUR") %in% names(data))
 
-# Extract column names from config files
-groups_cols <- groups[[1]]
-metabfl_col <- metabfl_column[[1]][1]
-route_col <- route_column[[1]][1]
-vol_col <- volume_column[[1]][1]
+if (use_anca) {
+  groups_vec <- groups_df[[1]]
 
-# Classify each row by route/evidence:
-# - excretion: when volume > 0 (urine/excretion data)
-# - oral: when route is oral
-# - iv_infusion: when route is IV infusion
-result <- data %>%
-  mutate(
-    study_type = case_when(
-      !is.na(.data[[vol_col]]) & .data[[vol_col]] > 0 ~ "excretion",
-      grepl("^oral$", .data[[route_col]], ignore.case = TRUE) ~ "oral",
-      grepl("iv infusion", .data[[route_col]], ignore.case = TRUE) ~ "iv_infusion",
-      TRUE ~ NA_character_
-    )
-  ) %>%
-  select(subject, study_type)
+  study_types <- aNCA::detect_study_types(
+    data           = data,
+    groups         = groups_vec,
+    metabfl_column = metabfl_column,
+    route_column   = route_column,
+    volume_column  = volume_column
+  )
 
-# Write output
+  # Map aNCA naming to required output labels
+  study_types <- study_types %>%
+    mutate(study_type = case_when(
+      grepl("Excretion", study_type, ignore.case = TRUE) ~ "excretion",
+      grepl("IV Infusion", study_type, ignore.case = TRUE) ~ "iv_infusion",
+      grepl("IV Bolus", study_type, ignore.case = TRUE) ~ "iv_bolus",
+      grepl("Extravascular|oral", study_type, ignore.case = TRUE) ~ "oral",
+      TRUE ~ study_type
+    ))
+
+  # Join back to original data so we have one row per input row
+  result <- data %>%
+    left_join(study_types %>% select(all_of(c(groups_vec, "study_type"))),
+              by = groups_vec) %>%
+    select(subject, study_type)
+
+} else {
+  # Direct classification based on route/volume evidence
+  result <- data %>%
+    mutate(
+      .route  = tolower(trimws(.data[[route_column]])),
+      .volume = .data[[volume_column]],
+      study_type = case_when(
+        !is.na(.volume) & .volume > 0     ~ "excretion",
+        .route == "oral"                  ~ "oral",
+        grepl("iv infusion", .route)      ~ "iv_infusion",
+        grepl("iv bolus|iv_bolus", .route) ~ "iv_bolus",
+        TRUE                              ~ NA_character_
+      )
+    ) %>%
+    select(subject, study_type)
+}
+
 write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
@@ -228,7 +261,53 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"subject","study_type"
+101,"oral"
+101,"oral"
+102,"iv_infusion"
+103,"excretion"
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Registered S3 method overwritten by 'tern':
+  method   from 
+  tidy.glm broom
+```
 
 ## Evaluation Result
 ```json
@@ -250,40 +329,73 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
-# Load required libraries
+#!/usr/bin/env Rscript
+
 library(dplyr)
+
+# Read inputs
+data <- read.table("inputs/data.tsv", sep = "\t", header = TRUE,
+                   stringsAsFactors = FALSE, check.names = FALSE)
+groups_df      <- read.table("inputs/groups.tsv", sep = "\t", header = TRUE,
+                              stringsAsFactors = FALSE)
+metabfl_column <- read.table("inputs/metabfl_column.tsv", sep = "\t",
+                              header = TRUE, stringsAsFactors = FALSE)[[1]]
+route_column   <- read.table("inputs/route_column.tsv", sep = "\t",
+                              header = TRUE, stringsAsFactors = FALSE)[[1]]
+volume_column  <- read.table("inputs/volume_column.tsv", sep = "\t",
+                              header = TRUE, stringsAsFactors = FALSE)[[1]]
 
 # Create outputs directory if needed
 dir.create("outputs", showWarnings = FALSE)
 
-# Read input files
-data <- read.delim("inputs/data.tsv", stringsAsFactors = FALSE)
-groups <- read.delim("inputs/groups.tsv", stringsAsFactors = FALSE)
-metabfl_column <- read.delim("inputs/metabfl_column.tsv", stringsAsFactors = FALSE)
-route_column <- read.delim("inputs/route_column.tsv", stringsAsFactors = FALSE)
-volume_column <- read.delim("inputs/volume_column.tsv", stringsAsFactors = FALSE)
+# Attempt to use aNCA::detect_study_types when all required columns are present;
+# otherwise fall back to direct classification.
+use_anca <- requireNamespace("aNCA", quietly = TRUE) &&
+  all(c("DOSNOA", "ADOSEDUR") %in% names(data))
 
-# Extract column names from config files
-groups_cols <- groups[[1]]
-metabfl_col <- metabfl_column[[1]][1]
-route_col <- route_column[[1]][1]
-vol_col <- volume_column[[1]][1]
+if (use_anca) {
+  groups_vec <- groups_df[[1]]
 
-# Classify each row by route/evidence:
-# - excretion: when volume > 0 (urine/excretion data)
-# - oral: when route is oral
-# - iv_infusion: when route is IV infusion
-result <- data %>%
-  mutate(
-    study_type = case_when(
-      !is.na(.data[[vol_col]]) & .data[[vol_col]] > 0 ~ "excretion",
-      grepl("^oral$", .data[[route_col]], ignore.case = TRUE) ~ "oral",
-      grepl("iv infusion", .data[[route_col]], ignore.case = TRUE) ~ "iv_infusion",
-      TRUE ~ NA_character_
-    )
-  ) %>%
-  select(subject, study_type)
+  study_types <- aNCA::detect_study_types(
+    data           = data,
+    groups         = groups_vec,
+    metabfl_column = metabfl_column,
+    route_column   = route_column,
+    volume_column  = volume_column
+  )
 
-# Write output
+  # Map aNCA naming to required output labels
+  study_types <- study_types %>%
+    mutate(study_type = case_when(
+      grepl("Excretion", study_type, ignore.case = TRUE) ~ "excretion",
+      grepl("IV Infusion", study_type, ignore.case = TRUE) ~ "iv_infusion",
+      grepl("IV Bolus", study_type, ignore.case = TRUE) ~ "iv_bolus",
+      grepl("Extravascular|oral", study_type, ignore.case = TRUE) ~ "oral",
+      TRUE ~ study_type
+    ))
+
+  # Join back to original data so we have one row per input row
+  result <- data %>%
+    left_join(study_types %>% select(all_of(c(groups_vec, "study_type"))),
+              by = groups_vec) %>%
+    select(subject, study_type)
+
+} else {
+  # Direct classification based on route/volume evidence
+  result <- data %>%
+    mutate(
+      .route  = tolower(trimws(.data[[route_column]])),
+      .volume = .data[[volume_column]],
+      study_type = case_when(
+        !is.na(.volume) & .volume > 0     ~ "excretion",
+        .route == "oral"                  ~ "oral",
+        grepl("iv infusion", .route)      ~ "iv_infusion",
+        grepl("iv bolus|iv_bolus", .route) ~ "iv_bolus",
+        TRUE                              ~ NA_character_
+      )
+    ) %>%
+    select(subject, study_type)
+}
+
 write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```

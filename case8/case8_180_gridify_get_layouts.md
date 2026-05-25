@@ -79,53 +79,22 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-library(gridify)
+# RBioBench Task: get layouts using the gridify package
 
-# Create outputs directory if needed
+# Create outputs directory if it doesn't exist
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-# Call get_layouts to retrieve available layouts
+# Call gridify::get_layouts() to retrieve all layout function names
 layouts <- gridify::get_layouts()
 
-# Normalize the returned layouts into a data frame with columns id and result
-if (is.data.frame(layouts)) {
-  # Already tabular: use existing columns if id/result present, else coerce
-  if (all(c("id", "result") %in% names(layouts))) {
-    result_df <- layouts[, c("id", "result")]
-  } else {
-    result_df <- data.frame(
-      id     = seq_len(nrow(layouts)),
-      result = apply(layouts, 1, function(row) paste(row, collapse = "; ")),
-      stringsAsFactors = FALSE
-    )
-  }
-} else if (is.list(layouts)) {
-  # Named or unnamed list of layout objects
-  ids <- if (!is.null(names(layouts))) names(layouts) else seq_along(layouts)
-  values <- vapply(layouts, function(x) {
-    if (is.character(x) && length(x) == 1L) {
-      x
-    } else if (is.atomic(x)) {
-      paste(as.character(x), collapse = ", ")
-    } else {
-      paste(capture.output(print(x)), collapse = "; ")
-    }
-  }, character(1L))
-  result_df <- data.frame(
-    id     = as.character(ids),
-    result = values,
-    stringsAsFactors = FALSE
-  )
-} else {
-  # Atomic vector (character, integer, etc.)
-  result_df <- data.frame(
-    id     = seq_along(layouts),
-    result = as.character(layouts),
-    stringsAsFactors = FALSE
-  )
-}
+# Normalize to a data frame with columns 'id' and 'result'
+result_df <- data.frame(
+  id     = seq_along(layouts),
+  result = layouts,
+  stringsAsFactors = FALSE
+)
 
-# Write to required output file
+# Write to outputs/result.csv
 write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 ```
 
@@ -143,7 +112,40 @@ write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"id","result"
+1,"complex_layout"
+2,"simple_layout"
+3,"pharma_layout_base"
+4,"pharma_layout_A4"
+5,"pharma_layout_letter"
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+```
 
 ## Evaluation Result
 ```json
@@ -167,52 +169,21 @@ No LLM output artifact was produced.
 ```text
 #!/usr/bin/env Rscript
 
-library(gridify)
+# RBioBench Task: get layouts using the gridify package
 
-# Create outputs directory if needed
+# Create outputs directory if it doesn't exist
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-# Call get_layouts to retrieve available layouts
+# Call gridify::get_layouts() to retrieve all layout function names
 layouts <- gridify::get_layouts()
 
-# Normalize the returned layouts into a data frame with columns id and result
-if (is.data.frame(layouts)) {
-  # Already tabular: use existing columns if id/result present, else coerce
-  if (all(c("id", "result") %in% names(layouts))) {
-    result_df <- layouts[, c("id", "result")]
-  } else {
-    result_df <- data.frame(
-      id     = seq_len(nrow(layouts)),
-      result = apply(layouts, 1, function(row) paste(row, collapse = "; ")),
-      stringsAsFactors = FALSE
-    )
-  }
-} else if (is.list(layouts)) {
-  # Named or unnamed list of layout objects
-  ids <- if (!is.null(names(layouts))) names(layouts) else seq_along(layouts)
-  values <- vapply(layouts, function(x) {
-    if (is.character(x) && length(x) == 1L) {
-      x
-    } else if (is.atomic(x)) {
-      paste(as.character(x), collapse = ", ")
-    } else {
-      paste(capture.output(print(x)), collapse = "; ")
-    }
-  }, character(1L))
-  result_df <- data.frame(
-    id     = as.character(ids),
-    result = values,
-    stringsAsFactors = FALSE
-  )
-} else {
-  # Atomic vector (character, integer, etc.)
-  result_df <- data.frame(
-    id     = seq_along(layouts),
-    result = as.character(layouts),
-    stringsAsFactors = FALSE
-  )
-}
+# Normalize to a data frame with columns 'id' and 'result'
+result_df <- data.frame(
+  id     = seq_along(layouts),
+  result = layouts,
+  stringsAsFactors = FALSE
+)
 
-# Write to required output file
+# Write to outputs/result.csv
 write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 ```

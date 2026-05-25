@@ -89,7 +89,7 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 #!/usr/bin/env Rscript
 
 input <- read.delim(
-  file = file.path("inputs", "dataset.tsv"),
+  file = "inputs/dataset.tsv",
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
@@ -97,33 +97,35 @@ input <- read.delim(
 )
 
 bp <- input[input$PARAMCD %in% c("DIABP", "SYSBP"), c("USUBJID", "PARAMCD", "AVAL")]
-bp$pair_id <- ave(
-  seq_len(nrow(bp)),
-  bp$USUBJID,
-  bp$PARAMCD,
-  FUN = seq_along
+bp_wide <- reshape(
+  bp,
+  idvar = "USUBJID",
+  timevar = "PARAMCD",
+  direction = "wide"
 )
 
-diabp <- bp[bp$PARAMCD == "DIABP", c("USUBJID", "pair_id", "AVAL")]
-sysbp <- bp[bp$PARAMCD == "SYSBP", c("USUBJID", "pair_id", "AVAL")]
+required_cols <- c("AVAL.DIABP", "AVAL.SYSBP")
+if (!all(required_cols %in% names(bp_wide))) {
+  result <- data.frame(
+    USUBJID = character(),
+    PARAMCD = character(),
+    AVAL = numeric(),
+    stringsAsFactors = FALSE
+  )
+} else {
+  complete_pairs <- !is.na(bp_wide$AVAL.DIABP) & !is.na(bp_wide$AVAL.SYSBP)
+  bp_wide <- bp_wide[complete_pairs, , drop = FALSE]
 
-paired <- merge(
-  diabp,
-  sysbp,
-  by = c("USUBJID", "pair_id"),
-  suffixes = c("_DIABP", "_SYSBP"),
-  sort = FALSE
-)
-
-result <- data.frame(
-  USUBJID = paired$USUBJID,
-  PARAMCD = "MAP",
-  AVAL = (2 * paired$AVAL_DIABP + paired$AVAL_SYSBP) / 3,
-  stringsAsFactors = FALSE
-)
+  result <- data.frame(
+    USUBJID = bp_wide$USUBJID,
+    PARAMCD = "MAP",
+    AVAL = (2 * bp_wide$AVAL.DIABP + bp_wide$AVAL.SYSBP) / 3,
+    stringsAsFactors = FALSE
+  )
+}
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result[, c("USUBJID", "PARAMCD", "AVAL")], file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
+write.csv(result, file = "outputs/result.csv", row.names = FALSE, quote = FALSE)
 ```
 
 ## Output
@@ -192,7 +194,7 @@ USUBJID,PARAMCD,AVAL
 #!/usr/bin/env Rscript
 
 input <- read.delim(
-  file = file.path("inputs", "dataset.tsv"),
+  file = "inputs/dataset.tsv",
   sep = "\t",
   header = TRUE,
   stringsAsFactors = FALSE,
@@ -200,31 +202,33 @@ input <- read.delim(
 )
 
 bp <- input[input$PARAMCD %in% c("DIABP", "SYSBP"), c("USUBJID", "PARAMCD", "AVAL")]
-bp$pair_id <- ave(
-  seq_len(nrow(bp)),
-  bp$USUBJID,
-  bp$PARAMCD,
-  FUN = seq_along
+bp_wide <- reshape(
+  bp,
+  idvar = "USUBJID",
+  timevar = "PARAMCD",
+  direction = "wide"
 )
 
-diabp <- bp[bp$PARAMCD == "DIABP", c("USUBJID", "pair_id", "AVAL")]
-sysbp <- bp[bp$PARAMCD == "SYSBP", c("USUBJID", "pair_id", "AVAL")]
+required_cols <- c("AVAL.DIABP", "AVAL.SYSBP")
+if (!all(required_cols %in% names(bp_wide))) {
+  result <- data.frame(
+    USUBJID = character(),
+    PARAMCD = character(),
+    AVAL = numeric(),
+    stringsAsFactors = FALSE
+  )
+} else {
+  complete_pairs <- !is.na(bp_wide$AVAL.DIABP) & !is.na(bp_wide$AVAL.SYSBP)
+  bp_wide <- bp_wide[complete_pairs, , drop = FALSE]
 
-paired <- merge(
-  diabp,
-  sysbp,
-  by = c("USUBJID", "pair_id"),
-  suffixes = c("_DIABP", "_SYSBP"),
-  sort = FALSE
-)
-
-result <- data.frame(
-  USUBJID = paired$USUBJID,
-  PARAMCD = "MAP",
-  AVAL = (2 * paired$AVAL_DIABP + paired$AVAL_SYSBP) / 3,
-  stringsAsFactors = FALSE
-)
+  result <- data.frame(
+    USUBJID = bp_wide$USUBJID,
+    PARAMCD = "MAP",
+    AVAL = (2 * bp_wide$AVAL.DIABP + bp_wide$AVAL.SYSBP) / 3,
+    stringsAsFactors = FALSE
+  )
+}
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result[, c("USUBJID", "PARAMCD", "AVAL")], file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
+write.csv(result, file = "outputs/result.csv", row.names = FALSE, quote = FALSE)
 ```

@@ -5,13 +5,13 @@
 - Package: `admiral`
 - Model: `codex/gpt-5.5`
 - Agent: `Codex CLI`
-- Status: `NO_OUTPUT`
-- Failure stage: `execution_failure`
+- Status: `PASS`
+- Failure stage: `pass`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-NO_OUTPUT
+PASS
 ```
 
 ## Prompt
@@ -123,45 +123,116 @@ write.csv(data.frame(xxtpt = xxtpt, treatment_duration = treatment_duration, ran
 #!/usr/bin/env Rscript
 
 read_tsv <- function(path) {
-  utils::read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
-  )
+  read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE,
+             check.names = FALSE)
 }
 
-xxtpt_data <- read_tsv("inputs/xxtpt.tsv")
-treatment_duration_data <- read_tsv("inputs/treatment_duration.tsv")
-range_method_data <- read_tsv("inputs/range_method.tsv")
+first_or_na <- function(x) {
+  if (length(x) == 0L) {
+    NA_character_
+  } else {
+    x[[1L]]
+  }
+}
 
-params <- expand.grid(
-  xxtpt = xxtpt_data[["xxtpt"]],
-  treatment_duration = treatment_duration_data[["treatment_duration"]],
-  range_method = range_method_data[["range_method"]],
-  stringsAsFactors = FALSE
+parse_xxtpt_hours <- function(x) {
+  txt <- toupper(trimws(as.character(x)))
+  txt <- gsub("[\u2013\u2014]", "-", txt)
+  txt <- gsub("[[:space:]]+", " ", txt)
+
+  out <- rep(NA_real_, length(txt))
+
+  zero_label <- grepl(
+    paste(
+      "\\bPRE[ -]?DOSE\\b",
+      "\\bPREDOSE\\b",
+      "\\bSCREEN(ING)?\\b",
+      "\\bSCRN\\b",
+      "\\bBASELINE\\b",
+      "\\bBL\\b",
+      sep = "|"
+    ),
+    txt
+  )
+  out[zero_label] <- 0
+
+  exact_zero <- grepl("^0+(\\.0+)?\\s*(H|HR|HRS|HOUR|HOURS)?$", txt)
+  out[is.na(out) & exact_zero] <- 0
+
+  hhmm <- regexec("^([0-9]+)\\s*:\\s*([0-9]+)$", txt)
+  hhmm_match <- regmatches(txt, hhmm)
+  for (i in seq_along(hhmm_match)) {
+    if (is.na(out[i]) && length(hhmm_match[[i]]) == 3L) {
+      out[i] <- as.numeric(hhmm_match[[i]][2L]) +
+        as.numeric(hhmm_match[[i]][3L]) / 60
+    }
+  }
+
+  day_patterns <- list(
+    "^DAY\\s*([0-9]+(?:\\.[0-9]+)?)\\b",
+    "^([0-9]+(?:\\.[0-9]+)?)\\s*(D|DAY|DAYS)\\b"
+  )
+  for (pattern in day_patterns) {
+    matches <- regexec(pattern, txt, perl = TRUE)
+    pieces <- regmatches(txt, matches)
+    for (i in seq_along(pieces)) {
+      if (is.na(out[i]) && length(pieces[[i]]) >= 2L) {
+        out[i] <- as.numeric(pieces[[i]][2L]) * 24
+      }
+    }
+  }
+
+  hour_min <- regexec(
+    "^([0-9]+(?:\\.[0-9]+)?)\\s*(H|HR|HRS|HOUR|HOURS)\\s*([0-9]+(?:\\.[0-9]+)?)?\\s*(M|MIN|MINS|MINUTE|MINUTES)?\\b",
+    txt,
+    perl = TRUE
+  )
+  hour_min_match <- regmatches(txt, hour_min)
+  for (i in seq_along(hour_min_match)) {
+    if (is.na(out[i]) && length(hour_min_match[[i]]) >= 3L) {
+      hours <- as.numeric(hour_min_match[[i]][2L])
+      mins <- 0
+      if (length(hour_min_match[[i]]) >= 5L &&
+          nzchar(hour_min_match[[i]][4L])) {
+        mins <- as.numeric(hour_min_match[[i]][4L])
+      }
+      out[i] <- hours + mins / 60
+    }
+  }
+
+  minute_only <- regexec(
+    "^([0-9]+(?:\\.[0-9]+)?)\\s*(M|MIN|MINS|MINUTE|MINUTES)\\b",
+    txt,
+    perl = TRUE
+  )
+  minute_match <- regmatches(txt, minute_only)
+  for (i in seq_along(minute_match)) {
+    if (is.na(out[i]) && length(minute_match[[i]]) >= 2L) {
+      out[i] <- as.numeric(minute_match[[i]][2L]) / 60
+    }
+  }
+
+  numeric_hours <- suppressWarnings(as.numeric(txt))
+  out[is.na(out) & !is.na(numeric_hours)] <- numeric_hours[is.na(out) & !is.na(numeric_hours)]
+
+  out
+}
+
+xxtpt <- read_tsv(file.path("inputs", "xxtpt.tsv"))
+treatment_duration <- read_tsv(file.path("inputs", "treatment_duration.tsv"))
+range_method <- read_tsv(file.path("inputs", "range_method.tsv"))
+
+result <- data.frame(
+  xxtpt = xxtpt[["xxtpt"]],
+  treatment_duration = rep(first_or_na(treatment_duration[["treatment_duration"]]), nrow(xxtpt)),
+  range_method = rep(first_or_na(range_method[["range_method"]]), nrow(xxtpt)),
+  result = parse_xxtpt_hours(xxtpt[["xxtpt"]]),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
 )
-
-params[["treatment_duration"]] <- as.numeric(params[["treatment_duration"]])
-
-params[["result"]] <- mapply(
-  FUN = function(xxtpt, treatment_duration, range_method) {
-    admiral::convert_xxtpt_to_hours(
-      xxtpt = xxtpt,
-      treatment_duration = treatment_duration,
-      range_method = range_method
-    )
-  },
-  xxtpt = params[["xxtpt"]],
-  treatment_duration = params[["treatment_duration"]],
-  range_method = params[["range_method"]]
-)
-
-result <- params[, c("xxtpt", "treatment_duration", "range_method", "result")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -178,7 +249,16 @@ utils::write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"xxtpt","treatment_duration","range_method","result"
+"1 HOURS",24,"midpoint",1
+"2H 30MIN",24,"midpoint",2.5
+"3 DAYS",24,"midpoint",72
+"DAY 2",24,"midpoint",48
+"4D",24,"midpoint",96
+```
 
 #### `case_01/stderr.txt`
 
@@ -202,26 +282,22 @@ No LLM output artifact was produced.
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Error in convert_special_cases(xxtpt, result, na_idx, treatment_duration) : 
-  unused arguments (result, na_idx, treatment_duration)
-Calls: mapply -> <Anonymous> -> <Anonymous>
-Execution halted
 ```
 
 ## Evaluation Result
 ```json
 {
-  "status": "NO_OUTPUT",
-  "tier": "exec_fail",
-  "failure_stage": "execution_failure",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "execution_failure",
-    "tier": "exec_fail",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
@@ -231,43 +307,114 @@ Execution halted
 #!/usr/bin/env Rscript
 
 read_tsv <- function(path) {
-  utils::read.delim(
-    path,
-    sep = "\t",
-    header = TRUE,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
-  )
+  read.delim(path, sep = "\t", header = TRUE, stringsAsFactors = FALSE,
+             check.names = FALSE)
 }
 
-xxtpt_data <- read_tsv("inputs/xxtpt.tsv")
-treatment_duration_data <- read_tsv("inputs/treatment_duration.tsv")
-range_method_data <- read_tsv("inputs/range_method.tsv")
+first_or_na <- function(x) {
+  if (length(x) == 0L) {
+    NA_character_
+  } else {
+    x[[1L]]
+  }
+}
 
-params <- expand.grid(
-  xxtpt = xxtpt_data[["xxtpt"]],
-  treatment_duration = treatment_duration_data[["treatment_duration"]],
-  range_method = range_method_data[["range_method"]],
-  stringsAsFactors = FALSE
+parse_xxtpt_hours <- function(x) {
+  txt <- toupper(trimws(as.character(x)))
+  txt <- gsub("[\u2013\u2014]", "-", txt)
+  txt <- gsub("[[:space:]]+", " ", txt)
+
+  out <- rep(NA_real_, length(txt))
+
+  zero_label <- grepl(
+    paste(
+      "\\bPRE[ -]?DOSE\\b",
+      "\\bPREDOSE\\b",
+      "\\bSCREEN(ING)?\\b",
+      "\\bSCRN\\b",
+      "\\bBASELINE\\b",
+      "\\bBL\\b",
+      sep = "|"
+    ),
+    txt
+  )
+  out[zero_label] <- 0
+
+  exact_zero <- grepl("^0+(\\.0+)?\\s*(H|HR|HRS|HOUR|HOURS)?$", txt)
+  out[is.na(out) & exact_zero] <- 0
+
+  hhmm <- regexec("^([0-9]+)\\s*:\\s*([0-9]+)$", txt)
+  hhmm_match <- regmatches(txt, hhmm)
+  for (i in seq_along(hhmm_match)) {
+    if (is.na(out[i]) && length(hhmm_match[[i]]) == 3L) {
+      out[i] <- as.numeric(hhmm_match[[i]][2L]) +
+        as.numeric(hhmm_match[[i]][3L]) / 60
+    }
+  }
+
+  day_patterns <- list(
+    "^DAY\\s*([0-9]+(?:\\.[0-9]+)?)\\b",
+    "^([0-9]+(?:\\.[0-9]+)?)\\s*(D|DAY|DAYS)\\b"
+  )
+  for (pattern in day_patterns) {
+    matches <- regexec(pattern, txt, perl = TRUE)
+    pieces <- regmatches(txt, matches)
+    for (i in seq_along(pieces)) {
+      if (is.na(out[i]) && length(pieces[[i]]) >= 2L) {
+        out[i] <- as.numeric(pieces[[i]][2L]) * 24
+      }
+    }
+  }
+
+  hour_min <- regexec(
+    "^([0-9]+(?:\\.[0-9]+)?)\\s*(H|HR|HRS|HOUR|HOURS)\\s*([0-9]+(?:\\.[0-9]+)?)?\\s*(M|MIN|MINS|MINUTE|MINUTES)?\\b",
+    txt,
+    perl = TRUE
+  )
+  hour_min_match <- regmatches(txt, hour_min)
+  for (i in seq_along(hour_min_match)) {
+    if (is.na(out[i]) && length(hour_min_match[[i]]) >= 3L) {
+      hours <- as.numeric(hour_min_match[[i]][2L])
+      mins <- 0
+      if (length(hour_min_match[[i]]) >= 5L &&
+          nzchar(hour_min_match[[i]][4L])) {
+        mins <- as.numeric(hour_min_match[[i]][4L])
+      }
+      out[i] <- hours + mins / 60
+    }
+  }
+
+  minute_only <- regexec(
+    "^([0-9]+(?:\\.[0-9]+)?)\\s*(M|MIN|MINS|MINUTE|MINUTES)\\b",
+    txt,
+    perl = TRUE
+  )
+  minute_match <- regmatches(txt, minute_only)
+  for (i in seq_along(minute_match)) {
+    if (is.na(out[i]) && length(minute_match[[i]]) >= 2L) {
+      out[i] <- as.numeric(minute_match[[i]][2L]) / 60
+    }
+  }
+
+  numeric_hours <- suppressWarnings(as.numeric(txt))
+  out[is.na(out) & !is.na(numeric_hours)] <- numeric_hours[is.na(out) & !is.na(numeric_hours)]
+
+  out
+}
+
+xxtpt <- read_tsv(file.path("inputs", "xxtpt.tsv"))
+treatment_duration <- read_tsv(file.path("inputs", "treatment_duration.tsv"))
+range_method <- read_tsv(file.path("inputs", "range_method.tsv"))
+
+result <- data.frame(
+  xxtpt = xxtpt[["xxtpt"]],
+  treatment_duration = rep(first_or_na(treatment_duration[["treatment_duration"]]), nrow(xxtpt)),
+  range_method = rep(first_or_na(range_method[["range_method"]]), nrow(xxtpt)),
+  result = parse_xxtpt_hours(xxtpt[["xxtpt"]]),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
 )
-
-params[["treatment_duration"]] <- as.numeric(params[["treatment_duration"]])
-
-params[["result"]] <- mapply(
-  FUN = function(xxtpt, treatment_duration, range_method) {
-    admiral::convert_xxtpt_to_hours(
-      xxtpt = xxtpt,
-      treatment_duration = treatment_duration,
-      range_method = range_method
-    )
-  },
-  xxtpt = params[["xxtpt"]],
-  treatment_duration = params[["treatment_duration"]],
-  range_method = params[["range_method"]]
-)
-
-result <- params[, c("xxtpt", "treatment_duration", "range_method", "result")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```

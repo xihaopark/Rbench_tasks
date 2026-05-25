@@ -153,79 +153,31 @@ write_result(result)
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+conc <- read.delim("inputs/conc.tsv", stringsAsFactors = FALSE)
+time <- read.delim("inputs/time.tsv", stringsAsFactors = FALSE)
+start <- read.delim("inputs/start.tsv", stringsAsFactors = FALSE)
 
-read_first_numeric <- function(path, column) {
-  data <- utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  as.numeric(data[[column]])
-}
-
-parse_options <- function(path) {
-  data <- utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  values <- data[[1]]
-  pieces <- strsplit(values, "=", fixed = TRUE)
-  out <- lapply(pieces, function(x) {
-    if (length(x) < 2) {
-      return(NA_character_)
-    }
-    value <- paste(x[-1], collapse = "=")
-    if (identical(tolower(value), "true")) {
-      TRUE
-    } else if (identical(tolower(value), "false")) {
-      FALSE
-    } else {
-      numeric_value <- suppressWarnings(as.numeric(value))
-      if (!is.na(numeric_value)) numeric_value else value
-    }
-  })
-  names(out) <- vapply(pieces, `[[`, character(1), 1)
-  out
-}
-
-impute_start_c1 <- function(conc, time, start, end, options = list()) {
-  if (
-    requireNamespace("aNCA", quietly = TRUE) &&
-      exists("PKNCA_impute_method_start_c1", envir = asNamespace("aNCA"), inherits = FALSE)
-  ) {
-    return(aNCA::PKNCA_impute_method_start_c1(
-      conc = conc,
-      time = time,
-      start = start,
-      end = end,
-      options = options
-    ))
-  }
-
-  result <- data.frame(conc = conc, time = time)
-  if (!any(time == start)) {
-    in_interval <- time >= start & time <= end
-    interval_conc <- conc[in_interval]
-    interval_time <- time[in_interval]
-    if (length(interval_conc) > 0 && !all(is.na(interval_conc))) {
-      c1 <- interval_conc[which.min(interval_time)]
-      result <- rbind(result, data.frame(conc = c1, time = start))
-    }
-  }
-  result[order(result$time), c("conc", "time")]
-}
-
-conc <- read_first_numeric("inputs/conc.tsv", "conc")
-time <- read_first_numeric("inputs/time.tsv", "time")
-start <- read_first_numeric("inputs/start.tsv", "start")[1]
-end <- read_first_numeric("inputs/end.tsv", "end")[1]
-options <- parse_options("inputs/options.tsv")
-
-result <- impute_start_c1(
-  conc = conc,
-  time = time,
-  start = start,
-  end = end,
-  options = options
+data <- data.frame(
+  conc = as.numeric(conc$conc),
+  time = as.numeric(time$time)
 )
-result <- result[order(result$time), c("conc", "time")]
+
+start_time <- as.numeric(start$start[1])
+first_after <- which(data$time > start_time)[1]
+
+if (!is.na(first_after)) {
+  start_row <- data.frame(
+    conc = data$conc[first_after],
+    time = start_time
+  )
+  data <- rbind(data, start_row)
+}
+
+data <- data[order(data$time), c("conc", "time")]
+rownames(data) <- NULL
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, "outputs/result.csv", row.names = FALSE)
+write.csv(data, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -277,9 +229,6 @@ utils::write.csv(result, "outputs/result.csv", row.names = FALSE)
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-Registered S3 method overwritten by 'tern':
-  method   from 
-  tidy.glm broom
 ```
 
 ## Evaluation Result
@@ -302,77 +251,29 @@ Registered S3 method overwritten by 'tern':
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+conc <- read.delim("inputs/conc.tsv", stringsAsFactors = FALSE)
+time <- read.delim("inputs/time.tsv", stringsAsFactors = FALSE)
+start <- read.delim("inputs/start.tsv", stringsAsFactors = FALSE)
 
-read_first_numeric <- function(path, column) {
-  data <- utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  as.numeric(data[[column]])
-}
-
-parse_options <- function(path) {
-  data <- utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  values <- data[[1]]
-  pieces <- strsplit(values, "=", fixed = TRUE)
-  out <- lapply(pieces, function(x) {
-    if (length(x) < 2) {
-      return(NA_character_)
-    }
-    value <- paste(x[-1], collapse = "=")
-    if (identical(tolower(value), "true")) {
-      TRUE
-    } else if (identical(tolower(value), "false")) {
-      FALSE
-    } else {
-      numeric_value <- suppressWarnings(as.numeric(value))
-      if (!is.na(numeric_value)) numeric_value else value
-    }
-  })
-  names(out) <- vapply(pieces, `[[`, character(1), 1)
-  out
-}
-
-impute_start_c1 <- function(conc, time, start, end, options = list()) {
-  if (
-    requireNamespace("aNCA", quietly = TRUE) &&
-      exists("PKNCA_impute_method_start_c1", envir = asNamespace("aNCA"), inherits = FALSE)
-  ) {
-    return(aNCA::PKNCA_impute_method_start_c1(
-      conc = conc,
-      time = time,
-      start = start,
-      end = end,
-      options = options
-    ))
-  }
-
-  result <- data.frame(conc = conc, time = time)
-  if (!any(time == start)) {
-    in_interval <- time >= start & time <= end
-    interval_conc <- conc[in_interval]
-    interval_time <- time[in_interval]
-    if (length(interval_conc) > 0 && !all(is.na(interval_conc))) {
-      c1 <- interval_conc[which.min(interval_time)]
-      result <- rbind(result, data.frame(conc = c1, time = start))
-    }
-  }
-  result[order(result$time), c("conc", "time")]
-}
-
-conc <- read_first_numeric("inputs/conc.tsv", "conc")
-time <- read_first_numeric("inputs/time.tsv", "time")
-start <- read_first_numeric("inputs/start.tsv", "start")[1]
-end <- read_first_numeric("inputs/end.tsv", "end")[1]
-options <- parse_options("inputs/options.tsv")
-
-result <- impute_start_c1(
-  conc = conc,
-  time = time,
-  start = start,
-  end = end,
-  options = options
+data <- data.frame(
+  conc = as.numeric(conc$conc),
+  time = as.numeric(time$time)
 )
-result <- result[order(result$time), c("conc", "time")]
+
+start_time <- as.numeric(start$start[1])
+first_after <- which(data$time > start_time)[1]
+
+if (!is.na(first_after)) {
+  start_row <- data.frame(
+    conc = data$conc[first_after],
+    time = start_time
+  )
+  data <- rbind(data, start_row)
+}
+
+data <- data[order(data$time), c("conc", "time")]
+rownames(data) <- NULL
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, "outputs/result.csv", row.names = FALSE)
+write.csv(data, "outputs/result.csv", row.names = FALSE)
 ```

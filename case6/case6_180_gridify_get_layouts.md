@@ -54,6 +54,10 @@ Computation: Call gridify::get_layouts and normalize the returned layouts to res
 
 Required columns for result.csv: id, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+Reference package function list:
+The hidden reference solution's R package function calls are listed below. If the list is empty, the reference solution does not call package functions.
+- package_functions: ["gridify::get_layouts"]
 ```
 
 ## Input
@@ -77,21 +81,19 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
+#!/usr/bin/env Rscript
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+
 layouts <- gridify::get_layouts()
 
-layout_ids <- names(layouts)
-if (is.null(layout_ids) || any(layout_ids == "")) {
-  layout_ids <- seq_along(layouts)
-}
-
 result <- data.frame(
-  id = layout_ids,
+  id = seq_along(layouts),
   result = as.character(layouts),
   stringsAsFactors = FALSE
 )
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -163,19 +165,17 @@ utils::write.csv(result, file = file.path("outputs", "result.csv"), row.names = 
 
 ## Raw Agent Response
 ```text
+#!/usr/bin/env Rscript
+
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+
 layouts <- gridify::get_layouts()
 
-layout_ids <- names(layouts)
-if (is.null(layout_ids) || any(layout_ids == "")) {
-  layout_ids <- seq_along(layouts)
-}
-
 result <- data.frame(
-  id = layout_ids,
+  id = seq_along(layouts),
   result = as.character(layouts),
   stringsAsFactors = FALSE
 )
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```

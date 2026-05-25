@@ -3,15 +3,15 @@
 ## Metadata
 - Task ID: `pharmaverse/admiral/get_imputation_targets`
 - Package: `admiral`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
-- Status: `PASS`
-- Failure stage: `pass`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
+- Status: `NO_OUTPUT`
+- Failure stage: `execution_failure`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-PASS
+NO_OUTPUT
 ```
 
 ## Prompt
@@ -54,6 +54,14 @@ Computation: For partial date/time targets, year-only dates use month 06 and day
 
 Required columns for result.csv: partial, year, month, day, hour, minute, second
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### partial.tsv
+partial
+2020
+2020-02
+2020-02-20T14
 ```
 
 ## Input
@@ -85,50 +93,79 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+library(admiral)
 
-input <- read.delim(
-  file = file.path("inputs", "partial.tsv"),
-  sep = "\t",
-  stringsAsFactors = FALSE,
-  colClasses = "character",
-  check.names = FALSE
-)
+# Read input
+partial_data <- read.delim("inputs/partial.tsv", stringsAsFactors = FALSE)
 
-parse_partial <- function(value) {
-  datetime_parts <- strsplit(value, "T", fixed = TRUE)[[1]]
-  date_part <- datetime_parts[1]
-  time_part <- if (length(datetime_parts) > 1) datetime_parts[2] else ""
+# Determine whether the partial string contains a time component
+has_time <- function(partial_str) {
+  grepl("T", partial_str)
+}
 
-  date_fields <- strsplit(date_part, "-", fixed = TRUE)[[1]]
-  time_fields <- if (nzchar(time_part)) {
-    strsplit(time_part, ":", fixed = TRUE)[[1]]
-  } else {
-    character()
+# For each partial date/time string, parse components and apply imputation targets
+process_partial <- function(partial_str) {
+  create_dt <- has_time(partial_str)
+
+  # Parse into partial components list
+  partial_list <- admiral:::get_partialdatetime(partial_str, create_datetime = create_dt)
+
+  # Get imputation targets:
+  # - date_imputation = "06-15": year-only -> month=06, day=15 (per task rules)
+  # - time_imputation = "first": missing time components -> "00"
+  time_imp <- if (create_dt) "first" else NULL
+  targets <- admiral:::get_imputation_targets(
+    partial_list,
+    date_imputation = "06-15",
+    time_imputation = time_imp
+  )
+
+  # Apply targets: use actual value if present, otherwise use the imputation target
+  # The "xxxx" sentinel means "keep original year value"
+  resolve <- function(actual, target) {
+    if (!is.null(actual) && !is.na(actual)) {
+      as.integer(actual)
+    } else if (!is.null(target) && !is.na(target) && target != "xxxx") {
+      as.integer(target)
+    } else {
+      NA_integer_
+    }
   }
 
-  c(
-    year = date_fields[1],
-    month = if (length(date_fields) >= 2) date_fields[2] else "06",
-    day = if (length(date_fields) >= 3) date_fields[3] else "15",
-    hour = if (length(time_fields) >= 1) time_fields[1] else "00",
-    minute = if (length(time_fields) >= 2) time_fields[2] else "00",
-    second = if (length(time_fields) >= 3) time_fields[3] else "00"
+  year_val  <- resolve(partial_list$year,  targets$year)
+  month_val <- resolve(partial_list$month, targets$month)
+  day_val   <- resolve(partial_list$day,   targets$day)
+
+  if (create_dt) {
+    hour_val   <- resolve(partial_list$hour,   targets$hour)
+    minute_val <- resolve(partial_list$minute, targets$minute)
+    second_val <- resolve(partial_list$second, targets$second)
+  } else {
+    # No time part in partial string -> impute all time components to 00
+    hour_val   <- 0L
+    minute_val <- 0L
+    second_val <- 0L
+  }
+
+  data.frame(
+    partial = partial_str,
+    year    = year_val,
+    month   = month_val,
+    day     = day_val,
+    hour    = hour_val,
+    minute  = minute_val,
+    second  = second_val,
+    stringsAsFactors = FALSE
   )
 }
 
-components <- as.data.frame(
-  do.call(rbind, lapply(input$partial, parse_partial)),
-  stringsAsFactors = FALSE
-)
-
-result <- cbind(
-  data.frame(partial = input$partial, stringsAsFactors = FALSE),
-  components
-)
+result <- do.call(rbind, lapply(partial_data$partial, process_partial))
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
+
+cat("Done. Output written to outputs/result.csv\n")
+print(result)
 ```
 
 ## Output
@@ -143,101 +180,99 @@ write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"partial","year","month","day","hour","minute","second"
-"2020","2020","06","15","00","00","00"
-"2020-02","2020","02","15","00","00","00"
-"2020-02-20T14","2020","02","20","14","00","00"
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
 {
-  "status": "PASS",
-  "tier": "pass",
-  "failure_stage": "pass",
-  "pass": true,
-  "score": 1.0,
-  "message": "",
+  "status": "NO_OUTPUT",
+  "tier": "exec_fail",
+  "failure_stage": "execution_failure",
+  "pass": false,
+  "score": 0.0,
+  "message": "Failed at case_embedded",
   "validation_diagnostics": {
-    "failure_stage": "pass",
-    "tier": "pass",
+    "failure_stage": "execution_failure",
+    "tier": "exec_fail",
     "case_count": 1,
-    "failed_case": null
+    "failed_case": "case_embedded"
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+library(admiral)
 
-input <- read.delim(
-  file = file.path("inputs", "partial.tsv"),
-  sep = "\t",
-  stringsAsFactors = FALSE,
-  colClasses = "character",
-  check.names = FALSE
-)
+# Read input
+partial_data <- read.delim("inputs/partial.tsv", stringsAsFactors = FALSE)
 
-parse_partial <- function(value) {
-  datetime_parts <- strsplit(value, "T", fixed = TRUE)[[1]]
-  date_part <- datetime_parts[1]
-  time_part <- if (length(datetime_parts) > 1) datetime_parts[2] else ""
+# Determine whether the partial string contains a time component
+has_time <- function(partial_str) {
+  grepl("T", partial_str)
+}
 
-  date_fields <- strsplit(date_part, "-", fixed = TRUE)[[1]]
-  time_fields <- if (nzchar(time_part)) {
-    strsplit(time_part, ":", fixed = TRUE)[[1]]
-  } else {
-    character()
+# For each partial date/time string, parse components and apply imputation targets
+process_partial <- function(partial_str) {
+  create_dt <- has_time(partial_str)
+
+  # Parse into partial components list
+  partial_list <- admiral:::get_partialdatetime(partial_str, create_datetime = create_dt)
+
+  # Get imputation targets:
+  # - date_imputation = "06-15": year-only -> month=06, day=15 (per task rules)
+  # - time_imputation = "first": missing time components -> "00"
+  time_imp <- if (create_dt) "first" else NULL
+  targets <- admiral:::get_imputation_targets(
+    partial_list,
+    date_imputation = "06-15",
+    time_imputation = time_imp
+  )
+
+  # Apply targets: use actual value if present, otherwise use the imputation target
+  # The "xxxx" sentinel means "keep original year value"
+  resolve <- function(actual, target) {
+    if (!is.null(actual) && !is.na(actual)) {
+      as.integer(actual)
+    } else if (!is.null(target) && !is.na(target) && target != "xxxx") {
+      as.integer(target)
+    } else {
+      NA_integer_
+    }
   }
 
-  c(
-    year = date_fields[1],
-    month = if (length(date_fields) >= 2) date_fields[2] else "06",
-    day = if (length(date_fields) >= 3) date_fields[3] else "15",
-    hour = if (length(time_fields) >= 1) time_fields[1] else "00",
-    minute = if (length(time_fields) >= 2) time_fields[2] else "00",
-    second = if (length(time_fields) >= 3) time_fields[3] else "00"
+  year_val  <- resolve(partial_list$year,  targets$year)
+  month_val <- resolve(partial_list$month, targets$month)
+  day_val   <- resolve(partial_list$day,   targets$day)
+
+  if (create_dt) {
+    hour_val   <- resolve(partial_list$hour,   targets$hour)
+    minute_val <- resolve(partial_list$minute, targets$minute)
+    second_val <- resolve(partial_list$second, targets$second)
+  } else {
+    # No time part in partial string -> impute all time components to 00
+    hour_val   <- 0L
+    minute_val <- 0L
+    second_val <- 0L
+  }
+
+  data.frame(
+    partial = partial_str,
+    year    = year_val,
+    month   = month_val,
+    day     = day_val,
+    hour    = hour_val,
+    minute  = minute_val,
+    second  = second_val,
+    stringsAsFactors = FALSE
   )
 }
 
-components <- as.data.frame(
-  do.call(rbind, lapply(input$partial, parse_partial)),
-  stringsAsFactors = FALSE
-)
-
-result <- cbind(
-  data.frame(partial = input$partial, stringsAsFactors = FALSE),
-  components
-)
+result <- do.call(rbind, lapply(partial_data$partial, process_partial))
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
+
+cat("Done. Output written to outputs/result.csv\n")
+print(result)
 ```

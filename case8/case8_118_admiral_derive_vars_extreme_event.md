@@ -145,42 +145,42 @@ library(admiral)
 library(dplyr)
 
 # Read inputs
-dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-mode_df <- read.table("inputs/mode.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-ae_source <- read.table("inputs/source_datasets.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-
-# Get mode value
-mode_val <- mode_df$mode[1]
+dataset     <- read.table("inputs/dataset.tsv",         sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+mode_df     <- read.table("inputs/mode.tsv",            sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+source_data <- read.table("inputs/source_datasets.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 
 # Convert date columns
-dataset$TRTSDT <- as.Date(dataset$TRTSDT)
-ae_source$ADT <- as.Date(ae_source$ADT)
+dataset$TRTSDT  <- as.Date(dataset$TRTSDT)
+source_data$ADT <- as.Date(source_data$ADT)
 
-# Use admiral::derive_vars_extreme_event to add the extreme adverse event per subject.
+# Extract mode value (first or last)
+mode_val <- mode_df$mode[1]
+
+# Use derive_vars_extreme_event to add EXTDT, EXTTERM, EXTGR
 # Filter: AETOXGR >= 2
 # Order: descending AETOXGR, then ADT, then AESEQ
-# Select the first (or last) per STUDYID/USUBJID according to mode
+# mode = "first" picks highest-grade record first after sorting desc(AETOXGR), ADT, AESEQ
 result <- derive_vars_extreme_event(
-  dataset = dataset,
+  dataset,
   by_vars = exprs(STUDYID, USUBJID),
   events = list(
     event(
-      dataset_name = "ae",
-      condition = AETOXGR >= 2,
+      dataset_name  = "ae",
+      condition     = AETOXGR >= 2,
       set_values_to = exprs(
-        EXTDT  = ADT,
+        EXTDT   = ADT,
         EXTTERM = AETERM,
-        EXTGR  = AETOXGR
+        EXTGR   = AETOXGR
       )
     )
   ),
-  order = exprs(desc(AETOXGR), ADT, AESEQ),
-  mode = mode_val,
-  source_datasets = list(ae = ae_source),
-  new_vars = exprs(EXTDT, EXTTERM, EXTGR)
+  source_datasets = list(ae = source_data),
+  order           = exprs(desc(AETOXGR), ADT, AESEQ),
+  mode            = mode_val,
+  new_vars        = exprs(EXTDT, EXTTERM, EXTGR)
 )
 
-# Keep only required columns
+# Select required columns
 result <- result %>%
   select(STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
 
@@ -201,7 +201,48 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"STUDYID","USUBJID","TRTSDT","EXTDT","EXTTERM","EXTGR"
+"S1",1,2020-01-01,2020-01-08,"NAUSEA",3
+"S1",2,2020-01-05,2020-01-07,"RASH",2
+"S1",3,2020-01-10,2020-01-15,"COUGH",2
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -227,42 +268,42 @@ library(admiral)
 library(dplyr)
 
 # Read inputs
-dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-mode_df <- read.table("inputs/mode.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-ae_source <- read.table("inputs/source_datasets.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
-
-# Get mode value
-mode_val <- mode_df$mode[1]
+dataset     <- read.table("inputs/dataset.tsv",         sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+mode_df     <- read.table("inputs/mode.tsv",            sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+source_data <- read.table("inputs/source_datasets.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 
 # Convert date columns
-dataset$TRTSDT <- as.Date(dataset$TRTSDT)
-ae_source$ADT <- as.Date(ae_source$ADT)
+dataset$TRTSDT  <- as.Date(dataset$TRTSDT)
+source_data$ADT <- as.Date(source_data$ADT)
 
-# Use admiral::derive_vars_extreme_event to add the extreme adverse event per subject.
+# Extract mode value (first or last)
+mode_val <- mode_df$mode[1]
+
+# Use derive_vars_extreme_event to add EXTDT, EXTTERM, EXTGR
 # Filter: AETOXGR >= 2
 # Order: descending AETOXGR, then ADT, then AESEQ
-# Select the first (or last) per STUDYID/USUBJID according to mode
+# mode = "first" picks highest-grade record first after sorting desc(AETOXGR), ADT, AESEQ
 result <- derive_vars_extreme_event(
-  dataset = dataset,
+  dataset,
   by_vars = exprs(STUDYID, USUBJID),
   events = list(
     event(
-      dataset_name = "ae",
-      condition = AETOXGR >= 2,
+      dataset_name  = "ae",
+      condition     = AETOXGR >= 2,
       set_values_to = exprs(
-        EXTDT  = ADT,
+        EXTDT   = ADT,
         EXTTERM = AETERM,
-        EXTGR  = AETOXGR
+        EXTGR   = AETOXGR
       )
     )
   ),
-  order = exprs(desc(AETOXGR), ADT, AESEQ),
-  mode = mode_val,
-  source_datasets = list(ae = ae_source),
-  new_vars = exprs(EXTDT, EXTTERM, EXTGR)
+  source_datasets = list(ae = source_data),
+  order           = exprs(desc(AETOXGR), ADT, AESEQ),
+  mode            = mode_val,
+  new_vars        = exprs(EXTDT, EXTTERM, EXTGR)
 )
 
-# Keep only required columns
+# Select required columns
 result <- result %>%
   select(STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
 

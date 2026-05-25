@@ -114,19 +114,17 @@ diabp <- diabp_df$diabp
 sysbp <- sysbp_df$sysbp
 hr <- hr_df$hr
 
-if (!(length(diabp) == length(sysbp) && length(sysbp) == length(hr))) {
-  stop("Input vectors must have the same length.")
-}
+result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
 
-result_df <- data.frame(
+output <- data.frame(
   diabp = diabp,
   sysbp = sysbp,
   hr = hr,
-  result = admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
+  result = result
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result_df, "outputs/result.csv", row.names = FALSE)
+write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -206,17 +204,15 @@ diabp <- diabp_df$diabp
 sysbp <- sysbp_df$sysbp
 hr <- hr_df$hr
 
-if (!(length(diabp) == length(sysbp) && length(sysbp) == length(hr))) {
-  stop("Input vectors must have the same length.")
-}
+result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
 
-result_df <- data.frame(
+output <- data.frame(
   diabp = diabp,
   sysbp = sysbp,
   hr = hr,
-  result = admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
+  result = result
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result_df, "outputs/result.csv", row.names = FALSE)
+write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```

@@ -216,39 +216,35 @@ if (exists("result_df") && is.data.frame(result_df)) {
 
 ### LLM Generated Code
 ```r
+#!/usr/bin/env Rscript
+
 library(aNCA)
 
 # Read inputs
-input_terms_df <- read.table("inputs/input_terms.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-mapping_col_df <- read.table("inputs/mapping_col.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-metadata       <- read.table("inputs/metadata.tsv",    header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-target_col_df  <- read.table("inputs/target_col.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+input_terms <- read.delim("inputs/input_terms.tsv", stringsAsFactors = FALSE)[[1]]
+mapping_col <- read.delim("inputs/mapping_col.tsv", stringsAsFactors = FALSE)[[1]]
+metadata    <- read.delim("inputs/metadata.tsv",    stringsAsFactors = FALSE)
+target_col  <- read.delim("inputs/target_col.tsv",  stringsAsFactors = FALSE)[[1]]
 
-# Extract scalar column names and input terms vector
-terms       <- input_terms_df[[1]]
-mapping_col <- mapping_col_df[[1]][1]
-target_col  <- target_col_df[[1]][1]
-
-# Translate terms using aNCA::translate_terms
-# Returns a character vector; terms not found are returned unchanged
-result_vec <- translate_terms(
-  input_terms = terms,
+# Translate terms using aNCA
+result_vals <- translate_terms(
+  input_terms = input_terms,
   mapping_col = mapping_col,
   target_col  = target_col,
   metadata    = metadata
 )
 
-# Build output data frame with required columns
-output <- data.frame(
-  input_terms = terms,
+# Build result data frame (row-preserving)
+result_df <- data.frame(
+  input_terms = input_terms,
   mapping_col = mapping_col,
-  result      = result_vec,
+  result      = result_vals,
   stringsAsFactors = FALSE
 )
 
-# Create outputs directory if needed and write result
-dir.create("outputs", showWarnings = FALSE)
-write.csv(output, "outputs/result.csv", row.names = FALSE)
+# Write output
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -262,7 +258,52 @@ write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"input_terms","mapping_col","result.status","result.message","result.timestamp"
+"AVAL","Variable","success","translate_terms stub",2026-05-25 01:54:36.284741
+"PARAMCD","Variable","success","translate_terms stub",2026-05-25 01:54:36.284741
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+Registered S3 method overwritten by 'tern':
+  method   from 
+  tidy.glm broom
+
+Attaching package: ‘aNCA’
+
+The following objects are masked _by_ ‘.GlobalEnv’:
+
+    apply_mapping, convert_volume_units, create_start_impute,
+    detect_study_types, dose_profile_duplicates, filter_breaks,
+    format_pkncadata_intervals, g_pkcg01_lin, g_pkcg01_log,
+    g_pkcg02_lin, g_pkcg02_log, generate_tooltip_text, get_label,
+    interval_add_impute, interval_remove_impute, l_pkcl01,
+    multiple_matrix_ratios, parse_annotation, pk.calc.volpk, read_pk,
+    simplify_unit, translate_terms
+```
 
 ## Evaluation Result
 ```json
@@ -284,37 +325,33 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
+#!/usr/bin/env Rscript
+
 library(aNCA)
 
 # Read inputs
-input_terms_df <- read.table("inputs/input_terms.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-mapping_col_df <- read.table("inputs/mapping_col.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-metadata       <- read.table("inputs/metadata.tsv",    header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-target_col_df  <- read.table("inputs/target_col.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+input_terms <- read.delim("inputs/input_terms.tsv", stringsAsFactors = FALSE)[[1]]
+mapping_col <- read.delim("inputs/mapping_col.tsv", stringsAsFactors = FALSE)[[1]]
+metadata    <- read.delim("inputs/metadata.tsv",    stringsAsFactors = FALSE)
+target_col  <- read.delim("inputs/target_col.tsv",  stringsAsFactors = FALSE)[[1]]
 
-# Extract scalar column names and input terms vector
-terms       <- input_terms_df[[1]]
-mapping_col <- mapping_col_df[[1]][1]
-target_col  <- target_col_df[[1]][1]
-
-# Translate terms using aNCA::translate_terms
-# Returns a character vector; terms not found are returned unchanged
-result_vec <- translate_terms(
-  input_terms = terms,
+# Translate terms using aNCA
+result_vals <- translate_terms(
+  input_terms = input_terms,
   mapping_col = mapping_col,
   target_col  = target_col,
   metadata    = metadata
 )
 
-# Build output data frame with required columns
-output <- data.frame(
-  input_terms = terms,
+# Build result data frame (row-preserving)
+result_df <- data.frame(
+  input_terms = input_terms,
   mapping_col = mapping_col,
-  result      = result_vec,
+  result      = result_vals,
   stringsAsFactors = FALSE
 )
 
-# Create outputs directory if needed and write result
-dir.create("outputs", showWarnings = FALSE)
-write.csv(output, "outputs/result.csv", row.names = FALSE)
+# Write output
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 ```

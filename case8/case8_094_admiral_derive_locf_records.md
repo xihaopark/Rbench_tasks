@@ -131,81 +131,37 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE, na =
 
 ### LLM Generated Code
 ```r
+#!/usr/bin/env Rscript
+
+library(admiral)
 library(dplyr)
 
-# ---------------------------------------------------------------------------
-# Read inputs
-# ---------------------------------------------------------------------------
-dataset <- read.table(
-  "inputs/dataset.tsv", header = TRUE, sep = "\t",
-  colClasses = c("character", "character", "numeric", "numeric")
+# Read input files (keep USUBJID as character to preserve leading zeros)
+dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE,
+                      stringsAsFactors = FALSE,
+                      colClasses = c(USUBJID = "character"))
+visits  <- read.table("inputs/visits.tsv",  sep = "\t", header = TRUE,
+                      stringsAsFactors = FALSE,
+                      colClasses = c(USUBJID = "character"))
+
+# Perform LOCF using admiral::derive_locf_records
+# imputation = "add" (default) adds new carried rows with DTYPE = "LOCF"
+full_dataset <- derive_locf_records(
+  dataset      = dataset,
+  dataset_ref  = visits,
+  by_vars      = exprs(USUBJID, PARAMCD),
+  order        = exprs(AVISITN),
+  analysis_var = AVAL
 )
 
-visits <- read.table(
-  "inputs/visits.tsv", header = TRUE, sep = "\t",
-  colClasses = c("character", "character", "numeric")
-)
+# Keep only the newly created LOCF records
+locf_records <- full_dataset %>%
+  filter(DTYPE == "LOCF") %>%
+  select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
 
-# ---------------------------------------------------------------------------
-# Derive LOCF records using admiral if available, otherwise implement directly
-# ---------------------------------------------------------------------------
-
-use_admiral <- tryCatch({
-  library(admiral)
-  packageVersion("admiral")
-  TRUE
-}, error = function(e) FALSE)
-
-if (use_admiral) {
-  # admiral::derive_locf_records creates LOCF-imputed records for visits that
-  # are in dataset_ref but missing in dataset, for each by_vars group ordered
-  # by order.
-  locf_all <- derive_locf_records(
-    dataset      = dataset,
-    dataset_ref  = visits,
-    by_vars      = exprs(USUBJID, PARAMCD),
-    analysis_var = AVAL,
-    order        = exprs(AVISITN)
-  )
-
-  result <- locf_all %>%
-    filter(DTYPE == "LOCF") %>%
-    select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
-
-} else {
-  # ------------------------------------------------------------------
-  # Direct LOCF implementation (no admiral)
-  # ------------------------------------------------------------------
-  # Step 1: left-join reference visits onto dataset to flag missing rows
-  joined <- visits %>%
-    left_join(dataset, by = c("USUBJID", "PARAMCD", "AVISITN"))
-
-  # Step 2: within each group ordered by AVISITN, carry AVAL forward
-  locf_filled <- joined %>%
-    arrange(USUBJID, PARAMCD, AVISITN) %>%
-    group_by(USUBJID, PARAMCD) %>%
-    mutate(AVAL_locf = zoo::na.locf(AVAL, na.rm = FALSE)) %>%
-    ungroup()
-
-  # Step 3: keep only rows that were missing in the original dataset
-  #         (those are the LOCF-imputed rows)
-  result <- locf_filled %>%
-    filter(is.na(AVAL) & !is.na(AVAL_locf)) %>%
-    mutate(
-      AVAL  = AVAL_locf,
-      DTYPE = "LOCF"
-    ) %>%
-    select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
-}
-
-# ---------------------------------------------------------------------------
 # Write output
-# ---------------------------------------------------------------------------
-dir.create("outputs", showWarnings = FALSE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
-
-cat("Done. LOCF rows written:", nrow(result), "\n")
-print(result)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(locf_records, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -224,7 +180,48 @@ print(result)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"USUBJID","PARAMCD","AVISITN","AVAL","DTYPE"
+"01","ALT",2,20,"LOCF"
+"02","ALT",2,15,"LOCF"
+"02","ALT",3,15,"LOCF"
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -246,79 +243,35 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
+#!/usr/bin/env Rscript
+
+library(admiral)
 library(dplyr)
 
-# ---------------------------------------------------------------------------
-# Read inputs
-# ---------------------------------------------------------------------------
-dataset <- read.table(
-  "inputs/dataset.tsv", header = TRUE, sep = "\t",
-  colClasses = c("character", "character", "numeric", "numeric")
+# Read input files (keep USUBJID as character to preserve leading zeros)
+dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE,
+                      stringsAsFactors = FALSE,
+                      colClasses = c(USUBJID = "character"))
+visits  <- read.table("inputs/visits.tsv",  sep = "\t", header = TRUE,
+                      stringsAsFactors = FALSE,
+                      colClasses = c(USUBJID = "character"))
+
+# Perform LOCF using admiral::derive_locf_records
+# imputation = "add" (default) adds new carried rows with DTYPE = "LOCF"
+full_dataset <- derive_locf_records(
+  dataset      = dataset,
+  dataset_ref  = visits,
+  by_vars      = exprs(USUBJID, PARAMCD),
+  order        = exprs(AVISITN),
+  analysis_var = AVAL
 )
 
-visits <- read.table(
-  "inputs/visits.tsv", header = TRUE, sep = "\t",
-  colClasses = c("character", "character", "numeric")
-)
+# Keep only the newly created LOCF records
+locf_records <- full_dataset %>%
+  filter(DTYPE == "LOCF") %>%
+  select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
 
-# ---------------------------------------------------------------------------
-# Derive LOCF records using admiral if available, otherwise implement directly
-# ---------------------------------------------------------------------------
-
-use_admiral <- tryCatch({
-  library(admiral)
-  packageVersion("admiral")
-  TRUE
-}, error = function(e) FALSE)
-
-if (use_admiral) {
-  # admiral::derive_locf_records creates LOCF-imputed records for visits that
-  # are in dataset_ref but missing in dataset, for each by_vars group ordered
-  # by order.
-  locf_all <- derive_locf_records(
-    dataset      = dataset,
-    dataset_ref  = visits,
-    by_vars      = exprs(USUBJID, PARAMCD),
-    analysis_var = AVAL,
-    order        = exprs(AVISITN)
-  )
-
-  result <- locf_all %>%
-    filter(DTYPE == "LOCF") %>%
-    select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
-
-} else {
-  # ------------------------------------------------------------------
-  # Direct LOCF implementation (no admiral)
-  # ------------------------------------------------------------------
-  # Step 1: left-join reference visits onto dataset to flag missing rows
-  joined <- visits %>%
-    left_join(dataset, by = c("USUBJID", "PARAMCD", "AVISITN"))
-
-  # Step 2: within each group ordered by AVISITN, carry AVAL forward
-  locf_filled <- joined %>%
-    arrange(USUBJID, PARAMCD, AVISITN) %>%
-    group_by(USUBJID, PARAMCD) %>%
-    mutate(AVAL_locf = zoo::na.locf(AVAL, na.rm = FALSE)) %>%
-    ungroup()
-
-  # Step 3: keep only rows that were missing in the original dataset
-  #         (those are the LOCF-imputed rows)
-  result <- locf_filled %>%
-    filter(is.na(AVAL) & !is.na(AVAL_locf)) %>%
-    mutate(
-      AVAL  = AVAL_locf,
-      DTYPE = "LOCF"
-    ) %>%
-    select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
-}
-
-# ---------------------------------------------------------------------------
 # Write output
-# ---------------------------------------------------------------------------
-dir.create("outputs", showWarnings = FALSE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
-
-cat("Done. LOCF rows written:", nrow(result), "\n")
-print(result)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(locf_records, "outputs/result.csv", row.names = FALSE)
 ```

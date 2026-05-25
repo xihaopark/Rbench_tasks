@@ -3,8 +3,8 @@
 ## Metadata
 - Task ID: `pharmaverse/ggsurvfit/scale_ggsurvfit`
 - Package: `ggsurvfit`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -54,6 +54,16 @@ Computation: Parse the x_scales and y_scales list expressions, call ggsurvfit::s
 
 Required columns for result.csv: scale_classes
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### x_scales.tsv
+expr
+list(expand = c(0.015, 0), n.breaks = 8)
+
+### y_scales.tsv
+expr
+list(expand = c(0.025, 0), limits = c(0, 1))
 ```
 
 ## Input
@@ -104,35 +114,36 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-parse_list_expr <- function(path) {
-  dat <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!"expr" %in% names(dat) || nrow(dat) < 1L) {
-    stop("Input file must contain at least one row in an 'expr' column: ", path)
-  }
+library(ggsurvfit)
 
-  expr <- parse(text = dat$expr[[1L]])[[1L]]
-  value <- eval(expr, envir = new.env(parent = baseenv()))
-  if (!is.list(value)) {
-    stop("Parsed expression did not evaluate to a list: ", path)
-  }
-  value
-}
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-x_scales <- parse_list_expr(file.path("inputs", "x_scales.tsv"))
-y_scales <- parse_list_expr(file.path("inputs", "y_scales.tsv"))
+# Read input TSV files
+x_scales_df <- read.delim("inputs/x_scales.tsv", stringsAsFactors = FALSE)
+y_scales_df <- read.delim("inputs/y_scales.tsv", stringsAsFactors = FALSE)
 
-scale_obj <- ggsurvfit::scale_ggsurvfit(
+# Parse the list expressions
+x_scales_expr <- x_scales_df$expr[1]
+y_scales_expr <- y_scales_df$expr[1]
+
+x_scales <- eval(parse(text = x_scales_expr))
+y_scales <- eval(parse(text = y_scales_expr))
+
+# Call scale_ggsurvfit with the parsed parameters
+result <- ggsurvfit::scale_ggsurvfit(
   x_scales = x_scales,
   y_scales = y_scales
 )
 
-result <- data.frame(
-  scale_classes = paste(class(scale_obj), collapse = ";"),
-  stringsAsFactors = FALSE
-)
+# Get the class(es) of the resulting object and collapse into a single string
+scale_classes <- paste(class(result), collapse = ";")
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
+# Write one-row class/summary table
+output_df <- data.frame(scale_classes = scale_classes, stringsAsFactors = FALSE)
+write.csv(output_df, "outputs/result.csv", row.names = FALSE)
+
+cat("Done. scale_classes:", scale_classes, "\n")
 ```
 
 ## Output
@@ -145,36 +156,7 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"scale_classes"
-"scale_ggsurvfit"
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
@@ -198,33 +180,34 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```text
 #!/usr/bin/env Rscript
 
-parse_list_expr <- function(path) {
-  dat <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!"expr" %in% names(dat) || nrow(dat) < 1L) {
-    stop("Input file must contain at least one row in an 'expr' column: ", path)
-  }
+library(ggsurvfit)
 
-  expr <- parse(text = dat$expr[[1L]])[[1L]]
-  value <- eval(expr, envir = new.env(parent = baseenv()))
-  if (!is.list(value)) {
-    stop("Parsed expression did not evaluate to a list: ", path)
-  }
-  value
-}
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
-x_scales <- parse_list_expr(file.path("inputs", "x_scales.tsv"))
-y_scales <- parse_list_expr(file.path("inputs", "y_scales.tsv"))
+# Read input TSV files
+x_scales_df <- read.delim("inputs/x_scales.tsv", stringsAsFactors = FALSE)
+y_scales_df <- read.delim("inputs/y_scales.tsv", stringsAsFactors = FALSE)
 
-scale_obj <- ggsurvfit::scale_ggsurvfit(
+# Parse the list expressions
+x_scales_expr <- x_scales_df$expr[1]
+y_scales_expr <- y_scales_df$expr[1]
+
+x_scales <- eval(parse(text = x_scales_expr))
+y_scales <- eval(parse(text = y_scales_expr))
+
+# Call scale_ggsurvfit with the parsed parameters
+result <- ggsurvfit::scale_ggsurvfit(
   x_scales = x_scales,
   y_scales = y_scales
 )
 
-result <- data.frame(
-  scale_classes = paste(class(scale_obj), collapse = ";"),
-  stringsAsFactors = FALSE
-)
+# Get the class(es) of the resulting object and collapse into a single string
+scale_classes <- paste(class(result), collapse = ";")
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
+# Write one-row class/summary table
+output_df <- data.frame(scale_classes = scale_classes, stringsAsFactors = FALSE)
+write.csv(output_df, "outputs/result.csv", row.names = FALSE)
+
+cat("Done. scale_classes:", scale_classes, "\n")
 ```

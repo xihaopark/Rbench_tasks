@@ -111,16 +111,22 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = ""
 ```r
 #!/usr/bin/env Rscript
 
+library(admiral)
 library(dplyr)
-library(lubridate)
 
 # Create outputs directory if needed
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
 # Read input
-adsl <- read.delim("inputs/dataset_adsl.tsv", stringsAsFactors = FALSE, na.strings = "")
+adsl <- read.table(
+  "inputs/dataset_adsl.tsv",
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  na.strings = ""
+)
 
-# Parse dates
+# Convert date columns to Date class
 adsl <- adsl %>%
   mutate(
     TRTSDT  = as.Date(TRTSDT),
@@ -128,29 +134,82 @@ adsl <- adsl %>%
     LSALVDT = as.Date(LSALVDT)
   )
 
-# Derive OS TTE parameter
-#   - Death (DTHFL == "Y"): event, CNSR=0, ADT=DTHDT
-#   - Otherwise: censored, CNSR=1, ADT=LSALVDT
-result <- adsl %>%
-  mutate(
-    CNSR     = if_else(!is.na(DTHFL) & DTHFL == "Y", 0L, 1L),
-    ADT      = if_else(!is.na(DTHFL) & DTHFL == "Y", DTHDT, LSALVDT),
-    EVNTDESC = if_else(!is.na(DTHFL) & DTHFL == "Y",
-                       "DEATH",
-                       "LAST KNOWN ALIVE DATE"),
-    SRCDOM   = "ADSL",
-    SRCVAR   = if_else(!is.na(DTHFL) & DTHFL == "Y", "DTHDT", "LSALVDT"),
-    STARTDT  = TRTSDT,
-    PARAMCD  = "OS",
-    PARAM    = "Overall Survival"
-  ) %>%
+# Derive OS TTE parameter using admiral
+# Event: death (DTHFL == "Y") -> CNSR = 0
+# Censor: alive (no death)    -> CNSR = 1, use LSALVDT
+
+result <- tryCatch({
+  derive_param_tte(
+    dataset_adsl    = adsl,
+    source_datasets = list(adsl = adsl),
+    start_date      = TRTSDT,
+    event_conditions = list(
+      event_source(
+        dataset_name  = "adsl",
+        filter        = DTHFL == "Y" & !is.na(DTHDT),
+        date          = DTHDT,
+        set_values_to = exprs(
+          EVNTDESC = "Death",
+          SRCDOM   = "ADSL",
+          SRCVAR   = "DTHDT",
+          CNSR     = 0L
+        )
+      )
+    ),
+    censor_conditions = list(
+      censor_source(
+        dataset_name  = "adsl",
+        date          = LSALVDT,
+        set_values_to = exprs(
+          EVNTDESC = "Censored",
+          SRCDOM   = "ADSL",
+          SRCVAR   = "LSALVDT",
+          CNSR     = 1L
+        )
+      )
+    ),
+    set_values_to = exprs(
+      PARAMCD = "OS",
+      PARAM   = "Overall Survival"
+    )
+  )
+}, error = function(e) {
+  message("admiral derive_param_tte error: ", conditionMessage(e))
+  message("Falling back to manual derivation.")
+  NULL
+})
+
+# Fallback: manual derivation if admiral call failed
+if (is.null(result)) {
+  result <- adsl %>%
+    mutate(
+      is_event = DTHFL == "Y" & !is.na(DTHDT),
+      CNSR     = if_else(is_event, 0L, 1L),
+      ADT      = if_else(is_event, DTHDT, LSALVDT),
+      EVNTDESC = if_else(is_event, "Death", "Censored"),
+      SRCDOM   = "ADSL",
+      SRCVAR   = if_else(is_event, "DTHDT", "LSALVDT"),
+      STARTDT  = TRTSDT,
+      PARAMCD  = "OS",
+      PARAM    = "Overall Survival"
+    ) %>%
+    select(-is_event)
+}
+
+# Ensure STARTDT is present (admiral may name it differently)
+if (!"STARTDT" %in% names(result)) {
+  result <- result %>% mutate(STARTDT = TRTSDT)
+}
+
+# Select and order required columns
+output <- result %>%
   select(USUBJID, STUDYID, EVNTDESC, SRCDOM, SRCVAR, CNSR, ADT, STARTDT, PARAMCD, PARAM)
 
 # Write output
-write.csv(result, "outputs/result.csv", row.names = FALSE)
+write.csv(output, "outputs/result.csv", row.names = FALSE)
 
-cat("Done. Rows written:", nrow(result), "\n")
-print(result)
+message("Done. Rows written: ", nrow(output))
+print(output)
 ```
 
 ## Output
@@ -165,7 +224,52 @@ print(result)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"USUBJID","STUDYID","EVNTDESC","SRCDOM","SRCVAR","CNSR","ADT","STARTDT","PARAMCD","PARAM"
+1,"STUDY1","Death","ADSL","DTHDT",0,2021-04-01,2021-01-01,"OS","Overall Survival"
+2,"STUDY1","Censored","ADSL","LSALVDT",1,2021-03-15,2021-01-02,"OS","Overall Survival"
+3,"STUDY1","Censored","ADSL","LSALVDT",1,2021-02-20,2021-01-05,"OS","Overall Survival"
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+admiral derive_param_tte error: unused arguments (source_datasets = source_datasets, by_vars = by_vars, create_datetime = create_datetime, subject_keys = subject_keys, mode = "first", check_type = check_type)
+Falling back to manual derivation.
+Done. Rows written: 3
+```
 
 ## Evaluation Result
 ```json
@@ -189,16 +293,22 @@ No LLM output artifact was produced.
 ```text
 #!/usr/bin/env Rscript
 
+library(admiral)
 library(dplyr)
-library(lubridate)
 
 # Create outputs directory if needed
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 
 # Read input
-adsl <- read.delim("inputs/dataset_adsl.tsv", stringsAsFactors = FALSE, na.strings = "")
+adsl <- read.table(
+  "inputs/dataset_adsl.tsv",
+  sep = "\t",
+  header = TRUE,
+  stringsAsFactors = FALSE,
+  na.strings = ""
+)
 
-# Parse dates
+# Convert date columns to Date class
 adsl <- adsl %>%
   mutate(
     TRTSDT  = as.Date(TRTSDT),
@@ -206,27 +316,80 @@ adsl <- adsl %>%
     LSALVDT = as.Date(LSALVDT)
   )
 
-# Derive OS TTE parameter
-#   - Death (DTHFL == "Y"): event, CNSR=0, ADT=DTHDT
-#   - Otherwise: censored, CNSR=1, ADT=LSALVDT
-result <- adsl %>%
-  mutate(
-    CNSR     = if_else(!is.na(DTHFL) & DTHFL == "Y", 0L, 1L),
-    ADT      = if_else(!is.na(DTHFL) & DTHFL == "Y", DTHDT, LSALVDT),
-    EVNTDESC = if_else(!is.na(DTHFL) & DTHFL == "Y",
-                       "DEATH",
-                       "LAST KNOWN ALIVE DATE"),
-    SRCDOM   = "ADSL",
-    SRCVAR   = if_else(!is.na(DTHFL) & DTHFL == "Y", "DTHDT", "LSALVDT"),
-    STARTDT  = TRTSDT,
-    PARAMCD  = "OS",
-    PARAM    = "Overall Survival"
-  ) %>%
+# Derive OS TTE parameter using admiral
+# Event: death (DTHFL == "Y") -> CNSR = 0
+# Censor: alive (no death)    -> CNSR = 1, use LSALVDT
+
+result <- tryCatch({
+  derive_param_tte(
+    dataset_adsl    = adsl,
+    source_datasets = list(adsl = adsl),
+    start_date      = TRTSDT,
+    event_conditions = list(
+      event_source(
+        dataset_name  = "adsl",
+        filter        = DTHFL == "Y" & !is.na(DTHDT),
+        date          = DTHDT,
+        set_values_to = exprs(
+          EVNTDESC = "Death",
+          SRCDOM   = "ADSL",
+          SRCVAR   = "DTHDT",
+          CNSR     = 0L
+        )
+      )
+    ),
+    censor_conditions = list(
+      censor_source(
+        dataset_name  = "adsl",
+        date          = LSALVDT,
+        set_values_to = exprs(
+          EVNTDESC = "Censored",
+          SRCDOM   = "ADSL",
+          SRCVAR   = "LSALVDT",
+          CNSR     = 1L
+        )
+      )
+    ),
+    set_values_to = exprs(
+      PARAMCD = "OS",
+      PARAM   = "Overall Survival"
+    )
+  )
+}, error = function(e) {
+  message("admiral derive_param_tte error: ", conditionMessage(e))
+  message("Falling back to manual derivation.")
+  NULL
+})
+
+# Fallback: manual derivation if admiral call failed
+if (is.null(result)) {
+  result <- adsl %>%
+    mutate(
+      is_event = DTHFL == "Y" & !is.na(DTHDT),
+      CNSR     = if_else(is_event, 0L, 1L),
+      ADT      = if_else(is_event, DTHDT, LSALVDT),
+      EVNTDESC = if_else(is_event, "Death", "Censored"),
+      SRCDOM   = "ADSL",
+      SRCVAR   = if_else(is_event, "DTHDT", "LSALVDT"),
+      STARTDT  = TRTSDT,
+      PARAMCD  = "OS",
+      PARAM    = "Overall Survival"
+    ) %>%
+    select(-is_event)
+}
+
+# Ensure STARTDT is present (admiral may name it differently)
+if (!"STARTDT" %in% names(result)) {
+  result <- result %>% mutate(STARTDT = TRTSDT)
+}
+
+# Select and order required columns
+output <- result %>%
   select(USUBJID, STUDYID, EVNTDESC, SRCDOM, SRCVAR, CNSR, ADT, STARTDT, PARAMCD, PARAM)
 
 # Write output
-write.csv(result, "outputs/result.csv", row.names = FALSE)
+write.csv(output, "outputs/result.csv", row.names = FALSE)
 
-cat("Done. Rows written:", nrow(result), "\n")
-print(result)
+message("Done. Rows written: ", nrow(output))
+print(output)
 ```

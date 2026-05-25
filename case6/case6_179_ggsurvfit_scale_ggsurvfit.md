@@ -102,26 +102,24 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-parse_scale_expr <- function(path) {
-  dat <- utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!"expr" %in% names(dat) || nrow(dat) != 1L) {
-    stop("Expected a one-row TSV with an 'expr' column: ", path, call. = FALSE)
+#!/usr/bin/env Rscript
+
+parse_list_expr <- function(path) {
+  dat <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+  if (!"expr" %in% names(dat) || nrow(dat) < 1L) {
+    stop("Input file must contain at least one row in an 'expr' column: ", path)
   }
 
-  parsed <- parse(text = dat$expr[[1]])
-  if (length(parsed) != 1L) {
-    stop("Expected exactly one R expression in: ", path, call. = FALSE)
-  }
-
-  value <- eval(parsed[[1]], envir = baseenv())
+  expr <- parse(text = dat$expr[[1L]])[[1L]]
+  value <- eval(expr, envir = new.env(parent = baseenv()))
   if (!is.list(value)) {
-    stop("Scale expression did not evaluate to a list: ", path, call. = FALSE)
+    stop("Parsed expression did not evaluate to a list: ", path)
   }
   value
 }
 
-x_scales <- parse_scale_expr(file.path("inputs", "x_scales.tsv"))
-y_scales <- parse_scale_expr(file.path("inputs", "y_scales.tsv"))
+x_scales <- parse_list_expr(file.path("inputs", "x_scales.tsv"))
+y_scales <- parse_list_expr(file.path("inputs", "y_scales.tsv"))
 
 scale_obj <- ggsurvfit::scale_ggsurvfit(
   x_scales = x_scales,
@@ -134,7 +132,7 @@ result <- data.frame(
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -198,26 +196,24 @@ utils::write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ## Raw Agent Response
 ```text
-parse_scale_expr <- function(path) {
-  dat <- utils::read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
-  if (!"expr" %in% names(dat) || nrow(dat) != 1L) {
-    stop("Expected a one-row TSV with an 'expr' column: ", path, call. = FALSE)
+#!/usr/bin/env Rscript
+
+parse_list_expr <- function(path) {
+  dat <- read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+  if (!"expr" %in% names(dat) || nrow(dat) < 1L) {
+    stop("Input file must contain at least one row in an 'expr' column: ", path)
   }
 
-  parsed <- parse(text = dat$expr[[1]])
-  if (length(parsed) != 1L) {
-    stop("Expected exactly one R expression in: ", path, call. = FALSE)
-  }
-
-  value <- eval(parsed[[1]], envir = baseenv())
+  expr <- parse(text = dat$expr[[1L]])[[1L]]
+  value <- eval(expr, envir = new.env(parent = baseenv()))
   if (!is.list(value)) {
-    stop("Scale expression did not evaluate to a list: ", path, call. = FALSE)
+    stop("Parsed expression did not evaluate to a list: ", path)
   }
   value
 }
 
-x_scales <- parse_scale_expr(file.path("inputs", "x_scales.tsv"))
-y_scales <- parse_scale_expr(file.path("inputs", "y_scales.tsv"))
+x_scales <- parse_list_expr(file.path("inputs", "x_scales.tsv"))
+y_scales <- parse_list_expr(file.path("inputs", "y_scales.tsv"))
 
 scale_obj <- ggsurvfit::scale_ggsurvfit(
   x_scales = x_scales,
@@ -230,5 +226,5 @@ result <- data.frame(
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 ```

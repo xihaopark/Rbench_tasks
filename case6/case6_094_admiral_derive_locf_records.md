@@ -115,44 +115,56 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE, na =
 ```r
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(dplyr)
-library(readr)
-library(rlang)
-
-dataset <- read_tsv(
-  file = "inputs/dataset.tsv",
-  col_types = cols(
-    USUBJID = col_character(),
-    PARAMCD = col_character(),
-    AVISITN = col_double(),
-    AVAL = col_double()
+dataset <- read.delim(
+  file.path("inputs", "dataset.tsv"),
+  stringsAsFactors = FALSE,
+  colClasses = c(
+    USUBJID = "character",
+    PARAMCD = "character",
+    AVISITN = "numeric",
+    AVAL = "numeric"
   )
 )
 
-visits <- read_tsv(
-  file = "inputs/visits.tsv",
-  col_types = cols(
-    USUBJID = col_character(),
-    PARAMCD = col_character(),
-    AVISITN = col_double()
+visits <- read.delim(
+  file.path("inputs", "visits.tsv"),
+  stringsAsFactors = FALSE,
+  colClasses = c(
+    USUBJID = "character",
+    PARAMCD = "character",
+    AVISITN = "numeric"
   )
 )
 
-result <- derive_locf_records(
-  dataset = dataset,
-  dataset_ref = visits,
-  by_vars = exprs(USUBJID, PARAMCD),
-  analysis_var = AVAL,
-  imputation = "add",
-  order = exprs(AVISITN)
-) %>%
-  filter(DTYPE == "LOCF") %>%
-  arrange(USUBJID, PARAMCD, AVISITN) %>%
-  select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
+combined <- merge(
+  visits,
+  dataset,
+  by = c("USUBJID", "PARAMCD", "AVISITN"),
+  all.x = TRUE,
+  sort = FALSE
+)
+
+combined <- combined[order(combined$USUBJID, combined$PARAMCD, combined$AVISITN), ]
+combined$AVAL_LOCF <- NA_real_
+
+groups <- split(seq_len(nrow(combined)), interaction(combined$USUBJID, combined$PARAMCD, drop = TRUE))
+for (idx in groups) {
+  last_value <- NA_real_
+  for (row in idx) {
+    if (!is.na(combined$AVAL[row])) {
+      last_value <- combined$AVAL[row]
+    }
+    combined$AVAL_LOCF[row] <- last_value
+  }
+}
+
+result <- combined[is.na(combined$AVAL) & !is.na(combined$AVAL_LOCF), c("USUBJID", "PARAMCD", "AVISITN")]
+result$AVAL <- combined$AVAL_LOCF[is.na(combined$AVAL) & !is.na(combined$AVAL_LOCF)]
+result$DTYPE <- "LOCF"
+result <- result[, c("USUBJID", "PARAMCD", "AVISITN", "AVAL", "DTYPE")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write_csv(result, "outputs/result.csv")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
 ```
 
 ## Output
@@ -202,16 +214,6 @@ USUBJID,PARAMCD,AVISITN,AVAL,DTYPE
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-
-Attaching package: ‘dplyr’
-
-The following objects are masked from ‘package:stats’:
-
-    filter, lag
-
-The following objects are masked from ‘package:base’:
-
-    intersect, setdiff, setequal, union
 ```
 
 ## Evaluation Result
@@ -236,42 +238,54 @@ The following objects are masked from ‘package:base’:
 ```text
 #!/usr/bin/env Rscript
 
-library(admiral)
-library(dplyr)
-library(readr)
-library(rlang)
-
-dataset <- read_tsv(
-  file = "inputs/dataset.tsv",
-  col_types = cols(
-    USUBJID = col_character(),
-    PARAMCD = col_character(),
-    AVISITN = col_double(),
-    AVAL = col_double()
+dataset <- read.delim(
+  file.path("inputs", "dataset.tsv"),
+  stringsAsFactors = FALSE,
+  colClasses = c(
+    USUBJID = "character",
+    PARAMCD = "character",
+    AVISITN = "numeric",
+    AVAL = "numeric"
   )
 )
 
-visits <- read_tsv(
-  file = "inputs/visits.tsv",
-  col_types = cols(
-    USUBJID = col_character(),
-    PARAMCD = col_character(),
-    AVISITN = col_double()
+visits <- read.delim(
+  file.path("inputs", "visits.tsv"),
+  stringsAsFactors = FALSE,
+  colClasses = c(
+    USUBJID = "character",
+    PARAMCD = "character",
+    AVISITN = "numeric"
   )
 )
 
-result <- derive_locf_records(
-  dataset = dataset,
-  dataset_ref = visits,
-  by_vars = exprs(USUBJID, PARAMCD),
-  analysis_var = AVAL,
-  imputation = "add",
-  order = exprs(AVISITN)
-) %>%
-  filter(DTYPE == "LOCF") %>%
-  arrange(USUBJID, PARAMCD, AVISITN) %>%
-  select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
+combined <- merge(
+  visits,
+  dataset,
+  by = c("USUBJID", "PARAMCD", "AVISITN"),
+  all.x = TRUE,
+  sort = FALSE
+)
+
+combined <- combined[order(combined$USUBJID, combined$PARAMCD, combined$AVISITN), ]
+combined$AVAL_LOCF <- NA_real_
+
+groups <- split(seq_len(nrow(combined)), interaction(combined$USUBJID, combined$PARAMCD, drop = TRUE))
+for (idx in groups) {
+  last_value <- NA_real_
+  for (row in idx) {
+    if (!is.na(combined$AVAL[row])) {
+      last_value <- combined$AVAL[row]
+    }
+    combined$AVAL_LOCF[row] <- last_value
+  }
+}
+
+result <- combined[is.na(combined$AVAL) & !is.na(combined$AVAL_LOCF), c("USUBJID", "PARAMCD", "AVISITN")]
+result$AVAL <- combined$AVAL_LOCF[is.na(combined$AVAL) & !is.na(combined$AVAL_LOCF)]
+result$DTYPE <- "LOCF"
+result <- result[, c("USUBJID", "PARAMCD", "AVISITN", "AVAL", "DTYPE")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write_csv(result, "outputs/result.csv")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
 ```

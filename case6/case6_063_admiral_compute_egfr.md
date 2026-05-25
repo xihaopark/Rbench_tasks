@@ -117,21 +117,10 @@ write.csv(summary_df, file.path("outputs", "summary.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-read_input <- function(file, col_type) {
-  read.delim(
-    file.path("inputs", file),
-    header = TRUE,
-    sep = "\t",
-    stringsAsFactors = FALSE,
-    colClasses = col_type,
-    check.names = FALSE
-  )
-}
-
-age <- read_input("age.tsv", "numeric")
-creat <- read_input("creat.tsv", "numeric")
-race <- read_input("race.tsv", "character")
-sex <- read_input("sex.tsv", "character")
+age <- read.delim("inputs/age.tsv", stringsAsFactors = FALSE)
+creat <- read.delim("inputs/creat.tsv", stringsAsFactors = FALSE)
+race <- read.delim("inputs/race.tsv", stringsAsFactors = FALSE)
+sex <- read.delim("inputs/sex.tsv", stringsAsFactors = FALSE)
 
 result <- data.frame(
   creat = creat$creat,
@@ -158,8 +147,8 @@ summary <- data.frame(
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
-write.csv(summary, file.path("outputs", "summary.csv"), row.names = FALSE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
+write.csv(summary, "outputs/summary.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -243,21 +232,10 @@ write.csv(summary, file.path("outputs", "summary.csv"), row.names = FALSE)
 ```text
 #!/usr/bin/env Rscript
 
-read_input <- function(file, col_type) {
-  read.delim(
-    file.path("inputs", file),
-    header = TRUE,
-    sep = "\t",
-    stringsAsFactors = FALSE,
-    colClasses = col_type,
-    check.names = FALSE
-  )
-}
-
-age <- read_input("age.tsv", "numeric")
-creat <- read_input("creat.tsv", "numeric")
-race <- read_input("race.tsv", "character")
-sex <- read_input("sex.tsv", "character")
+age <- read.delim("inputs/age.tsv", stringsAsFactors = FALSE)
+creat <- read.delim("inputs/creat.tsv", stringsAsFactors = FALSE)
+race <- read.delim("inputs/race.tsv", stringsAsFactors = FALSE)
+sex <- read.delim("inputs/sex.tsv", stringsAsFactors = FALSE)
 
 result <- data.frame(
   creat = creat$creat,
@@ -284,6 +262,6 @@ summary <- data.frame(
 )
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
-write.csv(summary, file.path("outputs", "summary.csv"), row.names = FALSE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
+write.csv(summary, "outputs/summary.csv", row.names = FALSE)
 ```

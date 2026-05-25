@@ -1,6 +1,6 @@
 # case6
 
-31 Codex CLI GPT-5.5 clinical benchmark probe cases with public R package documentation lookup explicitly allowed.
+31 Codex CLI GPT-5.5 clinical benchmark probe cases with the hidden reference solution package function list included in the prompt.
 
 Each case uses the same presentation template as the previous GitHub case batches. The generated code shown here is the evaluator candidate artifact (`generated_solution.R`) from the Codex run, not a regenerated sample.
 
@@ -10,10 +10,10 @@ Summary:
 Total cases: 31
 Agent: Codex CLI
 Model: gpt-5.5
-Prompt setting: sanitized metadata; public CRAN/r-universe/GitHub package docs allowed
-Run directory: internal/coding_agent_outputs/case2_31/codex/gpt-5.5/case6_web_docs
-Strict pass@1: 19 / 31 = 0.6129
-Status counts: {'PASS': 19, 'FAIL': 9, 'NO_OUTPUT': 3}
+Prompt setting: sanitized metadata; reference package function list included
+Run directory: internal/coding_agent_outputs/case2_31/codex/gpt-5.5/case7_ref_functions
+Strict pass@1: 22 / 31 = 0.7097
+Status counts: {'PASS': 22, 'FAIL': 9}
 Invalid/internal package API pattern: 0 / 31
 ```
 
@@ -37,10 +37,10 @@ Fairness note:
 | 063 | `admiral` | `compute_egfr` | `FAIL` | `` | [case6_063_admiral_compute_egfr.md](./case6_063_admiral_compute_egfr.md) |
 | 064 | `admiral` | `compute_framingham` | `PASS` | `` | [case6_064_admiral_compute_framingham.md](./case6_064_admiral_compute_framingham.md) |
 | 065 | `admiral` | `compute_map` | `PASS` | `` | [case6_065_admiral_compute_map.md](./case6_065_admiral_compute_map.md) |
-| 071 | `admiral` | `compute_tmf` | `NO_OUTPUT` | `` | [case6_071_admiral_compute_tmf.md](./case6_071_admiral_compute_tmf.md) |
-| 086 | `admiral` | `convert_time_units` | `NO_OUTPUT` | `` | [case6_086_admiral_convert_time_units.md](./case6_086_admiral_convert_time_units.md) |
+| 071 | `admiral` | `compute_tmf` | `PASS` | `` | [case6_071_admiral_compute_tmf.md](./case6_071_admiral_compute_tmf.md) |
+| 086 | `admiral` | `convert_time_units` | `PASS` | `` | [case6_086_admiral_convert_time_units.md](./case6_086_admiral_convert_time_units.md) |
 | 087 | `admiral` | `convert_treatment_patterns` | `FAIL` | `` | [case6_087_admiral_convert_treatment_patterns.md](./case6_087_admiral_convert_treatment_patterns.md) |
-| 088 | `admiral` | `convert_xxtpt_to_hours` | `NO_OUTPUT` | `` | [case6_088_admiral_convert_xxtpt_to_hours.md](./case6_088_admiral_convert_xxtpt_to_hours.md) |
+| 088 | `admiral` | `convert_xxtpt_to_hours` | `PASS` | `` | [case6_088_admiral_convert_xxtpt_to_hours.md](./case6_088_admiral_convert_xxtpt_to_hours.md) |
 | 094 | `admiral` | `derive_locf_records` | `FAIL` | `` | [case6_094_admiral_derive_locf_records.md](./case6_094_admiral_derive_locf_records.md) |
 | 097 | `admiral` | `derive_param_map` | `PASS` | `` | [case6_097_admiral_derive_param_map.md](./case6_097_admiral_derive_param_map.md) |
 | 098 | `admiral` | `derive_param_qtc` | `FAIL` | `` | [case6_098_admiral_derive_param_qtc.md](./case6_098_admiral_derive_param_qtc.md) |

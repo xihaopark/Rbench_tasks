@@ -141,38 +141,36 @@ write.csv(data.frame(xxtpt = xxtpt, treatment_duration = treatment_duration, ran
 library(admiral)
 
 # Read inputs
-xxtpt_df <- read.table("inputs/xxtpt.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-treatment_duration_df <- read.table("inputs/treatment_duration.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-range_method_df <- read.table("inputs/range_method.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+xxtpt_df           <- read.table("inputs/xxtpt.tsv",             header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+treatment_dur_df   <- read.table("inputs/treatment_duration.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+range_method_df    <- read.table("inputs/range_method.tsv",      header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-xxtpt <- xxtpt_df$xxtpt
-treatment_duration <- treatment_duration_df$treatment_duration[1]
-range_method <- range_method_df$range_method[1]
+xxtpt_vec          <- xxtpt_df$xxtpt
+treatment_duration <- treatment_dur_df$treatment_duration[1]
+range_method       <- range_method_df$range_method[1]
 
-# Convert timepoints to hours using admiral function
+# Convert timepoints to hours using admiral's convert_xxtpt_to_hours()
 result_hours <- convert_xxtpt_to_hours(
-  xxtpt = xxtpt,
+  xxtpt              = xxtpt_vec,
   treatment_duration = treatment_duration,
-  range_method = range_method
+  range_method       = range_method
 )
 
 # Build output data frame
-result_df <- data.frame(
-  xxtpt = xxtpt,
+out <- data.frame(
+  xxtpt              = xxtpt_vec,
   treatment_duration = treatment_duration,
-  range_method = range_method,
-  result = result_hours,
-  stringsAsFactors = FALSE
+  range_method       = range_method,
+  result             = result_hours,
+  stringsAsFactors   = FALSE
 )
 
-# Create outputs directory if needed
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
 # Write output
-write.csv(result_df, "outputs/result.csv", row.names = FALSE)
+dir.create("outputs", showWarnings = FALSE)
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 
 cat("Done. Output written to outputs/result.csv\n")
-print(result_df)
+print(out)
 ```
 
 ## Output
@@ -190,6 +188,34 @@ print(result_df)
 
 ### LLM Output
 No LLM output artifact was produced.
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+Error in convert_special_cases(xxtpt, result, na_idx, treatment_duration) : 
+  unused arguments (result, na_idx, treatment_duration)
+Calls: convert_xxtpt_to_hours
+Execution halted
+```
 
 ## Evaluation Result
 ```json
@@ -214,36 +240,34 @@ No LLM output artifact was produced.
 library(admiral)
 
 # Read inputs
-xxtpt_df <- read.table("inputs/xxtpt.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-treatment_duration_df <- read.table("inputs/treatment_duration.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-range_method_df <- read.table("inputs/range_method.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+xxtpt_df           <- read.table("inputs/xxtpt.tsv",             header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+treatment_dur_df   <- read.table("inputs/treatment_duration.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+range_method_df    <- read.table("inputs/range_method.tsv",      header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-xxtpt <- xxtpt_df$xxtpt
-treatment_duration <- treatment_duration_df$treatment_duration[1]
-range_method <- range_method_df$range_method[1]
+xxtpt_vec          <- xxtpt_df$xxtpt
+treatment_duration <- treatment_dur_df$treatment_duration[1]
+range_method       <- range_method_df$range_method[1]
 
-# Convert timepoints to hours using admiral function
+# Convert timepoints to hours using admiral's convert_xxtpt_to_hours()
 result_hours <- convert_xxtpt_to_hours(
-  xxtpt = xxtpt,
+  xxtpt              = xxtpt_vec,
   treatment_duration = treatment_duration,
-  range_method = range_method
+  range_method       = range_method
 )
 
 # Build output data frame
-result_df <- data.frame(
-  xxtpt = xxtpt,
+out <- data.frame(
+  xxtpt              = xxtpt_vec,
   treatment_duration = treatment_duration,
-  range_method = range_method,
-  result = result_hours,
-  stringsAsFactors = FALSE
+  range_method       = range_method,
+  result             = result_hours,
+  stringsAsFactors   = FALSE
 )
 
-# Create outputs directory if needed
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
 # Write output
-write.csv(result_df, "outputs/result.csv", row.names = FALSE)
+dir.create("outputs", showWarnings = FALSE)
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 
 cat("Done. Output written to outputs/result.csv\n")
-print(result_df)
+print(out)
 ```

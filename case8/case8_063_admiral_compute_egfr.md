@@ -141,38 +141,34 @@ write.csv(summary_df, file.path("outputs", "summary.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-library(admiral)
-
-# Read input files
-age   <- read.table("inputs/age.tsv",   header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-creat <- read.table("inputs/creat.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-race  <- read.table("inputs/race.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-sex   <- read.table("inputs/sex.tsv",   header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-
-# Combine inputs into a single data frame
-df <- data.frame(
-  creat = creat$creat,
-  age   = age$age,
-  sex   = sex$sex,
-  race  = race$race,
-  stringsAsFactors = FALSE
-)
-
-# Compute eGFR using MDRD formula:
-# 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
-# sex_factor: F = 0.742, M = 1.0
-# race_factor: BLACK OR AFRICAN AMERICAN = 1.212, otherwise = 1.0
-
-sex_factor  <- ifelse(df$sex == "F", 0.742, 1.0)
-race_factor <- ifelse(df$race == "BLACK OR AFRICAN AMERICAN", 1.212, 1.0)
-
-df$result <- 175 * df$creat^(-1.154) * df$age^(-0.203) * sex_factor * race_factor
+library(dplyr)
 
 # Create outputs directory if needed
 dir.create("outputs", showWarnings = FALSE)
 
+# Read input files
+age_df   <- read.delim("inputs/age.tsv",   stringsAsFactors = FALSE)
+creat_df <- read.delim("inputs/creat.tsv", stringsAsFactors = FALSE)
+race_df  <- read.delim("inputs/race.tsv",  stringsAsFactors = FALSE)
+sex_df   <- read.delim("inputs/sex.tsv",   stringsAsFactors = FALSE)
+
+# Combine inputs into one data frame
+df <- bind_cols(creat_df, age_df, sex_df, race_df)
+
+# Compute eGFR using MDRD-style formula:
+# 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
+# sex_factor:  F = 0.742, M = 1.0 (default)
+# race_factor: BLACK OR AFRICAN AMERICAN = 1.212, others = 1.0
+
+result_df <- df %>%
+  mutate(
+    sex_factor  = ifelse(sex == "F", 0.742, 1.0),
+    race_factor = ifelse(race == "BLACK OR AFRICAN AMERICAN", 1.212, 1.0),
+    result      = 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
+  ) %>%
+  select(creat, age, sex, race, result)
+
 # Write result.csv
-result_df <- df[, c("creat", "age", "sex", "race", "result")]
 write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 
 # Write summary.csv
@@ -182,10 +178,12 @@ summary_df <- data.frame(
   col_names = paste(colnames(result_df), collapse = ","),
   stringsAsFactors = FALSE
 )
+
 write.csv(summary_df, "outputs/summary.csv", row.names = FALSE)
 
-cat("Done. result.csv rows:", nrow(result_df), "\n")
+cat("Done.\n")
 print(result_df)
+print(summary_df)
 ```
 
 ## Output
@@ -207,7 +205,55 @@ print(result_df)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"creat","age","sex","race","result"
+0.8,45,"F","OTHER",77.566459506687
+1.1,60,"M","BLACK OR AFRICAN AMERICAN",82.7577750329383
+1.4,72,"F","OTHER",36.9633822946498
+```
+
+#### `summary.csv`
+
+```csv
+"n_rows","n_cols","col_names"
+3,5,"creat,age,sex,race,result"
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -229,38 +275,34 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
-library(admiral)
-
-# Read input files
-age   <- read.table("inputs/age.tsv",   header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-creat <- read.table("inputs/creat.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-race  <- read.table("inputs/race.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-sex   <- read.table("inputs/sex.tsv",   header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-
-# Combine inputs into a single data frame
-df <- data.frame(
-  creat = creat$creat,
-  age   = age$age,
-  sex   = sex$sex,
-  race  = race$race,
-  stringsAsFactors = FALSE
-)
-
-# Compute eGFR using MDRD formula:
-# 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
-# sex_factor: F = 0.742, M = 1.0
-# race_factor: BLACK OR AFRICAN AMERICAN = 1.212, otherwise = 1.0
-
-sex_factor  <- ifelse(df$sex == "F", 0.742, 1.0)
-race_factor <- ifelse(df$race == "BLACK OR AFRICAN AMERICAN", 1.212, 1.0)
-
-df$result <- 175 * df$creat^(-1.154) * df$age^(-0.203) * sex_factor * race_factor
+library(dplyr)
 
 # Create outputs directory if needed
 dir.create("outputs", showWarnings = FALSE)
 
+# Read input files
+age_df   <- read.delim("inputs/age.tsv",   stringsAsFactors = FALSE)
+creat_df <- read.delim("inputs/creat.tsv", stringsAsFactors = FALSE)
+race_df  <- read.delim("inputs/race.tsv",  stringsAsFactors = FALSE)
+sex_df   <- read.delim("inputs/sex.tsv",   stringsAsFactors = FALSE)
+
+# Combine inputs into one data frame
+df <- bind_cols(creat_df, age_df, sex_df, race_df)
+
+# Compute eGFR using MDRD-style formula:
+# 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
+# sex_factor:  F = 0.742, M = 1.0 (default)
+# race_factor: BLACK OR AFRICAN AMERICAN = 1.212, others = 1.0
+
+result_df <- df %>%
+  mutate(
+    sex_factor  = ifelse(sex == "F", 0.742, 1.0),
+    race_factor = ifelse(race == "BLACK OR AFRICAN AMERICAN", 1.212, 1.0),
+    result      = 175 * creat^(-1.154) * age^(-0.203) * sex_factor * race_factor
+  ) %>%
+  select(creat, age, sex, race, result)
+
 # Write result.csv
-result_df <- df[, c("creat", "age", "sex", "race", "result")]
 write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 
 # Write summary.csv
@@ -270,8 +312,10 @@ summary_df <- data.frame(
   col_names = paste(colnames(result_df), collapse = ","),
   stringsAsFactors = FALSE
 )
+
 write.csv(summary_df, "outputs/summary.csv", row.names = FALSE)
 
-cat("Done. result.csv rows:", nrow(result_df), "\n")
+cat("Done.\n")
 print(result_df)
+print(summary_df)
 ```

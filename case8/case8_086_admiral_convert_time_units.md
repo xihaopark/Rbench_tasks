@@ -146,33 +146,29 @@ write.csv(data.frame(xxtpt = xxtpt, result = as.numeric(result)), file.path("out
 ```r
 library(admiral)
 
-# Read input files
-xxtpt_df  <- read.delim("inputs/xxtpt.tsv",  stringsAsFactors = FALSE)
-na_idx_df <- read.delim("inputs/na_idx.tsv",  stringsAsFactors = FALSE)
-result_df <- read.delim("inputs/result.tsv",  stringsAsFactors = FALSE)
+# Read inputs
+xxtpt_df  <- read.table("inputs/xxtpt.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+na_idx_df <- read.table("inputs/na_idx.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+result_df <- read.table("inputs/result.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-# Extract vectors
-xxtpt  <- xxtpt_df$xxtpt
-na_idx <- as.logical(na_idx_df$na_idx)
+# Convert time point strings to numeric hours using admiral::convert_xxtpt_to_hours
+xxtpt_vec  <- xxtpt_df$xxtpt
+result_vec <- convert_xxtpt_to_hours(xxtpt_vec)
 
-# Convert CDISC timepoint strings to numeric hours
-result <- convert_xxtpt_to_hours(xxtpt)
+# Apply NA override based on na_idx
+na_idx_vec <- as.logical(na_idx_df$na_idx)
+result_vec[na_idx_vec] <- NA_real_
 
-# Apply NA mask where na_idx is TRUE
-result[na_idx] <- NA_real_
-
-# Build output data frame
-output <- data.frame(
-  xxtpt  = xxtpt,
-  result = result,
+# Build output dataframe
+output_df <- data.frame(
+  xxtpt  = xxtpt_vec,
+  result = result_vec,
   stringsAsFactors = FALSE
 )
 
-# Create outputs directory if needed
+# Write output
 dir.create("outputs", showWarnings = FALSE)
-
-# Write result
-write.csv(output, "outputs/result.csv", row.names = FALSE)
+write.csv(output_df, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -189,6 +185,34 @@ write.csv(output, "outputs/result.csv", row.names = FALSE)
 
 ### LLM Output
 No LLM output artifact was produced.
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+Error in convert_special_cases(xxtpt, result, na_idx, treatment_duration) : 
+  unused arguments (result, na_idx, treatment_duration)
+Calls: convert_xxtpt_to_hours
+Execution halted
+```
 
 ## Evaluation Result
 ```json
@@ -212,31 +236,27 @@ No LLM output artifact was produced.
 ```text
 library(admiral)
 
-# Read input files
-xxtpt_df  <- read.delim("inputs/xxtpt.tsv",  stringsAsFactors = FALSE)
-na_idx_df <- read.delim("inputs/na_idx.tsv",  stringsAsFactors = FALSE)
-result_df <- read.delim("inputs/result.tsv",  stringsAsFactors = FALSE)
+# Read inputs
+xxtpt_df  <- read.table("inputs/xxtpt.tsv",  header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+na_idx_df <- read.table("inputs/na_idx.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+result_df <- read.table("inputs/result.tsv", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
 
-# Extract vectors
-xxtpt  <- xxtpt_df$xxtpt
-na_idx <- as.logical(na_idx_df$na_idx)
+# Convert time point strings to numeric hours using admiral::convert_xxtpt_to_hours
+xxtpt_vec  <- xxtpt_df$xxtpt
+result_vec <- convert_xxtpt_to_hours(xxtpt_vec)
 
-# Convert CDISC timepoint strings to numeric hours
-result <- convert_xxtpt_to_hours(xxtpt)
+# Apply NA override based on na_idx
+na_idx_vec <- as.logical(na_idx_df$na_idx)
+result_vec[na_idx_vec] <- NA_real_
 
-# Apply NA mask where na_idx is TRUE
-result[na_idx] <- NA_real_
-
-# Build output data frame
-output <- data.frame(
-  xxtpt  = xxtpt,
-  result = result,
+# Build output dataframe
+output_df <- data.frame(
+  xxtpt  = xxtpt_vec,
+  result = result_vec,
   stringsAsFactors = FALSE
 )
 
-# Create outputs directory if needed
+# Write output
 dir.create("outputs", showWarnings = FALSE)
-
-# Write result
-write.csv(output, "outputs/result.csv", row.names = FALSE)
+write.csv(output_df, "outputs/result.csv", row.names = FALSE)
 ```

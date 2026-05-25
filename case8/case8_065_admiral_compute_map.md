@@ -129,17 +129,30 @@ write.csv(data.frame(diabp = diabp, sysbp = sysbp, hr = hr, result = result), fi
 ```r
 library(admiral)
 
-diabp <- read.delim("inputs/diabp.tsv")$diabp
-hr    <- read.delim("inputs/hr.tsv")$hr
-sysbp <- read.delim("inputs/sysbp.tsv")$sysbp
+# Read input files
+diabp_df <- read.table("inputs/diabp.tsv", header = TRUE, sep = "\t")
+sysbp_df <- read.table("inputs/sysbp.tsv", header = TRUE, sep = "\t")
+hr_df    <- read.table("inputs/hr.tsv",    header = TRUE, sep = "\t")
 
+# Extract vectors
+diabp <- diabp_df$diabp
+sysbp <- sysbp_df$sysbp
+hr    <- hr_df$hr
+
+# Compute MAP using admiral::compute_map
 result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
 
+# Build output data frame
+out <- data.frame(
+  diabp  = diabp,
+  sysbp  = sysbp,
+  hr     = hr,
+  result = result
+)
+
+# Write output
 dir.create("outputs", showWarnings = FALSE)
-
-output <- data.frame(diabp = diabp, sysbp = sysbp, hr = hr, result = result)
-
-write.csv(output, "outputs/result.csv", row.names = FALSE)
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -155,7 +168,39 @@ write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"diabp","sysbp","hr","result"
+80,120,60,92.7395237619899
+85,135,75,103.240653638352
+70,110,90,85.9752811815739
+95,160,110,123.186790537475
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+```
 
 ## Evaluation Result
 ```json
@@ -179,15 +224,28 @@ No LLM output artifact was produced.
 ```text
 library(admiral)
 
-diabp <- read.delim("inputs/diabp.tsv")$diabp
-hr    <- read.delim("inputs/hr.tsv")$hr
-sysbp <- read.delim("inputs/sysbp.tsv")$sysbp
+# Read input files
+diabp_df <- read.table("inputs/diabp.tsv", header = TRUE, sep = "\t")
+sysbp_df <- read.table("inputs/sysbp.tsv", header = TRUE, sep = "\t")
+hr_df    <- read.table("inputs/hr.tsv",    header = TRUE, sep = "\t")
 
+# Extract vectors
+diabp <- diabp_df$diabp
+sysbp <- sysbp_df$sysbp
+hr    <- hr_df$hr
+
+# Compute MAP using admiral::compute_map
 result <- admiral::compute_map(diabp = diabp, sysbp = sysbp, hr = hr)
 
+# Build output data frame
+out <- data.frame(
+  diabp  = diabp,
+  sysbp  = sysbp,
+  hr     = hr,
+  result = result
+)
+
+# Write output
 dir.create("outputs", showWarnings = FALSE)
-
-output <- data.frame(diabp = diabp, sysbp = sysbp, hr = hr, result = result)
-
-write.csv(output, "outputs/result.csv", row.names = FALSE)
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```

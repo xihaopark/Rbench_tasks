@@ -3,8 +3,8 @@
 ## Metadata
 - Task ID: `pharmaverse/admiral/derive_locf_records`
 - Package: `admiral`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
 - Status: `FAIL`
 - Failure stage: `schema_mismatch`
 - Pattern: ``
@@ -54,6 +54,24 @@ Computation: Carry the last observed value forward by USUBJID and PARAMCD ordere
 
 Required columns for result.csv: USUBJID, PARAMCD, AVISITN, AVAL, DTYPE
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### dataset.tsv
+USUBJID	PARAMCD	AVISITN	AVAL
+01	ALT	1	20
+01	ALT	3	30
+02	ALT	1	15
+02	ALT	4	24
+
+### visits.tsv
+USUBJID	PARAMCD	AVISITN
+01	ALT	1
+01	ALT	2
+01	ALT	3
+02	ALT	1
+02	ALT	2
+... [2 more lines omitted]
 ```
 
 ## Input
@@ -113,58 +131,81 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE, na =
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+library(dplyr)
 
-dataset <- read.delim(
-  file.path("inputs", "dataset.tsv"),
-  stringsAsFactors = FALSE,
-  colClasses = c(
-    USUBJID = "character",
-    PARAMCD = "character",
-    AVISITN = "numeric",
-    AVAL = "numeric"
+# ---------------------------------------------------------------------------
+# Read inputs
+# ---------------------------------------------------------------------------
+dataset <- read.table(
+  "inputs/dataset.tsv", header = TRUE, sep = "\t",
+  colClasses = c("character", "character", "numeric", "numeric")
+)
+
+visits <- read.table(
+  "inputs/visits.tsv", header = TRUE, sep = "\t",
+  colClasses = c("character", "character", "numeric")
+)
+
+# ---------------------------------------------------------------------------
+# Derive LOCF records using admiral if available, otherwise implement directly
+# ---------------------------------------------------------------------------
+
+use_admiral <- tryCatch({
+  library(admiral)
+  packageVersion("admiral")
+  TRUE
+}, error = function(e) FALSE)
+
+if (use_admiral) {
+  # admiral::derive_locf_records creates LOCF-imputed records for visits that
+  # are in dataset_ref but missing in dataset, for each by_vars group ordered
+  # by order.
+  locf_all <- derive_locf_records(
+    dataset      = dataset,
+    dataset_ref  = visits,
+    by_vars      = exprs(USUBJID, PARAMCD),
+    analysis_var = AVAL,
+    order        = exprs(AVISITN)
   )
-)
 
-visits <- read.delim(
-  file.path("inputs", "visits.tsv"),
-  stringsAsFactors = FALSE,
-  colClasses = c(
-    USUBJID = "character",
-    PARAMCD = "character",
-    AVISITN = "numeric"
-  )
-)
+  result <- locf_all %>%
+    filter(DTYPE == "LOCF") %>%
+    select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
 
-combined <- merge(
-  visits,
-  dataset,
-  by = c("USUBJID", "PARAMCD", "AVISITN"),
-  all.x = TRUE,
-  sort = FALSE
-)
+} else {
+  # ------------------------------------------------------------------
+  # Direct LOCF implementation (no admiral)
+  # ------------------------------------------------------------------
+  # Step 1: left-join reference visits onto dataset to flag missing rows
+  joined <- visits %>%
+    left_join(dataset, by = c("USUBJID", "PARAMCD", "AVISITN"))
 
-combined <- combined[order(combined$USUBJID, combined$PARAMCD, combined$AVISITN), ]
-combined$AVAL_LOCF <- NA_real_
+  # Step 2: within each group ordered by AVISITN, carry AVAL forward
+  locf_filled <- joined %>%
+    arrange(USUBJID, PARAMCD, AVISITN) %>%
+    group_by(USUBJID, PARAMCD) %>%
+    mutate(AVAL_locf = zoo::na.locf(AVAL, na.rm = FALSE)) %>%
+    ungroup()
 
-groups <- split(seq_len(nrow(combined)), interaction(combined$USUBJID, combined$PARAMCD, drop = TRUE))
-for (idx in groups) {
-  last_value <- NA_real_
-  for (row in idx) {
-    if (!is.na(combined$AVAL[row])) {
-      last_value <- combined$AVAL[row]
-    }
-    combined$AVAL_LOCF[row] <- last_value
-  }
+  # Step 3: keep only rows that were missing in the original dataset
+  #         (those are the LOCF-imputed rows)
+  result <- locf_filled %>%
+    filter(is.na(AVAL) & !is.na(AVAL_locf)) %>%
+    mutate(
+      AVAL  = AVAL_locf,
+      DTYPE = "LOCF"
+    ) %>%
+    select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
 }
 
-result <- combined[is.na(combined$AVAL) & !is.na(combined$AVAL_LOCF), c("USUBJID", "PARAMCD", "AVISITN")]
-result$AVAL <- combined$AVAL_LOCF[is.na(combined$AVAL) & !is.na(combined$AVAL_LOCF)]
-result$DTYPE <- "LOCF"
-result <- result[, c("USUBJID", "PARAMCD", "AVISITN", "AVAL", "DTYPE")]
+# ---------------------------------------------------------------------------
+# Write output
+# ---------------------------------------------------------------------------
+dir.create("outputs", showWarnings = FALSE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
+cat("Done. LOCF rows written:", nrow(result), "\n")
+print(result)
 ```
 
 ## Output
@@ -183,38 +224,7 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, quote =
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-USUBJID,PARAMCD,AVISITN,AVAL,DTYPE
-01,ALT,2,20,LOCF
-02,ALT,2,15,LOCF
-02,ALT,3,15,LOCF
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
@@ -236,56 +246,79 @@ USUBJID,PARAMCD,AVISITN,AVAL,DTYPE
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+library(dplyr)
 
-dataset <- read.delim(
-  file.path("inputs", "dataset.tsv"),
-  stringsAsFactors = FALSE,
-  colClasses = c(
-    USUBJID = "character",
-    PARAMCD = "character",
-    AVISITN = "numeric",
-    AVAL = "numeric"
+# ---------------------------------------------------------------------------
+# Read inputs
+# ---------------------------------------------------------------------------
+dataset <- read.table(
+  "inputs/dataset.tsv", header = TRUE, sep = "\t",
+  colClasses = c("character", "character", "numeric", "numeric")
+)
+
+visits <- read.table(
+  "inputs/visits.tsv", header = TRUE, sep = "\t",
+  colClasses = c("character", "character", "numeric")
+)
+
+# ---------------------------------------------------------------------------
+# Derive LOCF records using admiral if available, otherwise implement directly
+# ---------------------------------------------------------------------------
+
+use_admiral <- tryCatch({
+  library(admiral)
+  packageVersion("admiral")
+  TRUE
+}, error = function(e) FALSE)
+
+if (use_admiral) {
+  # admiral::derive_locf_records creates LOCF-imputed records for visits that
+  # are in dataset_ref but missing in dataset, for each by_vars group ordered
+  # by order.
+  locf_all <- derive_locf_records(
+    dataset      = dataset,
+    dataset_ref  = visits,
+    by_vars      = exprs(USUBJID, PARAMCD),
+    analysis_var = AVAL,
+    order        = exprs(AVISITN)
   )
-)
 
-visits <- read.delim(
-  file.path("inputs", "visits.tsv"),
-  stringsAsFactors = FALSE,
-  colClasses = c(
-    USUBJID = "character",
-    PARAMCD = "character",
-    AVISITN = "numeric"
-  )
-)
+  result <- locf_all %>%
+    filter(DTYPE == "LOCF") %>%
+    select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
 
-combined <- merge(
-  visits,
-  dataset,
-  by = c("USUBJID", "PARAMCD", "AVISITN"),
-  all.x = TRUE,
-  sort = FALSE
-)
+} else {
+  # ------------------------------------------------------------------
+  # Direct LOCF implementation (no admiral)
+  # ------------------------------------------------------------------
+  # Step 1: left-join reference visits onto dataset to flag missing rows
+  joined <- visits %>%
+    left_join(dataset, by = c("USUBJID", "PARAMCD", "AVISITN"))
 
-combined <- combined[order(combined$USUBJID, combined$PARAMCD, combined$AVISITN), ]
-combined$AVAL_LOCF <- NA_real_
+  # Step 2: within each group ordered by AVISITN, carry AVAL forward
+  locf_filled <- joined %>%
+    arrange(USUBJID, PARAMCD, AVISITN) %>%
+    group_by(USUBJID, PARAMCD) %>%
+    mutate(AVAL_locf = zoo::na.locf(AVAL, na.rm = FALSE)) %>%
+    ungroup()
 
-groups <- split(seq_len(nrow(combined)), interaction(combined$USUBJID, combined$PARAMCD, drop = TRUE))
-for (idx in groups) {
-  last_value <- NA_real_
-  for (row in idx) {
-    if (!is.na(combined$AVAL[row])) {
-      last_value <- combined$AVAL[row]
-    }
-    combined$AVAL_LOCF[row] <- last_value
-  }
+  # Step 3: keep only rows that were missing in the original dataset
+  #         (those are the LOCF-imputed rows)
+  result <- locf_filled %>%
+    filter(is.na(AVAL) & !is.na(AVAL_locf)) %>%
+    mutate(
+      AVAL  = AVAL_locf,
+      DTYPE = "LOCF"
+    ) %>%
+    select(USUBJID, PARAMCD, AVISITN, AVAL, DTYPE)
 }
 
-result <- combined[is.na(combined$AVAL) & !is.na(combined$AVAL_LOCF), c("USUBJID", "PARAMCD", "AVISITN")]
-result$AVAL <- combined$AVAL_LOCF[is.na(combined$AVAL) & !is.na(combined$AVAL_LOCF)]
-result$DTYPE <- "LOCF"
-result <- result[, c("USUBJID", "PARAMCD", "AVISITN", "AVAL", "DTYPE")]
+# ---------------------------------------------------------------------------
+# Write output
+# ---------------------------------------------------------------------------
+dir.create("outputs", showWarnings = FALSE)
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, quote = FALSE)
+cat("Done. LOCF rows written:", nrow(result), "\n")
+print(result)
 ```

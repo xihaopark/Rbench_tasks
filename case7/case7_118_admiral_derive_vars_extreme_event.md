@@ -3,8 +3,8 @@
 ## Metadata
 - Task ID: `pharmaverse/admiral/derive_vars_extreme_event`
 - Package: `admiral`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
 - Status: `PASS`
 - Failure stage: `pass`
 - Pattern: ``
@@ -54,6 +54,26 @@ Computation: Use source adverse events with AETOXGR >= 2, order by descending AE
 
 Required columns for result.csv: STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### dataset.tsv
+STUDYID	USUBJID	TRTSDT
+S1	01	2020-01-01
+S1	02	2020-01-05
+S1	03	2020-01-10
+
+### mode.tsv
+mode
+first
+
+### source_datasets.tsv
+STUDYID	USUBJID	ADT	AESEQ	AETERM	AETOXGR
+S1	01	2020-01-03	1	HEADACHE	1
+S1	01	2020-01-08	2	NAUSEA	3
+S1	02	2020-01-07	1	RASH	2
+S1	02	2020-01-08	2	FEVER	1
+S1	03	2020-01-15	1	COUGH	2
 ```
 
 ## Input
@@ -121,69 +141,52 @@ write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+library(admiral)
+library(dplyr)
 
-adsl <- read.delim(
-  file = "inputs/dataset.tsv",
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
-  colClasses = c(STUDYID = "character", USUBJID = "character", TRTSDT = "character")
-)
+# Read inputs
+dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+mode_df <- read.table("inputs/mode.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+ae_source <- read.table("inputs/source_datasets.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 
-mode_df <- read.delim(
-  file = "inputs/mode.tsv",
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE
-)
+# Get mode value
+mode_val <- mode_df$mode[1]
 
-ae <- read.delim(
-  file = "inputs/source_datasets.tsv",
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
-  colClasses = c(
-    STUDYID = "character",
-    USUBJID = "character",
-    ADT = "character",
-    AESEQ = "numeric",
-    AETERM = "character",
-    AETOXGR = "numeric"
-  )
-)
+# Convert date columns
+dataset$TRTSDT <- as.Date(dataset$TRTSDT)
+ae_source$ADT <- as.Date(ae_source$ADT)
 
-adsl <- dplyr::mutate(adsl, TRTSDT = as.Date(TRTSDT))
-
-ae <- dplyr::mutate(ae, ADT = as.Date(ADT))
-
-selection_mode <- mode_df$mode[[1]]
-
-result <- admiral::derive_vars_extreme_event(
-  dataset = adsl,
-  by_vars = rlang::exprs(STUDYID, USUBJID),
+# Use admiral::derive_vars_extreme_event to add the extreme adverse event per subject.
+# Filter: AETOXGR >= 2
+# Order: descending AETOXGR, then ADT, then AESEQ
+# Select the first (or last) per STUDYID/USUBJID according to mode
+result <- derive_vars_extreme_event(
+  dataset = dataset,
+  by_vars = exprs(STUDYID, USUBJID),
   events = list(
-    admiral::event(
+    event(
       dataset_name = "ae",
       condition = AETOXGR >= 2,
-      set_values_to = rlang::exprs(
-        EXTDT = ADT,
+      set_values_to = exprs(
+        EXTDT  = ADT,
         EXTTERM = AETERM,
-        EXTGR = AETOXGR,
-        EXTSEQ = AESEQ
+        EXTGR  = AETOXGR
       )
     )
   ),
-  source_datasets = list(ae = ae),
-  order = rlang::exprs(dplyr::desc(EXTGR), EXTDT, EXTSEQ),
-  mode = selection_mode,
-  new_vars = rlang::exprs(EXTDT, EXTTERM, EXTGR)
+  order = exprs(desc(AETOXGR), ADT, AESEQ),
+  mode = mode_val,
+  source_datasets = list(ae = ae_source),
+  new_vars = exprs(EXTDT, EXTTERM, EXTGR)
 )
 
-result <- dplyr::select(result, STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
+# Keep only required columns
+result <- result %>%
+  select(STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
 
+# Create outputs directory and write result
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -198,38 +201,7 @@ write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"STUDYID","USUBJID","TRTSDT","EXTDT","EXTTERM","EXTGR"
-"S1","01",2020-01-01,2020-01-08,"NAUSEA",3
-"S1","02",2020-01-05,2020-01-07,"RASH",2
-"S1","03",2020-01-10,2020-01-15,"COUGH",2
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
@@ -251,67 +223,50 @@ write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+library(admiral)
+library(dplyr)
 
-adsl <- read.delim(
-  file = "inputs/dataset.tsv",
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
-  colClasses = c(STUDYID = "character", USUBJID = "character", TRTSDT = "character")
-)
+# Read inputs
+dataset <- read.table("inputs/dataset.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+mode_df <- read.table("inputs/mode.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+ae_source <- read.table("inputs/source_datasets.tsv", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
 
-mode_df <- read.delim(
-  file = "inputs/mode.tsv",
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE
-)
+# Get mode value
+mode_val <- mode_df$mode[1]
 
-ae <- read.delim(
-  file = "inputs/source_datasets.tsv",
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
-  colClasses = c(
-    STUDYID = "character",
-    USUBJID = "character",
-    ADT = "character",
-    AESEQ = "numeric",
-    AETERM = "character",
-    AETOXGR = "numeric"
-  )
-)
+# Convert date columns
+dataset$TRTSDT <- as.Date(dataset$TRTSDT)
+ae_source$ADT <- as.Date(ae_source$ADT)
 
-adsl <- dplyr::mutate(adsl, TRTSDT = as.Date(TRTSDT))
-
-ae <- dplyr::mutate(ae, ADT = as.Date(ADT))
-
-selection_mode <- mode_df$mode[[1]]
-
-result <- admiral::derive_vars_extreme_event(
-  dataset = adsl,
-  by_vars = rlang::exprs(STUDYID, USUBJID),
+# Use admiral::derive_vars_extreme_event to add the extreme adverse event per subject.
+# Filter: AETOXGR >= 2
+# Order: descending AETOXGR, then ADT, then AESEQ
+# Select the first (or last) per STUDYID/USUBJID according to mode
+result <- derive_vars_extreme_event(
+  dataset = dataset,
+  by_vars = exprs(STUDYID, USUBJID),
   events = list(
-    admiral::event(
+    event(
       dataset_name = "ae",
       condition = AETOXGR >= 2,
-      set_values_to = rlang::exprs(
-        EXTDT = ADT,
+      set_values_to = exprs(
+        EXTDT  = ADT,
         EXTTERM = AETERM,
-        EXTGR = AETOXGR,
-        EXTSEQ = AESEQ
+        EXTGR  = AETOXGR
       )
     )
   ),
-  source_datasets = list(ae = ae),
-  order = rlang::exprs(dplyr::desc(EXTGR), EXTDT, EXTSEQ),
-  mode = selection_mode,
-  new_vars = rlang::exprs(EXTDT, EXTTERM, EXTGR)
+  order = exprs(desc(AETOXGR), ADT, AESEQ),
+  mode = mode_val,
+  source_datasets = list(ae = ae_source),
+  new_vars = exprs(EXTDT, EXTTERM, EXTGR)
 )
 
-result <- dplyr::select(result, STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
+# Keep only required columns
+result <- result %>%
+  select(STUDYID, USUBJID, TRTSDT, EXTDT, EXTTERM, EXTGR)
 
+# Create outputs directory and write result
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = "outputs/result.csv", row.names = FALSE, na = "")
+write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```

@@ -3,15 +3,15 @@
 ## Metadata
 - Task ID: `pharmaverse/admiral/convert_time_units`
 - Package: `admiral`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
-- Status: `PASS`
-- Failure stage: `pass`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
+- Status: `NO_OUTPUT`
+- Failure stage: `execution_failure`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-PASS
+NO_OUTPUT
 ```
 
 ## Prompt
@@ -52,6 +52,29 @@ Output: result.csv
 
 Required columns for result.csv: xxtpt, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### na_idx.tsv
+na_idx
+FALSE
+FALSE
+FALSE
+FALSE
+
+### result.tsv
+result
+NA
+NA
+NA
+NA
+
+### xxtpt.tsv
+xxtpt
+2H 30MIN
+3 DAYS
+DAY 2
+4D
 ```
 
 ## Input
@@ -121,62 +144,35 @@ write.csv(data.frame(xxtpt = xxtpt, result = as.numeric(result)), file.path("out
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+library(admiral)
 
-xxtpt_df <- read.delim("inputs/xxtpt.tsv", stringsAsFactors = FALSE)
-result_df <- read.delim("inputs/result.tsv", stringsAsFactors = FALSE)
-na_idx_df <- read.delim("inputs/na_idx.tsv", stringsAsFactors = FALSE)
+# Read input files
+xxtpt_df  <- read.delim("inputs/xxtpt.tsv",  stringsAsFactors = FALSE)
+na_idx_df <- read.delim("inputs/na_idx.tsv",  stringsAsFactors = FALSE)
+result_df <- read.delim("inputs/result.tsv",  stringsAsFactors = FALSE)
 
-xxtpt <- trimws(xxtpt_df$xxtpt)
-result <- suppressWarnings(as.numeric(result_df$result))
+# Extract vectors
+xxtpt  <- xxtpt_df$xxtpt
 na_idx <- as.logical(na_idx_df$na_idx)
-na_idx[is.na(na_idx)] <- FALSE
 
-convert_time_units <- function(xxtpt, result, na_idx) {
-  out <- result
-  active <- is.na(out) & !na_idx
+# Convert CDISC timepoint strings to numeric hours
+result <- convert_xxtpt_to_hours(xxtpt)
 
-  day_patterns <- c(
-    "^day\\s+(\\d+(?:\\.\\d+)?)\\s*(?:d|day|days)?$",
-    "^(\\d+(?:\\.\\d+)?)\\s*(?:d|day|days)$",
-    "^(\\d+(?:\\.\\d+)?)\\s+(?:days?\\s+)?(?:after\\s+last|post(?:\\s*-?\\s*dose)?)$"
-  )
+# Apply NA mask where na_idx is TRUE
+result[na_idx] <- NA_real_
 
-  for (pattern in day_patterns) {
-    matches <- regexec(pattern, xxtpt, ignore.case = TRUE, perl = TRUE)
-    parts <- regmatches(xxtpt, matches)
-    hit <- active & lengths(parts) > 0
-    if (any(hit)) {
-      out[hit] <- as.numeric(vapply(parts[hit], `[`, character(1), 2)) * 24
-      active <- is.na(out) & !na_idx
-    }
-  }
-
-  hm_pattern <- paste0(
-    "^(\\d+(?:\\.\\d+)?)\\s*h(?:r|our)?s?\\s*",
-    "(\\d+(?:\\.\\d+)?)\\s*m(?:in|inute)?s?",
-    "(?:\\s+(?:post|after)(?:\\s*-?\\s*dose)?)?$"
-  )
-  matches <- regexec(hm_pattern, xxtpt, ignore.case = TRUE, perl = TRUE)
-  parts <- regmatches(xxtpt, matches)
-  hit <- active & lengths(parts) > 0
-  if (any(hit)) {
-    hours <- as.numeric(vapply(parts[hit], `[`, character(1), 2))
-    minutes <- as.numeric(vapply(parts[hit], `[`, character(1), 3))
-    out[hit] <- hours + minutes / 60
-  }
-
-  out
-}
-
+# Build output data frame
 output <- data.frame(
-  xxtpt = xxtpt_df$xxtpt,
-  result = convert_time_units(xxtpt, result, na_idx),
+  xxtpt  = xxtpt,
+  result = result,
   stringsAsFactors = FALSE
 )
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, "outputs/result.csv", row.names = FALSE, na = "")
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE)
+
+# Write result
+write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -192,114 +188,55 @@ write.csv(output, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"xxtpt","result"
-"2H 30MIN",2.5
-"3 DAYS",72
-"DAY 2",48
-"4D",96
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
 {
-  "status": "PASS",
-  "tier": "pass",
-  "failure_stage": "pass",
-  "pass": true,
-  "score": 1.0,
-  "message": "",
+  "status": "NO_OUTPUT",
+  "tier": "exec_fail",
+  "failure_stage": "execution_failure",
+  "pass": false,
+  "score": 0.0,
+  "message": "Failed at case_embedded",
   "validation_diagnostics": {
-    "failure_stage": "pass",
-    "tier": "pass",
+    "failure_stage": "execution_failure",
+    "tier": "exec_fail",
     "case_count": 1,
-    "failed_case": null
+    "failed_case": "case_embedded"
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+library(admiral)
 
-xxtpt_df <- read.delim("inputs/xxtpt.tsv", stringsAsFactors = FALSE)
-result_df <- read.delim("inputs/result.tsv", stringsAsFactors = FALSE)
-na_idx_df <- read.delim("inputs/na_idx.tsv", stringsAsFactors = FALSE)
+# Read input files
+xxtpt_df  <- read.delim("inputs/xxtpt.tsv",  stringsAsFactors = FALSE)
+na_idx_df <- read.delim("inputs/na_idx.tsv",  stringsAsFactors = FALSE)
+result_df <- read.delim("inputs/result.tsv",  stringsAsFactors = FALSE)
 
-xxtpt <- trimws(xxtpt_df$xxtpt)
-result <- suppressWarnings(as.numeric(result_df$result))
+# Extract vectors
+xxtpt  <- xxtpt_df$xxtpt
 na_idx <- as.logical(na_idx_df$na_idx)
-na_idx[is.na(na_idx)] <- FALSE
 
-convert_time_units <- function(xxtpt, result, na_idx) {
-  out <- result
-  active <- is.na(out) & !na_idx
+# Convert CDISC timepoint strings to numeric hours
+result <- convert_xxtpt_to_hours(xxtpt)
 
-  day_patterns <- c(
-    "^day\\s+(\\d+(?:\\.\\d+)?)\\s*(?:d|day|days)?$",
-    "^(\\d+(?:\\.\\d+)?)\\s*(?:d|day|days)$",
-    "^(\\d+(?:\\.\\d+)?)\\s+(?:days?\\s+)?(?:after\\s+last|post(?:\\s*-?\\s*dose)?)$"
-  )
+# Apply NA mask where na_idx is TRUE
+result[na_idx] <- NA_real_
 
-  for (pattern in day_patterns) {
-    matches <- regexec(pattern, xxtpt, ignore.case = TRUE, perl = TRUE)
-    parts <- regmatches(xxtpt, matches)
-    hit <- active & lengths(parts) > 0
-    if (any(hit)) {
-      out[hit] <- as.numeric(vapply(parts[hit], `[`, character(1), 2)) * 24
-      active <- is.na(out) & !na_idx
-    }
-  }
-
-  hm_pattern <- paste0(
-    "^(\\d+(?:\\.\\d+)?)\\s*h(?:r|our)?s?\\s*",
-    "(\\d+(?:\\.\\d+)?)\\s*m(?:in|inute)?s?",
-    "(?:\\s+(?:post|after)(?:\\s*-?\\s*dose)?)?$"
-  )
-  matches <- regexec(hm_pattern, xxtpt, ignore.case = TRUE, perl = TRUE)
-  parts <- regmatches(xxtpt, matches)
-  hit <- active & lengths(parts) > 0
-  if (any(hit)) {
-    hours <- as.numeric(vapply(parts[hit], `[`, character(1), 2))
-    minutes <- as.numeric(vapply(parts[hit], `[`, character(1), 3))
-    out[hit] <- hours + minutes / 60
-  }
-
-  out
-}
-
+# Build output data frame
 output <- data.frame(
-  xxtpt = xxtpt_df$xxtpt,
-  result = convert_time_units(xxtpt, result, na_idx),
+  xxtpt  = xxtpt,
+  result = result,
   stringsAsFactors = FALSE
 )
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, "outputs/result.csv", row.names = FALSE, na = "")
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE)
+
+# Write result
+write.csv(output, "outputs/result.csv", row.names = FALSE)
 ```

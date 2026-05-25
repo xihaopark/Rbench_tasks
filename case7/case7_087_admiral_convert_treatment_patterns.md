@@ -3,8 +3,8 @@
 ## Metadata
 - Task ID: `pharmaverse/admiral/convert_treatment_patterns`
 - Package: `admiral`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
 - Status: `FAIL`
 - Failure stage: `value_mismatch`
 - Pattern: ``
@@ -54,6 +54,26 @@ Computation: Map treatment-relative text patterns deterministically: treatment s
 
 Required columns for result.csv: xxtpt, treatment_duration, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### treatment_duration.tsv
+treatment_duration
+72
+72
+72
+72
+72
+... [2 more lines omitted]
+
+### xxtpt.tsv
+xxtpt
+START OF TREATMENT
+PRE-DOSE
+30 MIN AFTER START
+2 HOURS AFTER START
+END OF TREATMENT
+... [2 more lines omitted]
 ```
 
 ## Input
@@ -121,100 +141,95 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+library(admiral)
 
-treatment_duration <- read.delim(
-  file.path("inputs", "treatment_duration.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+# Read inputs
+treatment_duration_df <- read.table("inputs/treatment_duration.tsv", header = TRUE, sep = "\t",
+                                    stringsAsFactors = FALSE)
+xxtpt_df              <- read.table("inputs/xxtpt.tsv",               header = TRUE, sep = "\t",
+                                    stringsAsFactors = FALSE)
+
+# Combine row-wise (one row per timepoint, all share the same treatment duration)
+df <- data.frame(
+  xxtpt              = xxtpt_df$xxtpt,
+  treatment_duration = treatment_duration_df$treatment_duration,
+  stringsAsFactors   = FALSE
 )
-xxtpt <- read.delim(
-  file.path("inputs", "xxtpt.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
 
-stopifnot(nrow(treatment_duration) == nrow(xxtpt))
-
-normalize_text <- function(x) {
-  x <- toupper(trimws(x))
-  x <- gsub("[_]+", " ", x)
-  x <- gsub("\\s+", " ", x)
-  x
+# Helper: convert a numeric value + unit string to hours
+parse_to_hours <- function(num_str, unit_str) {
+  val  <- as.numeric(num_str)
+  unit <- toupper(trimws(unit_str))
+  if (grepl("^MIN",  unit)) return(val / 60)
+  if (grepl("^H",    unit)) return(val)        # HOUR, HOURS, H
+  if (grepl("^DAY",  unit)) return(val * 24)
+  if (grepl("^WEEK", unit)) return(val * 168)
+  return(val)  # unknown unit → assume hours
 }
 
-offset_to_hours <- function(value, unit) {
-  unit <- toupper(unit)
-  if (grepl("^MIN", unit)) {
-    value / 60
-  } else if (grepl("^H", unit)) {
-    value
-  } else if (grepl("^D", unit)) {
-    value * 24
-  } else {
-    stop(sprintf("Unsupported time unit: %s", unit), call. = FALSE)
-  }
-}
+# Convert a single xxtpt label to hours given a treatment duration value
+convert_one <- function(pattern, duration) {
+  p <- toupper(trimws(pattern))
 
-extract_offset <- function(text) {
-  match <- regexec(
-    "([0-9]+(?:\\.[0-9]+)?)\\s*(MIN(?:UTE)?S?|H(?:OU)?RS?|HOUR[S]?|DAY[S]?)",
-    text,
-    perl = TRUE
-  )
-  pieces <- regmatches(text, match)[[1]]
-
-  if (length(pieces) == 0L) {
-    0
-  } else {
-    offset_to_hours(as.numeric(pieces[2]), pieces[3])
-  }
-}
-
-convert_treatment_pattern <- function(text, duration) {
-  text <- normalize_text(text)
-
-  if (text %in% c(
-    "START OF TREATMENT", "TREATMENT START", "START", "ZERO", "0",
-    "PRE-DOSE", "PREDOSE", "PRE DOSE"
-  )) {
+  # ── Patterns that map to 0 (treatment start / pre-dose) ──────────────────
+  if (grepl("^(START OF TREATMENT|PREDOSE|PRE-DOSE|PRE DOSE|ZERO|BASELINE)$", p)) {
     return(0)
   }
 
-  if (grepl("AFTER START|AFTER TREATMENT START", text)) {
-    return(extract_offset(text))
+  # ── X UNIT AFTER START  (positive offset from start) ─────────────────────
+  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+AFTER\\s+START",
+               p, perl = TRUE)
+  if (m != -1) {
+    sub_str <- regmatches(p, m)
+    parts   <- regmatches(sub_str,
+                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
+    return(parse_to_hours(parts[2], parts[3]))
   }
 
-  if (grepl("BEFORE END|BEFORE EOT|PRE-EOT|PRE EOT", text)) {
-    return(duration - extract_offset(text))
+  # ── X UNIT BEFORE END  (offset subtracted from end) ──────────────────────
+  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+BEFORE\\s+END",
+               p, perl = TRUE)
+  if (m != -1) {
+    sub_str <- regmatches(p, m)
+    parts   <- regmatches(sub_str,
+                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
+    return(duration - parse_to_hours(parts[2], parts[3]))
   }
 
-  if (text %in% c("END OF TREATMENT", "TREATMENT END", "END", "EOT")) {
+  # ── PRE-EOT / PRE EOT  (just before end, no explicit offset → end) ───────
+  if (grepl("^PRE.?EOT$|^PRE.?END OF TREATMENT$", p)) {
     return(duration)
   }
 
-  if (grepl("AFTER END|AFTER EOT|AFTER TREATMENT END", text)) {
-    return(duration + extract_offset(text))
+  # ── END OF TREATMENT / EOT → treatment duration ──────────────────────────
+  if (grepl("^(END OF TREATMENT|EOT|EOI|END OF INFUSION)$", p)) {
+    return(duration)
   }
 
-  stop(sprintf("Unrecognized treatment-relative pattern: %s", text), call. = FALSE)
+  # ── X UNIT AFTER END  (positive offset beyond end) ───────────────────────
+  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+AFTER\\s+END",
+               p, perl = TRUE)
+  if (m != -1) {
+    sub_str <- regmatches(p, m)
+    parts   <- regmatches(sub_str,
+                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
+    return(duration + parse_to_hours(parts[2], parts[3]))
+  }
+
+  # ── Fallback: unrecognised pattern ───────────────────────────────────────
+  warning(sprintf("Unrecognised timepoint pattern: '%s'", pattern))
+  return(NA_real_)
 }
 
-result <- mapply(
-  convert_treatment_pattern,
-  xxtpt[["xxtpt"]],
-  as.numeric(treatment_duration[["treatment_duration"]])
-)
+# Apply conversion row-by-row
+df$result <- mapply(convert_one, df$xxtpt, df$treatment_duration)
 
-output <- data.frame(
-  xxtpt = xxtpt[["xxtpt"]],
-  treatment_duration = treatment_duration[["treatment_duration"]],
-  result = as.numeric(result),
-  check.names = FALSE
-)
+# Write output
+dir.create("outputs", showWarnings = FALSE)
+write.csv(df, "outputs/result.csv", row.names = FALSE)
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, file.path("outputs", "result.csv"), row.names = FALSE)
+# Quick diagnostic print
+print(df)
 ```
 
 ## Output
@@ -233,42 +248,7 @@ write.csv(output, file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"xxtpt","treatment_duration","result"
-"START OF TREATMENT",72,0
-"PRE-DOSE",72,0
-"30 MIN AFTER START",72,0.5
-"2 HOURS AFTER START",72,2
-"END OF TREATMENT",72,72
-"4 HOURS BEFORE END",72,68
-"6 HOURS AFTER END",72,78
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
@@ -290,98 +270,93 @@ write.csv(output, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+library(admiral)
 
-treatment_duration <- read.delim(
-  file.path("inputs", "treatment_duration.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+# Read inputs
+treatment_duration_df <- read.table("inputs/treatment_duration.tsv", header = TRUE, sep = "\t",
+                                    stringsAsFactors = FALSE)
+xxtpt_df              <- read.table("inputs/xxtpt.tsv",               header = TRUE, sep = "\t",
+                                    stringsAsFactors = FALSE)
+
+# Combine row-wise (one row per timepoint, all share the same treatment duration)
+df <- data.frame(
+  xxtpt              = xxtpt_df$xxtpt,
+  treatment_duration = treatment_duration_df$treatment_duration,
+  stringsAsFactors   = FALSE
 )
-xxtpt <- read.delim(
-  file.path("inputs", "xxtpt.tsv"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
 
-stopifnot(nrow(treatment_duration) == nrow(xxtpt))
-
-normalize_text <- function(x) {
-  x <- toupper(trimws(x))
-  x <- gsub("[_]+", " ", x)
-  x <- gsub("\\s+", " ", x)
-  x
+# Helper: convert a numeric value + unit string to hours
+parse_to_hours <- function(num_str, unit_str) {
+  val  <- as.numeric(num_str)
+  unit <- toupper(trimws(unit_str))
+  if (grepl("^MIN",  unit)) return(val / 60)
+  if (grepl("^H",    unit)) return(val)        # HOUR, HOURS, H
+  if (grepl("^DAY",  unit)) return(val * 24)
+  if (grepl("^WEEK", unit)) return(val * 168)
+  return(val)  # unknown unit → assume hours
 }
 
-offset_to_hours <- function(value, unit) {
-  unit <- toupper(unit)
-  if (grepl("^MIN", unit)) {
-    value / 60
-  } else if (grepl("^H", unit)) {
-    value
-  } else if (grepl("^D", unit)) {
-    value * 24
-  } else {
-    stop(sprintf("Unsupported time unit: %s", unit), call. = FALSE)
-  }
-}
+# Convert a single xxtpt label to hours given a treatment duration value
+convert_one <- function(pattern, duration) {
+  p <- toupper(trimws(pattern))
 
-extract_offset <- function(text) {
-  match <- regexec(
-    "([0-9]+(?:\\.[0-9]+)?)\\s*(MIN(?:UTE)?S?|H(?:OU)?RS?|HOUR[S]?|DAY[S]?)",
-    text,
-    perl = TRUE
-  )
-  pieces <- regmatches(text, match)[[1]]
-
-  if (length(pieces) == 0L) {
-    0
-  } else {
-    offset_to_hours(as.numeric(pieces[2]), pieces[3])
-  }
-}
-
-convert_treatment_pattern <- function(text, duration) {
-  text <- normalize_text(text)
-
-  if (text %in% c(
-    "START OF TREATMENT", "TREATMENT START", "START", "ZERO", "0",
-    "PRE-DOSE", "PREDOSE", "PRE DOSE"
-  )) {
+  # ── Patterns that map to 0 (treatment start / pre-dose) ──────────────────
+  if (grepl("^(START OF TREATMENT|PREDOSE|PRE-DOSE|PRE DOSE|ZERO|BASELINE)$", p)) {
     return(0)
   }
 
-  if (grepl("AFTER START|AFTER TREATMENT START", text)) {
-    return(extract_offset(text))
+  # ── X UNIT AFTER START  (positive offset from start) ─────────────────────
+  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+AFTER\\s+START",
+               p, perl = TRUE)
+  if (m != -1) {
+    sub_str <- regmatches(p, m)
+    parts   <- regmatches(sub_str,
+                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
+    return(parse_to_hours(parts[2], parts[3]))
   }
 
-  if (grepl("BEFORE END|BEFORE EOT|PRE-EOT|PRE EOT", text)) {
-    return(duration - extract_offset(text))
+  # ── X UNIT BEFORE END  (offset subtracted from end) ──────────────────────
+  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+BEFORE\\s+END",
+               p, perl = TRUE)
+  if (m != -1) {
+    sub_str <- regmatches(p, m)
+    parts   <- regmatches(sub_str,
+                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
+    return(duration - parse_to_hours(parts[2], parts[3]))
   }
 
-  if (text %in% c("END OF TREATMENT", "TREATMENT END", "END", "EOT")) {
+  # ── PRE-EOT / PRE EOT  (just before end, no explicit offset → end) ───────
+  if (grepl("^PRE.?EOT$|^PRE.?END OF TREATMENT$", p)) {
     return(duration)
   }
 
-  if (grepl("AFTER END|AFTER EOT|AFTER TREATMENT END", text)) {
-    return(duration + extract_offset(text))
+  # ── END OF TREATMENT / EOT → treatment duration ──────────────────────────
+  if (grepl("^(END OF TREATMENT|EOT|EOI|END OF INFUSION)$", p)) {
+    return(duration)
   }
 
-  stop(sprintf("Unrecognized treatment-relative pattern: %s", text), call. = FALSE)
+  # ── X UNIT AFTER END  (positive offset beyond end) ───────────────────────
+  m <- regexpr("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)\\s+AFTER\\s+END",
+               p, perl = TRUE)
+  if (m != -1) {
+    sub_str <- regmatches(p, m)
+    parts   <- regmatches(sub_str,
+                 regexec("^([0-9.]+)\\s*(MIN|HOURS?|H|DAYS?|WEEKS?)", sub_str))[[1]]
+    return(duration + parse_to_hours(parts[2], parts[3]))
+  }
+
+  # ── Fallback: unrecognised pattern ───────────────────────────────────────
+  warning(sprintf("Unrecognised timepoint pattern: '%s'", pattern))
+  return(NA_real_)
 }
 
-result <- mapply(
-  convert_treatment_pattern,
-  xxtpt[["xxtpt"]],
-  as.numeric(treatment_duration[["treatment_duration"]])
-)
+# Apply conversion row-by-row
+df$result <- mapply(convert_one, df$xxtpt, df$treatment_duration)
 
-output <- data.frame(
-  xxtpt = xxtpt[["xxtpt"]],
-  treatment_duration = treatment_duration[["treatment_duration"]],
-  result = as.numeric(result),
-  check.names = FALSE
-)
+# Write output
+dir.create("outputs", showWarnings = FALSE)
+write.csv(df, "outputs/result.csv", row.names = FALSE)
 
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(output, file.path("outputs", "result.csv"), row.names = FALSE)
+# Quick diagnostic print
+print(df)
 ```

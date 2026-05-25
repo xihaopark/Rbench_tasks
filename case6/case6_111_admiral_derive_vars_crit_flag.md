@@ -90,44 +90,31 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages({
-  library(admiral)
-})
-
 dataset <- read.delim(
   file = file.path("inputs", "dataset.tsv"),
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
   colClasses = c(
     USUBJID = "character",
     PARAMCD = "character",
     AVAL = "numeric",
     ULN = "numeric"
-  )
+  ),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
 )
 
 description <- read.delim(
   file = file.path("inputs", "description.tsv"),
-  sep = "\t",
-  header = TRUE,
   stringsAsFactors = FALSE,
-  colClasses = c(description = "character")
+  check.names = FALSE
 )
 
-crit1_description <- description$description[1]
+dataset$CRIT1 <- description$description[1]
+dataset$CRIT1FL <- ifelse(dataset$AVAL > 3 * dataset$ULN, "Y", "N")
 
-result <- derive_vars_crit_flag(
-  dataset = dataset,
-  condition = !is.na(AVAL) & !is.na(ULN) & AVAL > 3 * ULN,
-  description = crit1_description,
-  values_yn = TRUE
-)
-
-result <- result[, c("USUBJID", "PARAMCD", "AVAL", "ULN", "CRIT1", "CRIT1FL")]
+result <- dataset[, c("USUBJID", "PARAMCD", "AVAL", "ULN", "CRIT1", "CRIT1FL")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```
 
 ## Output
@@ -197,42 +184,29 @@ write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, 
 ```text
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages({
-  library(admiral)
-})
-
 dataset <- read.delim(
   file = file.path("inputs", "dataset.tsv"),
-  sep = "\t",
-  header = TRUE,
-  stringsAsFactors = FALSE,
   colClasses = c(
     USUBJID = "character",
     PARAMCD = "character",
     AVAL = "numeric",
     ULN = "numeric"
-  )
+  ),
+  stringsAsFactors = FALSE,
+  check.names = FALSE
 )
 
 description <- read.delim(
   file = file.path("inputs", "description.tsv"),
-  sep = "\t",
-  header = TRUE,
   stringsAsFactors = FALSE,
-  colClasses = c(description = "character")
+  check.names = FALSE
 )
 
-crit1_description <- description$description[1]
+dataset$CRIT1 <- description$description[1]
+dataset$CRIT1FL <- ifelse(dataset$AVAL > 3 * dataset$ULN, "Y", "N")
 
-result <- derive_vars_crit_flag(
-  dataset = dataset,
-  condition = !is.na(AVAL) & !is.na(ULN) & AVAL > 3 * ULN,
-  description = crit1_description,
-  values_yn = TRUE
-)
-
-result <- result[, c("USUBJID", "PARAMCD", "AVAL", "ULN", "CRIT1", "CRIT1FL")]
+result <- dataset[, c("USUBJID", "PARAMCD", "AVAL", "ULN", "CRIT1", "CRIT1FL")]
 
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE)
 ```

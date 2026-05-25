@@ -100,39 +100,33 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
+#!/usr/bin/env Rscript
+
 library(admiral)
 library(dplyr)
-library(readr)
 
 # Read inputs
-dataset <- read_tsv("inputs/dataset.tsv", col_types = cols(
-  USUBJID = col_character(),
-  PARAMCD = col_character(),
-  AVAL    = col_double(),
-  ULN     = col_double()
-))
+dataset <- read.delim("inputs/dataset.tsv", stringsAsFactors = FALSE)
+description_df <- read.delim("inputs/description.tsv", stringsAsFactors = FALSE)
 
-description_df <- read_tsv("inputs/description.tsv", col_types = cols(.default = col_character()))
-crit1_desc <- description_df$description[1]
+# Extract the description text
+crit_description <- description_df$description[1]
 
-# Create outputs directory
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-# Derive criterion flag variables using admiral
-# values_yn = TRUE -> CRIT1FL is "Y" or "N" (not "Y" or NA)
+# Use admiral's derive_vars_crit_flag to add CRIT1 and CRIT1FL
 result <- derive_vars_crit_flag(
-  dataset,
+  dataset     = dataset,
   crit_nr     = 1,
   condition   = AVAL > 3 * ULN,
-  description = crit1_desc,
+  description = crit_description,
   values_yn   = TRUE
 )
 
-# Select and order required columns
+# Select required columns
 result <- result %>%
   select(USUBJID, PARAMCD, AVAL, ULN, CRIT1, CRIT1FL)
 
 # Write output
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
@@ -148,7 +142,48 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"USUBJID","PARAMCD","AVAL","ULN","CRIT1","CRIT1FL"
+1,"ALT",45,20,"ALT greater than three times ULN","N"
+2,"ALT",75,20,"ALT greater than three times ULN","Y"
+3,"AST",30,20,"ALT greater than three times ULN","N"
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -170,38 +205,32 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
+#!/usr/bin/env Rscript
+
 library(admiral)
 library(dplyr)
-library(readr)
 
 # Read inputs
-dataset <- read_tsv("inputs/dataset.tsv", col_types = cols(
-  USUBJID = col_character(),
-  PARAMCD = col_character(),
-  AVAL    = col_double(),
-  ULN     = col_double()
-))
+dataset <- read.delim("inputs/dataset.tsv", stringsAsFactors = FALSE)
+description_df <- read.delim("inputs/description.tsv", stringsAsFactors = FALSE)
 
-description_df <- read_tsv("inputs/description.tsv", col_types = cols(.default = col_character()))
-crit1_desc <- description_df$description[1]
+# Extract the description text
+crit_description <- description_df$description[1]
 
-# Create outputs directory
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-
-# Derive criterion flag variables using admiral
-# values_yn = TRUE -> CRIT1FL is "Y" or "N" (not "Y" or NA)
+# Use admiral's derive_vars_crit_flag to add CRIT1 and CRIT1FL
 result <- derive_vars_crit_flag(
-  dataset,
+  dataset     = dataset,
   crit_nr     = 1,
   condition   = AVAL > 3 * ULN,
-  description = crit1_desc,
+  description = crit_description,
   values_yn   = TRUE
 )
 
-# Select and order required columns
+# Select required columns
 result <- result %>%
   select(USUBJID, PARAMCD, AVAL, ULN, CRIT1, CRIT1FL)
 
 # Write output
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```

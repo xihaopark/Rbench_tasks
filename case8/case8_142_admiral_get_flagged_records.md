@@ -114,27 +114,27 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-library(admiral)
 library(dplyr)
+library(readr)
 
 # Read inputs
-dataset   <- read.delim("inputs/dataset.tsv",   stringsAsFactors = FALSE)
-new_var   <- read.delim("inputs/new_var.tsv",    stringsAsFactors = FALSE)
-threshold <- read.delim("inputs/threshold.tsv",  stringsAsFactors = FALSE)
+dataset   <- read_tsv("inputs/dataset.tsv",   show_col_types = FALSE)
+new_var   <- read_tsv("inputs/new_var.tsv",   show_col_types = FALSE)
+threshold <- read_tsv("inputs/threshold.tsv", show_col_types = FALSE)
 
 # Extract scalar values
-flag_var  <- new_var$new_var[1]      # "HIGHFL"
-thr_val   <- threshold$threshold[1]  # 40
+flag_col <- new_var$new_var[1]      # e.g. "HIGHFL"
+thresh   <- threshold$threshold[1]  # e.g. 40
 
-# Filter records where AVAL > threshold and set the flag variable to "Y"
+# Filter records where AVAL > threshold and set the flag to "Y"
 result <- dataset %>%
-  filter(AVAL > thr_val) %>%
-  mutate(!!flag_var := "Y") %>%
-  select(USUBJID, PARAMCD, AVAL, AVISIT, all_of(flag_var))
+  filter(AVAL > thresh) %>%
+  mutate(!!flag_col := "Y") %>%
+  select(USUBJID, PARAMCD, AVAL, AVISIT, all_of(flag_col))
 
-# Create outputs directory if needed and write result
+# Write output
 dir.create("outputs", showWarnings = FALSE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
+write_csv(result, "outputs/result.csv")
 ```
 
 ## Output
@@ -147,7 +147,47 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+USUBJID,PARAMCD,AVAL,AVISIT,HIGHFL
+01,ALT,45,WEEK 1,Y
+02,AST,52,WEEK 1,Y
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -169,25 +209,25 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
-library(admiral)
 library(dplyr)
+library(readr)
 
 # Read inputs
-dataset   <- read.delim("inputs/dataset.tsv",   stringsAsFactors = FALSE)
-new_var   <- read.delim("inputs/new_var.tsv",    stringsAsFactors = FALSE)
-threshold <- read.delim("inputs/threshold.tsv",  stringsAsFactors = FALSE)
+dataset   <- read_tsv("inputs/dataset.tsv",   show_col_types = FALSE)
+new_var   <- read_tsv("inputs/new_var.tsv",   show_col_types = FALSE)
+threshold <- read_tsv("inputs/threshold.tsv", show_col_types = FALSE)
 
 # Extract scalar values
-flag_var  <- new_var$new_var[1]      # "HIGHFL"
-thr_val   <- threshold$threshold[1]  # 40
+flag_col <- new_var$new_var[1]      # e.g. "HIGHFL"
+thresh   <- threshold$threshold[1]  # e.g. 40
 
-# Filter records where AVAL > threshold and set the flag variable to "Y"
+# Filter records where AVAL > threshold and set the flag to "Y"
 result <- dataset %>%
-  filter(AVAL > thr_val) %>%
-  mutate(!!flag_var := "Y") %>%
-  select(USUBJID, PARAMCD, AVAL, AVISIT, all_of(flag_var))
+  filter(AVAL > thresh) %>%
+  mutate(!!flag_col := "Y") %>%
+  select(USUBJID, PARAMCD, AVAL, AVISIT, all_of(flag_col))
 
-# Create outputs directory if needed and write result
+# Write output
 dir.create("outputs", showWarnings = FALSE)
-write.csv(result, "outputs/result.csv", row.names = FALSE)
+write_csv(result, "outputs/result.csv")
 ```

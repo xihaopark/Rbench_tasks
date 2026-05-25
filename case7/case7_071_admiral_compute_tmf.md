@@ -3,15 +3,15 @@
 ## Metadata
 - Task ID: `pharmaverse/admiral/compute_tmf`
 - Package: `admiral`
-- Model: `codex/gpt-5.5`
-- Agent: `Codex CLI`
-- Status: `PASS`
-- Failure stage: `pass`
+- Model: `claude-code/claude-sonnet-4-6`
+- Agent: `Claude Code`
+- Status: `NO_OUTPUT`
+- Failure stage: `execution_failure`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-PASS
+NO_OUTPUT
 ```
 
 ## Prompt
@@ -54,6 +54,24 @@ Computation: For this fixture's partial-time flags, map hour-only imputation to 
 
 Required columns for result.csv: dtc, dtm, result
 Read input files from inputs/ using relative paths. Write only the required output file(s) under outputs/. Create outputs/ if needed. Do not write alternative filenames.
+
+## Input preview
+
+### dtc.tsv
+dtc
+2020-01-01T12
+2020-01-01T12:30
+2020-01-01
+
+### dtm.tsv
+dtm
+2020-01-01 12:00:00
+2020-01-01 12:30:00
+2020-01-01 00:00:00
+
+### ignore_seconds_flag.tsv
+ignore_seconds_flag
+FALSE
 ```
 
 ## Input
@@ -103,40 +121,33 @@ write.csv(data.frame(dtc = dtc, dtm = dtm_chr, result = result), file.path("outp
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
+library(admiral)
 
-dtc <- read.delim("inputs/dtc.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-dtm <- read.delim("inputs/dtm.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-ignore_seconds <- read.delim(
-  "inputs/ignore_seconds_flag.tsv",
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+# Read inputs
+dtc_df <- read.delim("inputs/dtc.tsv", stringsAsFactors = FALSE)
+dtm_df <- read.delim("inputs/dtm.tsv", stringsAsFactors = FALSE)
+ignore_seconds_flag_df <- read.delim("inputs/ignore_seconds_flag.tsv", stringsAsFactors = FALSE)
+
+dtc <- dtc_df$dtc
+dtm <- as.POSIXct(dtm_df$dtm, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+ignore_seconds_flag <- as.logical(ignore_seconds_flag_df$ignore_seconds_flag[1])
+
+# Compute TMF using admiral::compute_tmf
+result <- compute_tmf(dtc = dtc, dtm = dtm, ignore_seconds_flag = ignore_seconds_flag)
+
+# Build output dataframe
+out <- data.frame(
+  dtc = dtc,
+  dtm = format(dtm, "%Y-%m-%d %H:%M:%S"),
+  result = result,
+  stringsAsFactors = FALSE
 )
 
-ignore_seconds_flag <- isTRUE(as.logical(ignore_seconds$ignore_seconds_flag[1]))
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE)
 
-compute_tmf <- function(x, ignore_seconds = FALSE) {
-  out <- rep(NA_character_, length(x))
-
-  out[grepl("^\\d{4}-\\d{2}-\\d{2}$", x)] <- "H"
-  out[grepl("^\\d{4}-\\d{2}-\\d{2}T\\d{2}$", x)] <- "M"
-
-  minute_only <- grepl("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$", x)
-  out[minute_only] <- if (ignore_seconds) NA_character_ else "S"
-
-  out
-}
-
-result <- data.frame(
-  dtc = dtc$dtc,
-  dtm = dtm$dtm,
-  result = compute_tmf(dtc$dtc, ignore_seconds_flag),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+# Write result
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -151,91 +162,53 @@ write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
 ```
 
 ### LLM Output
-#### `result.csv`
-
-```csv
-"dtc","dtm","result"
-"2020-01-01T12","2020-01-01 12:00:00","M"
-"2020-01-01T12:30","2020-01-01 12:30:00","S"
-"2020-01-01","2020-01-01 00:00:00","H"
-```
-
-#### `case_01/stderr.txt`
-
-```text
-[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
-[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
-[RBioBench Stub Layer] Loaded admiraldev stubs
-[aNCA Stub] Created aNCA namespace with 57 stub functions
-[RBioBench Stub Layer] Loaded aNCA stubs
-[Logrx Stub] Created logrx namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded logrx stubs
-[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
-[RBioBench Stub Layer] Loaded sdtmchecks stubs
-[Other Stubs] Registered 5 stub functions from 5 packages
-[RBioBench Stub Layer] Loaded other package stubs
-[RBioBench Stub Layer] Registered attach hook for admiral
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[Admiral Stub] Injected 40 functions into admiral namespace
-[RBioBench Stub Layer] Stubs registered in admiral namespace
-[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
-```
+No LLM output artifact was produced.
 
 ## Evaluation Result
 ```json
 {
-  "status": "PASS",
-  "tier": "pass",
-  "failure_stage": "pass",
-  "pass": true,
-  "score": 1.0,
-  "message": "",
+  "status": "NO_OUTPUT",
+  "tier": "exec_fail",
+  "failure_stage": "execution_failure",
+  "pass": false,
+  "score": 0.0,
+  "message": "Failed at case_embedded",
   "validation_diagnostics": {
-    "failure_stage": "pass",
-    "tier": "pass",
+    "failure_stage": "execution_failure",
+    "tier": "exec_fail",
     "case_count": 1,
-    "failed_case": null
+    "failed_case": "case_embedded"
   }
 }
 ```
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
+library(admiral)
 
-dtc <- read.delim("inputs/dtc.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-dtm <- read.delim("inputs/dtm.tsv", stringsAsFactors = FALSE, check.names = FALSE)
-ignore_seconds <- read.delim(
-  "inputs/ignore_seconds_flag.tsv",
-  stringsAsFactors = FALSE,
-  check.names = FALSE
+# Read inputs
+dtc_df <- read.delim("inputs/dtc.tsv", stringsAsFactors = FALSE)
+dtm_df <- read.delim("inputs/dtm.tsv", stringsAsFactors = FALSE)
+ignore_seconds_flag_df <- read.delim("inputs/ignore_seconds_flag.tsv", stringsAsFactors = FALSE)
+
+dtc <- dtc_df$dtc
+dtm <- as.POSIXct(dtm_df$dtm, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+ignore_seconds_flag <- as.logical(ignore_seconds_flag_df$ignore_seconds_flag[1])
+
+# Compute TMF using admiral::compute_tmf
+result <- compute_tmf(dtc = dtc, dtm = dtm, ignore_seconds_flag = ignore_seconds_flag)
+
+# Build output dataframe
+out <- data.frame(
+  dtc = dtc,
+  dtm = format(dtm, "%Y-%m-%d %H:%M:%S"),
+  result = result,
+  stringsAsFactors = FALSE
 )
 
-ignore_seconds_flag <- isTRUE(as.logical(ignore_seconds$ignore_seconds_flag[1]))
+# Create outputs directory if needed
+dir.create("outputs", showWarnings = FALSE)
 
-compute_tmf <- function(x, ignore_seconds = FALSE) {
-  out <- rep(NA_character_, length(x))
-
-  out[grepl("^\\d{4}-\\d{2}-\\d{2}$", x)] <- "H"
-  out[grepl("^\\d{4}-\\d{2}-\\d{2}T\\d{2}$", x)] <- "M"
-
-  minute_only <- grepl("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$", x)
-  out[minute_only] <- if (ignore_seconds) NA_character_ else "S"
-
-  out
-}
-
-result <- data.frame(
-  dtc = dtc$dtc,
-  dtm = dtm$dtm,
-  result = compute_tmf(dtc$dtc, ignore_seconds_flag),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-
-dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, "outputs/result.csv", row.names = FALSE, na = "")
+# Write result
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```

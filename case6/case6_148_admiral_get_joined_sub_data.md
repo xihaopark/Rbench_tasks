@@ -88,33 +88,36 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-#!/usr/bin/env Rscript
-
 left <- read.delim(
-  file = file.path("inputs", "left.tsv"),
+  file.path("inputs", "left.tsv"),
   sep = "\t",
+  header = TRUE,
   stringsAsFactors = FALSE,
   colClasses = c(USUBJID = "character")
 )
 
 right <- read.delim(
-  file = file.path("inputs", "right.tsv"),
+  file.path("inputs", "right.tsv"),
   sep = "\t",
+  header = TRUE,
   stringsAsFactors = FALSE,
   colClasses = c(USUBJID = "character")
 )
 
-matched_right <- right[match(left$USUBJID, right$USUBJID), , drop = FALSE]
+left$.row_order <- seq_len(nrow(left))
 
-result <- data.frame(
-  USUBJID = left$USUBJID,
-  AVAL = left$AVAL,
-  TRT01A = matched_right$TRT01A,
-  stringsAsFactors = FALSE
+result <- merge(
+  left,
+  right,
+  by = "USUBJID",
+  all.x = TRUE,
+  sort = FALSE
 )
 
+result <- result[order(result$.row_order), c("USUBJID", "AVAL", "TRT01A")]
+
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```
 
 ## Output
@@ -182,31 +185,34 @@ write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, 
 
 ## Raw Agent Response
 ```text
-#!/usr/bin/env Rscript
-
 left <- read.delim(
-  file = file.path("inputs", "left.tsv"),
+  file.path("inputs", "left.tsv"),
   sep = "\t",
+  header = TRUE,
   stringsAsFactors = FALSE,
   colClasses = c(USUBJID = "character")
 )
 
 right <- read.delim(
-  file = file.path("inputs", "right.tsv"),
+  file.path("inputs", "right.tsv"),
   sep = "\t",
+  header = TRUE,
   stringsAsFactors = FALSE,
   colClasses = c(USUBJID = "character")
 )
 
-matched_right <- right[match(left$USUBJID, right$USUBJID), , drop = FALSE]
+left$.row_order <- seq_len(nrow(left))
 
-result <- data.frame(
-  USUBJID = left$USUBJID,
-  AVAL = left$AVAL,
-  TRT01A = matched_right$TRT01A,
-  stringsAsFactors = FALSE
+result <- merge(
+  left,
+  right,
+  by = "USUBJID",
+  all.x = TRUE,
+  sort = FALSE
 )
 
+result <- result[order(result$.row_order), c("USUBJID", "AVAL", "TRT01A")]
+
 dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
-write.csv(result, file = file.path("outputs", "result.csv"), row.names = FALSE, na = "")
+write.csv(result, file.path("outputs", "result.csv"), row.names = FALSE, na = "")
 ```

@@ -93,7 +93,8 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 
 ### LLM Generated Code
 ```r
-library(admiral)
+#!/usr/bin/env Rscript
+
 library(dplyr)
 
 # Read input
@@ -111,7 +112,7 @@ result <- dataset %>%
   select(USUBJID, PARAMCD, AVAL, ANRLO, ANRHI, ATOXGRDIR)
 
 # Write output
-dir.create("outputs", showWarnings = FALSE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
@@ -128,7 +129,49 @@ write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"USUBJID","PARAMCD","AVAL","ANRLO","ANRHI","ATOXGRDIR"
+1,"ALT",15,20,40,"L"
+1,"AST",55,10,35,"H"
+2,"BILI",0.8,0.2,1.2,"N"
+3,"CREAT",1.5,0.5,1.1,"H"
+```
+
+#### `case_01/stderr.txt`
+
+```text
+[RBioBench Library Aliases] Library aliasing disabled (using stub layer)
+[Admiraldev Stub] Created admiraldev namespace with 10 stub functions
+[RBioBench Stub Layer] Loaded admiraldev stubs
+[aNCA Stub] Created aNCA namespace with 57 stub functions
+[RBioBench Stub Layer] Loaded aNCA stubs
+[Logrx Stub] Created logrx namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded logrx stubs
+[Sdtmchecks Stub] Created sdtmchecks namespace with 2 stub functions
+[RBioBench Stub Layer] Loaded sdtmchecks stubs
+[Other Stubs] Registered 5 stub functions from 5 packages
+[RBioBench Stub Layer] Loaded other package stubs
+[RBioBench Stub Layer] Registered attach hook for admiral
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[Admiral Stub] Injected 40 functions into admiral namespace
+[RBioBench Stub Layer] Stubs registered in admiral namespace
+[RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+```
 
 ## Evaluation Result
 ```json
@@ -150,7 +193,8 @@ No LLM output artifact was produced.
 
 ## Raw Agent Response
 ```text
-library(admiral)
+#!/usr/bin/env Rscript
+
 library(dplyr)
 
 # Read input
@@ -168,6 +212,6 @@ result <- dataset %>%
   select(USUBJID, PARAMCD, AVAL, ANRLO, ANRHI, ATOXGRDIR)
 
 # Write output
-dir.create("outputs", showWarnings = FALSE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
 write.csv(result, "outputs/result.csv", row.names = FALSE)
 ```
