@@ -34,23 +34,21 @@ list of R package functions used by the reference solution.
 
 ## Cost and Runtime Summary
 
-Claude Code logs expose detailed cost and token accounting. Codex CLI logs in
-this run expose per-task total token usage but do not expose local dollar-cost
-or input/output/cache-token breakdowns. Therefore, Codex costs below are
-API-equivalent estimates, not observed Codex CLI bill amounts.
+Claude Code logs expose observed dollar cost and detailed token accounting.
+Codex CLI logs in this run expose only a single per-task `tokens used` number.
+They do not expose local dollar cost, nor input/output/cache-token breakdowns.
+For that reason, this report does not assign a dollar cost to the Codex runs.
 
-The Codex estimate uses the public GPT-5.5 API prices from
-[OpenAI's pricing page](https://openai.com/api/pricing/) as of 2026-05-25:
-$5.00 / 1M input tokens, $0.50 / 1M cached input tokens, and $30.00 / 1M output
-tokens. Because the Codex logs only expose a single total token count, the table
-reports a range from "all tokens priced as non-cached input" to "all tokens
-priced as output."
+The token totals are still useful for comparing scale: the Codex runs consumed
+about 0.92-0.99M logged tokens, while the Claude Code runs logged about
+5.48-8.50M tokens. The dollar columns below should only be read for Claude Code,
+where the agent log reports observed cost directly.
 
-| Case | Agent | Total cost | Avg cost / task | Logged token usage | Avg runtime / task | Total runtime |
+| Case | Agent | Observed total cost | Observed avg cost / task | Logged token usage | Avg runtime / task | Total runtime |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| `case4` | Codex CLI / GPT-5.5 | est. $4.62-$27.70 | est. $0.15-$0.89 | 923,277 | 60s | 31.0 min |
-| `case5` | Codex CLI / GPT-5.5 | est. $4.94-$29.65 | est. $0.16-$0.96 | 988,296 | 60s | 30.8 min |
-| `case6` | Codex CLI / GPT-5.5 | est. $4.58-$27.47 | est. $0.15-$0.89 | 915,739 | 58s | 30.1 min |
+| `case4` | Codex CLI / GPT-5.5 | not logged | not logged | 923,277 | 60s | 31.0 min |
+| `case5` | Codex CLI / GPT-5.5 | not logged | not logged | 988,296 | 60s | 30.8 min |
+| `case6` | Codex CLI / GPT-5.5 | not logged | not logged | 915,739 | 58s | 30.1 min |
 | `case7` | Claude Code / claude-sonnet-4-6 | $4.50 | $0.15 | 5,480,982 | 108s | 55.7 min |
 | `case8` | Claude Code / claude-sonnet-4-6 | $7.58 | $0.24 | 8,496,469 | 109s | 56.1 min |
 
@@ -64,15 +62,16 @@ On 2026-05-25, we reran one representative task
 settings. The Codex CLI again reported total tokens only, with no dollar-cost or
 input/output/cache split.
 
-| Public case | Probe run | Tokens used | API-equivalent cost range |
+| Public case | Probe run | Tokens used | Observed cost |
 | --- | --- | ---: | ---: |
-| `case4` | `cost_probe_case4_base` | 51,207 | $0.26-$1.54 |
-| `case5` | `cost_probe_case5_web_docs` | 28,944 | $0.14-$0.87 |
-| `case6` | `cost_probe_case6_ref_functions` | 90,350 | $0.45-$2.71 |
+| `case4` | `cost_probe_case4_base` | 51,207 | not logged |
+| `case5` | `cost_probe_case5_web_docs` | 28,944 | not logged |
+| `case6` | `cost_probe_case6_ref_functions` | 90,350 | not logged |
 
 These single-task probes are useful as a sanity check that the Codex CLI still
-does not expose cost accounting locally. The full-run token totals above remain
-the better basis for comparing the completed experiments.
+does not expose cost accounting locally. They should not be converted into
+dollar amounts without billing data or a trustworthy input/output/cache-token
+breakdown from the same Codex execution path.
 
 ## Token Usage Summary
 
