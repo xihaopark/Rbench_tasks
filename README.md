@@ -1,5 +1,8 @@
 # RBench Clinic Study Tasks
 
+For a concise English summary of the Codex and Claude Code agent runs, see
+[`AGENT_EXPERIMENT_REPORT.md`](./AGENT_EXPERIMENT_REPORT.md).
+
 ## Codex Agent Experiments
 
 We tested Codex CLI with GPT-5.5 on the same 31 R clinical coding tasks. In each
