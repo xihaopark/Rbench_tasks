@@ -1,6 +1,6 @@
 # case10
 
-31 Claude Code (claude-sonnet-4-6) clinical benchmark-light cases with reference package-function hints. This is the Claude Code counterpart to the Codex reference-function run in case6. Current result is provisional because 3 tasks hit the Claude Code session limit and are scheduled for retry.
+31 Claude Code (claude-sonnet-4-6) clinical benchmark-light cases with reference package-function hints. This is the Claude Code counterpart to the Codex reference-function run in case6.
 
 Each case uses the same presentation template as the previous GitHub case batches. The generated code shown here is the evaluator candidate artifact (`generated_solution.R`) from the Claude Code run, not a regenerated sample.
 
@@ -10,10 +10,10 @@ Summary:
 Total cases: 31
 Agent: Claude Code
 Model: claude-code/claude-sonnet-4-6
-Prompt setting: benchmark-light prompt plus reference package-function list; provisional run with 28/31 CLI tasks completed
+Prompt setting: benchmark-light prompt plus reference package-function list; all 31 CLI tasks completed
 Run directory: internal/coding_agent_outputs/case2_31/claude-code/claude-sonnet-4-6/case10_ref_functions_benchmark_light
-Strict pass@1: 15 / 31 = 0.4839
-Status counts: {'FAIL': 13, 'PASS': 15, 'NO_OUTPUT': 3}
+Strict pass@1: 17 / 31 = 0.5484
+Status counts: {'FAIL': 14, 'PASS': 17}
 Invalid/internal package API pattern: 0 / 31
 ```
 
@@ -54,6 +54,6 @@ Fairness note:
 | 147 | `admiral` | `get_imputation_targets` | `PASS` | `` | [case10_147_admiral_get_imputation_targets.md](./case10_147_admiral_get_imputation_targets.md) |
 | 148 | `admiral` | `get_joined_sub_data` | `PASS` | `` | [case10_148_admiral_get_joined_sub_data.md](./case10_148_admiral_get_joined_sub_data.md) |
 | 160 | `admiral` | `propagate_na_values` | `PASS` | `` | [case10_160_admiral_propagate_na_values.md](./case10_160_admiral_propagate_na_values.md) |
-| 164 | `admiral` | `slice_derivation` | `NO_OUTPUT` | `` | [case10_164_admiral_slice_derivation.md](./case10_164_admiral_slice_derivation.md) |
-| 179 | `ggsurvfit` | `scale_ggsurvfit` | `NO_OUTPUT` | `` | [case10_179_ggsurvfit_scale_ggsurvfit.md](./case10_179_ggsurvfit_scale_ggsurvfit.md) |
-| 180 | `gridify` | `get_layouts` | `NO_OUTPUT` | `` | [case10_180_gridify_get_layouts.md](./case10_180_gridify_get_layouts.md) |
+| 164 | `admiral` | `slice_derivation` | `FAIL` | `` | [case10_164_admiral_slice_derivation.md](./case10_164_admiral_slice_derivation.md) |
+| 179 | `ggsurvfit` | `scale_ggsurvfit` | `PASS` | `` | [case10_179_ggsurvfit_scale_ggsurvfit.md](./case10_179_ggsurvfit_scale_ggsurvfit.md) |
+| 180 | `gridify` | `get_layouts` | `PASS` | `` | [case10_180_gridify_get_layouts.md](./case10_180_gridify_get_layouts.md) |

@@ -20,7 +20,7 @@ The case folders remain separate from this report:
 | `case7` | Claude Code / claude-sonnet-4-6 | Base coding-agent prompt | WebFetch/WebSearch disabled | None |
 | `case8` | Claude Code / claude-sonnet-4-6 | Public R package docs allowed | WebFetch/WebSearch enabled | None |
 | `case9` | Claude Code / claude-sonnet-4-6 | Benchmark-light base prompt | WebFetch/WebSearch disabled | None |
-| `case10` | Claude Code / claude-sonnet-4-6 | Benchmark-light prompt plus reference package-function list | WebFetch/WebSearch disabled | Function list used by reference solution; provisional run |
+| `case10` | Claude Code / claude-sonnet-4-6 | Benchmark-light prompt plus reference package-function list | WebFetch/WebSearch disabled | Function list used by reference solution |
 
 ## Accuracy Summary
 
@@ -32,7 +32,7 @@ The case folders remain separate from this report:
 | `case7` | Claude Code / claude-sonnet-4-6 | Base, no web | 15 / 31 = 48.4% | 5,480,982 |
 | `case8` | Claude Code / claude-sonnet-4-6 | Web access enabled | 13 / 31 = 41.9% | 8,496,469 |
 | `case9` | Claude Code / claude-sonnet-4-6 | Benchmark-light base | 14 / 31 = 45.2% | 3,593,740 |
-| `case10` | Claude Code / claude-sonnet-4-6 | Benchmark-light reference function list | 15 / 31 = 48.4% provisional | 3,995,855 |
+| `case10` | Claude Code / claude-sonnet-4-6 | Benchmark-light reference function list | 17 / 31 = 54.8% | 4,139,212 |
 
 The best run in this batch is `case6`: Codex CLI with GPT-5.5 plus a concise
 list of R package functions used by the reference solution.
@@ -57,7 +57,7 @@ where the agent log reports observed cost directly.
 | `case7` | Claude Code / claude-sonnet-4-6 | $4.50 | $0.15 | 5,480,982 | 108s | 55.7 min |
 | `case8` | Claude Code / claude-sonnet-4-6 | $7.58 | $0.24 | 8,496,469 | 109s | 56.1 min |
 | `case9` | Claude Code / claude-sonnet-4-6 | $4.50 | $0.15 | 3,593,740 | 84s | 43.3 min |
-| `case10` | Claude Code / claude-sonnet-4-6 | $3.88 provisional | $0.14 over completed CLI tasks | 3,995,855 | 73s | 37.9 min |
+| `case10` | Claude Code / claude-sonnet-4-6 | $3.99 | $0.13 | 4,139,212 | 73s | 37.9 min |
 
 For Claude Code, enabling web access increased cost from $4.50 to $7.58, about
 68% higher, while average runtime stayed essentially unchanged. The benchmark-light
@@ -110,7 +110,7 @@ Claude Code.
 | `case7` | Base, no web | 32,153 | 372,542 | 4,965,759 | 110,528 | 0 |
 | `case8` | Web access enabled | 1,519,818 | 410,079 | 6,387,164 | 179,408 | 16 |
 | `case9` | Benchmark-light base | 33,608 | 325,808 | 3,079,320 | 155,004 | 0 |
-| `case10` | Benchmark-light reference function list | 32,870 | 328,361 | 3,530,375 | 104,249 | 0 |
+| `case10` | Benchmark-light reference function list | 34,944 | 349,197 | 3,651,488 | 103,583 | 0 |
 
 For Claude Code, enabling web access greatly increased token use, especially
 input tokens and output tokens. The web-enabled run was more expensive and had a
@@ -127,8 +127,7 @@ lower pass rate on this task subset.
 4. Claude Code web access increased cost substantially but reduced accuracy in
    this experiment.
 5. Claude Code benchmark-light reduced token use relative to the earlier default
-   Claude Code setup, but the current completed/provisional results remain below
-   the best Codex run.
+   Claude Code setup, but the completed results remain below the best Codex run.
 6. The remaining failures in the best Codex run were not execution failures;
    they were mostly precise clinical data-transformation details such as units,
    grouping, row retention, labels, or strict output formatting.

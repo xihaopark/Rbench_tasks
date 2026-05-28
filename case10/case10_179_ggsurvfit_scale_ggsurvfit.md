@@ -5,13 +5,13 @@
 - Package: `ggsurvfit`
 - Model: `claude-code/claude-sonnet-4-6`
 - Agent: `Claude Code`
-- Status: `NO_OUTPUT`
-- Failure stage: `missing_artifact`
+- Status: `PASS`
+- Failure stage: `pass`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-NO_OUTPUT
+PASS
 ```
 
 ## Prompt
@@ -118,7 +118,26 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-dir.create('outputs', showWarnings = FALSE, recursive = TRUE)
+library(ggsurvfit)
+
+# Read inputs
+x_scales_df <- read.delim("inputs/x_scales.tsv", stringsAsFactors = FALSE)
+y_scales_df <- read.delim("inputs/y_scales.tsv", stringsAsFactors = FALSE)
+
+# Parse the list expressions
+x_scales <- eval(parse(text = x_scales_df$expr[1]))
+y_scales <- eval(parse(text = y_scales_df$expr[1]))
+
+# Call scale_ggsurvfit
+result <- ggsurvfit::scale_ggsurvfit(x_scale = x_scales, y_scale = y_scales)
+
+# Build one-row summary table with classes
+scale_classes <- paste(class(result), collapse = ", ")
+out <- data.frame(scale_classes = scale_classes, stringsAsFactors = FALSE)
+
+# Write output
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -131,7 +150,12 @@ dir.create('outputs', showWarnings = FALSE, recursive = TRUE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"scale_classes"
+"scale_ggsurvfit"
+```
 
 #### `case_01/stderr.txt`
 
@@ -155,22 +179,23 @@ No LLM output artifact was produced.
 [Admiral Stub] Injected 40 functions into admiral namespace
 [RBioBench Stub Layer] Stubs registered in admiral namespace
 [RBioBench Stub Layer] .Rprofile loaded. Stubs will be auto-injected when admiral loads.
+Loading required package: ggplot2
 ```
 
 ## Evaluation Result
 ```json
 {
-  "status": "NO_OUTPUT",
-  "tier": "no_output",
-  "failure_stage": "missing_artifact",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "missing_artifact",
-    "tier": "no_output",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
@@ -179,5 +204,24 @@ No LLM output artifact was produced.
 ```text
 #!/usr/bin/env Rscript
 
-dir.create('outputs', showWarnings = FALSE, recursive = TRUE)
+library(ggsurvfit)
+
+# Read inputs
+x_scales_df <- read.delim("inputs/x_scales.tsv", stringsAsFactors = FALSE)
+y_scales_df <- read.delim("inputs/y_scales.tsv", stringsAsFactors = FALSE)
+
+# Parse the list expressions
+x_scales <- eval(parse(text = x_scales_df$expr[1]))
+y_scales <- eval(parse(text = y_scales_df$expr[1]))
+
+# Call scale_ggsurvfit
+result <- ggsurvfit::scale_ggsurvfit(x_scale = x_scales, y_scale = y_scales)
+
+# Build one-row summary table with classes
+scale_classes <- paste(class(result), collapse = ", ")
+out <- data.frame(scale_classes = scale_classes, stringsAsFactors = FALSE)
+
+# Write output
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+write.csv(out, "outputs/result.csv", row.names = FALSE)
 ```

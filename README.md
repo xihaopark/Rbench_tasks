@@ -38,7 +38,7 @@ worktree, a task-level prompt, and restricted tool use.
 | [`case7`](./case7/) | Claude Code / claude-sonnet-4-6 | Base prompt, no web access (equivalent to case4). | 15 / 31 = 48.39% |
 | [`case8`](./case8/) | Claude Code / claude-sonnet-4-6 | Same as case7, but WebFetch and WebSearch tools enabled (equivalent to case5). | 13 / 31 = 41.94% |
 | [`case9`](./case9/) | Claude Code / claude-sonnet-4-6 | Benchmark-light base prompt, using a lightweight Claude Code CLI invocation. | 14 / 31 = 45.16% |
-| [`case10`](./case10/) | Claude Code / claude-sonnet-4-6 | Benchmark-light prompt plus the reference package-function list. Current result is provisional because 3 tasks hit the Claude Code session limit and are scheduled for retry. | 15 / 31 = 48.39% provisional |
+| [`case10`](./case10/) | Claude Code / claude-sonnet-4-6 | Benchmark-light prompt plus the reference package-function list. | 17 / 31 = 54.84% |
 
 Observation: unlike Codex, enabling web search in Claude Code did not maintain
 or improve the score on this 31-task subset. The benchmark-light setup reduces
@@ -74,7 +74,7 @@ Case folders:
 - `case7/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, base prompt (no web).
 - `case8/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, web access enabled.
 - `case9/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, benchmark-light base prompt.
-- `case10/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, benchmark-light prompt plus reference package-function list. Current result is provisional.
+- `case10/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, benchmark-light prompt plus reference package-function list.
 
 Summary:
 

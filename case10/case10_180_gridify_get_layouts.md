@@ -5,13 +5,13 @@
 - Package: `gridify`
 - Model: `claude-code/claude-sonnet-4-6`
 - Agent: `Claude Code`
-- Status: `NO_OUTPUT`
-- Failure stage: `missing_artifact`
+- Status: `PASS`
+- Failure stage: `pass`
 - Pattern: ``
 
 ## Pass/Error
 ```text
-NO_OUTPUT
+PASS
 ```
 
 ## Prompt
@@ -83,7 +83,35 @@ write.csv(result_df, file.path("outputs", "result.csv"), row.names = FALSE)
 ```r
 #!/usr/bin/env Rscript
 
-dir.create('outputs', showWarnings = FALSE, recursive = TRUE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+
+layouts <- gridify::get_layouts()
+
+if (is.data.frame(layouts)) {
+  result_df <- data.frame(
+    id = seq_len(nrow(layouts)),
+    result = as.character(layouts[[1]]),
+    stringsAsFactors = FALSE
+  )
+} else if (is.list(layouts)) {
+  nms <- names(layouts)
+  if (is.null(nms)) nms <- seq_along(layouts)
+  result_df <- data.frame(
+    id = as.character(nms),
+    result = as.character(unlist(layouts)),
+    stringsAsFactors = FALSE
+  )
+} else {
+  nms <- names(layouts)
+  if (is.null(nms)) nms <- seq_along(layouts)
+  result_df <- data.frame(
+    id = as.character(nms),
+    result = as.character(layouts),
+    stringsAsFactors = FALSE
+  )
+}
+
+write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 ```
 
 ## Output
@@ -100,7 +128,16 @@ dir.create('outputs', showWarnings = FALSE, recursive = TRUE)
 ```
 
 ### LLM Output
-No LLM output artifact was produced.
+#### `result.csv`
+
+```csv
+"id","result"
+"1","complex_layout"
+"2","simple_layout"
+"3","pharma_layout_base"
+"4","pharma_layout_A4"
+"5","pharma_layout_letter"
+```
 
 #### `case_01/stderr.txt`
 
@@ -129,17 +166,17 @@ No LLM output artifact was produced.
 ## Evaluation Result
 ```json
 {
-  "status": "NO_OUTPUT",
-  "tier": "no_output",
-  "failure_stage": "missing_artifact",
-  "pass": false,
-  "score": 0.0,
-  "message": "Failed at case_embedded",
+  "status": "PASS",
+  "tier": "pass",
+  "failure_stage": "pass",
+  "pass": true,
+  "score": 1.0,
+  "message": "",
   "validation_diagnostics": {
-    "failure_stage": "missing_artifact",
-    "tier": "no_output",
+    "failure_stage": "pass",
+    "tier": "pass",
     "case_count": 1,
-    "failed_case": "case_embedded"
+    "failed_case": null
   }
 }
 ```
@@ -148,5 +185,33 @@ No LLM output artifact was produced.
 ```text
 #!/usr/bin/env Rscript
 
-dir.create('outputs', showWarnings = FALSE, recursive = TRUE)
+dir.create("outputs", showWarnings = FALSE, recursive = TRUE)
+
+layouts <- gridify::get_layouts()
+
+if (is.data.frame(layouts)) {
+  result_df <- data.frame(
+    id = seq_len(nrow(layouts)),
+    result = as.character(layouts[[1]]),
+    stringsAsFactors = FALSE
+  )
+} else if (is.list(layouts)) {
+  nms <- names(layouts)
+  if (is.null(nms)) nms <- seq_along(layouts)
+  result_df <- data.frame(
+    id = as.character(nms),
+    result = as.character(unlist(layouts)),
+    stringsAsFactors = FALSE
+  )
+} else {
+  nms <- names(layouts)
+  if (is.null(nms)) nms <- seq_along(layouts)
+  result_df <- data.frame(
+    id = as.character(nms),
+    result = as.character(layouts),
+    stringsAsFactors = FALSE
+  )
+}
+
+write.csv(result_df, "outputs/result.csv", row.names = FALSE)
 ```
