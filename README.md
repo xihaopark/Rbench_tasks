@@ -28,17 +28,21 @@ result on this 31-task subset.
 
 ## Claude Code Agent Experiments
 
-We also tested Claude Code (claude-sonnet-4-6) on the same 31 tasks with equivalent
-prompt settings, to enable a direct cross-agent comparison.
+We also tested Claude Code (claude-sonnet-4-6) on the same 31 tasks. The first
+two Claude Code runs use the earlier default setup. The later benchmark-light
+runs follow the lighter style used by coding-agent benchmarks: a per-task
+worktree, a task-level prompt, and restricted tool use.
 
 | Folder | Agent | What the agent was given | Result |
 | --- | --- | --- | ---: |
 | [`case7`](./case7/) | Claude Code / claude-sonnet-4-6 | Base prompt, no web access (equivalent to case4). | 15 / 31 = 48.39% |
 | [`case8`](./case8/) | Claude Code / claude-sonnet-4-6 | Same as case7, but WebFetch and WebSearch tools enabled (equivalent to case5). | 13 / 31 = 41.94% |
+| [`case9`](./case9/) | Claude Code / claude-sonnet-4-6 | Benchmark-light base prompt, using a lightweight Claude Code CLI invocation. | 14 / 31 = 45.16% |
+| [`case10`](./case10/) | Claude Code / claude-sonnet-4-6 | Benchmark-light prompt plus the reference package-function list. Current result is provisional because 3 tasks hit the Claude Code session limit and are scheduled for retry. | 15 / 31 = 48.39% provisional |
 
 Observation: unlike Codex, enabling web search in Claude Code did not maintain
-or improve the score on this 31-task subset. The reference-function hint variant
-(equivalent to case6) is pending.
+or improve the score on this 31-task subset. The benchmark-light setup reduces
+Claude Code token use, but so far it has not matched the best Codex result.
 
 ---
 
@@ -69,6 +73,8 @@ Case folders:
 - `case6/`: the same 31 selected cases, Codex CLI with GPT-5.5 and reference package-function list included.
 - `case7/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, base prompt (no web).
 - `case8/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, web access enabled.
+- `case9/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, benchmark-light base prompt.
+- `case10/`: the same 31 selected cases, Claude Code with claude-sonnet-4-6, benchmark-light prompt plus reference package-function list. Current result is provisional.
 
 Summary:
 

@@ -7,7 +7,8 @@ solution script, and leave output files for an automatic evaluator.
 The case folders remain separate from this report:
 
 - `case4`, `case5`, `case6`: Codex CLI with GPT-5.5
-- `case7`, `case8`: Claude Code with claude-sonnet-4-6
+- `case7`, `case8`: Claude Code with claude-sonnet-4-6, earlier default setup
+- `case9`, `case10`: Claude Code with claude-sonnet-4-6, benchmark-light setup
 
 ## Experimental Settings
 
@@ -18,6 +19,8 @@ The case folders remain separate from this report:
 | `case6` | Codex CLI / GPT-5.5 | Base prompt plus reference package-function list | No explicit web-doc instruction | Function list used by reference solution |
 | `case7` | Claude Code / claude-sonnet-4-6 | Base coding-agent prompt | WebFetch/WebSearch disabled | None |
 | `case8` | Claude Code / claude-sonnet-4-6 | Public R package docs allowed | WebFetch/WebSearch enabled | None |
+| `case9` | Claude Code / claude-sonnet-4-6 | Benchmark-light base prompt | WebFetch/WebSearch disabled | None |
+| `case10` | Claude Code / claude-sonnet-4-6 | Benchmark-light prompt plus reference package-function list | WebFetch/WebSearch disabled | Function list used by reference solution; provisional run |
 
 ## Accuracy Summary
 
@@ -28,6 +31,8 @@ The case folders remain separate from this report:
 | `case6` | Codex CLI / GPT-5.5 | Reference function list | 22 / 31 = 71.0% | 915,739 |
 | `case7` | Claude Code / claude-sonnet-4-6 | Base, no web | 15 / 31 = 48.4% | 5,480,982 |
 | `case8` | Claude Code / claude-sonnet-4-6 | Web access enabled | 13 / 31 = 41.9% | 8,496,469 |
+| `case9` | Claude Code / claude-sonnet-4-6 | Benchmark-light base | 14 / 31 = 45.2% | 3,593,740 |
+| `case10` | Claude Code / claude-sonnet-4-6 | Benchmark-light reference function list | 15 / 31 = 48.4% provisional | 3,995,855 |
 
 The best run in this batch is `case6`: Codex CLI with GPT-5.5 plus a concise
 list of R package functions used by the reference solution.
@@ -51,9 +56,13 @@ where the agent log reports observed cost directly.
 | `case6` | Codex CLI / GPT-5.5 | not logged | not logged | 915,739 | 58s | 30.1 min |
 | `case7` | Claude Code / claude-sonnet-4-6 | $4.50 | $0.15 | 5,480,982 | 108s | 55.7 min |
 | `case8` | Claude Code / claude-sonnet-4-6 | $7.58 | $0.24 | 8,496,469 | 109s | 56.1 min |
+| `case9` | Claude Code / claude-sonnet-4-6 | $4.50 | $0.15 | 3,593,740 | 84s | 43.3 min |
+| `case10` | Claude Code / claude-sonnet-4-6 | $3.88 provisional | $0.14 over completed CLI tasks | 3,995,855 | 73s | 37.9 min |
 
 For Claude Code, enabling web access increased cost from $4.50 to $7.58, about
-68% higher, while average runtime stayed essentially unchanged.
+68% higher, while average runtime stayed essentially unchanged. The benchmark-light
+base run reduced token use from 5.48M to 3.59M tokens, but did not improve
+accuracy in the completed base setting.
 
 ## Single-Task Codex Cost Probe
 
@@ -100,6 +109,8 @@ Claude Code.
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | `case7` | Base, no web | 32,153 | 372,542 | 4,965,759 | 110,528 | 0 |
 | `case8` | Web access enabled | 1,519,818 | 410,079 | 6,387,164 | 179,408 | 16 |
+| `case9` | Benchmark-light base | 33,608 | 325,808 | 3,079,320 | 155,004 | 0 |
+| `case10` | Benchmark-light reference function list | 32,870 | 328,361 | 3,530,375 | 104,249 | 0 |
 
 For Claude Code, enabling web access greatly increased token use, especially
 input tokens and output tokens. The web-enabled run was more expensive and had a
@@ -115,7 +126,10 @@ lower pass rate on this task subset.
    19/31 to 22/31.
 4. Claude Code web access increased cost substantially but reduced accuracy in
    this experiment.
-5. The remaining failures in the best Codex run were not execution failures;
+5. Claude Code benchmark-light reduced token use relative to the earlier default
+   Claude Code setup, but the current completed/provisional results remain below
+   the best Codex run.
+6. The remaining failures in the best Codex run were not execution failures;
    they were mostly precise clinical data-transformation details such as units,
    grouping, row retention, labels, or strict output formatting.
 
@@ -129,6 +143,8 @@ case5/
 case6/
 case7/
 case8/
+case9/
+case10/
 ```
 
 Local run directories used to produce this report:
@@ -139,4 +155,6 @@ internal/coding_agent_outputs/case2_31/codex/gpt-5.5/case6_web_docs/
 internal/coding_agent_outputs/case2_31/codex/gpt-5.5/case7_ref_functions/
 internal/coding_agent_outputs/case2_31/claude-code/claude-sonnet-4-6/case8_base/
 internal/coding_agent_outputs/case2_31/claude-code/claude-sonnet-4-6/case9_web_docs/
+internal/coding_agent_outputs/case2_31/claude-code/claude-sonnet-4-6/case9_benchmark_light/
+internal/coding_agent_outputs/case2_31/claude-code/claude-sonnet-4-6/case10_ref_functions_benchmark_light/
 ```
